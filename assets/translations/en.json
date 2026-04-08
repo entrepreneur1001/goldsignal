@@ -1,0 +1,160 @@
+{
+  "app_name": "GoldSignal",
+  "welcome": "Welcome to GoldSignal",
+  "guest_mode": "Continue as Guest",
+  "sign_in": "Sign In",
+  "sign_up": "Sign Up",
+  "email": "Email",
+  "password": "Password",
+  "forgot_password": "Forgot Password?",
+  
+  "dashboard": {
+    "title": "Dashboard",
+    "gold_price": "Gold Price",
+    "silver_price": "Silver Price",
+    "last_updated": "Last Updated",
+    "refresh": "Refresh",
+    "offline_mode": "Offline Mode",
+    "per_ounce": "Per Ounce",
+    "per_gram": "Per Gram"
+  },
+  
+  "calculator": {
+    "title": "Calculator",
+    "weight": "Weight",
+    "karat": "Karat",
+    "quantity": "Quantity",
+    "total_value": "Total Value",
+    "calculate": "Calculate",
+    "grams": "Grams",
+    "ounces": "Ounces"
+  },
+  
+  "alerts": {
+    "title": "Price Alerts",
+    "create_alert": "Create Alert",
+    "no_alerts": "No alerts set",
+    "alert_when": "Alert when",
+    "price_above": "Price goes above",
+    "price_below": "Price goes below",
+    "delete_alert": "Delete Alert"
+  },
+  
+  "chatbot": {
+    "title": "Metals Bot",
+    "placeholder": "Ask me about gold and silver...",
+    "send": "Send",
+    "api_key_required": "Please add your OpenAI API key in settings",
+    "thinking": "Thinking...",
+    "error": "Sorry, I couldn't process that request"
+  },
+  
+  "portfolio": {
+    "title": "Portfolio",
+    "add_entry": "Add Entry",
+    "total_value": "Total Value",
+    "performance": "Performance",
+    "holdings": "Holdings",
+    "purchase_date": "Purchase Date",
+    "purchase_price": "Purchase Price",
+    "current_value": "Current Value",
+    "profit_loss": "Profit/Loss"
+  },
+  
+  "jewelry": {
+    "title": "Jewelry Price Check",
+    "store_name": "Store Name",
+    "quoted_price": "Quoted Price",
+    "making_charges": "Making Charges",
+    "vat": "VAT %",
+    "analyze": "Analyze",
+    "fair_price": "Fair Price",
+    "high_price": "High Price",
+    "very_high_price": "Very High Price",
+    "market_value": "Market Value",
+    "premium": "Premium"
+  },
+  
+  "insights": {
+    "title": "Market Insights",
+    "todays_move": "Today's Move",
+    "why_moved": "Why Gold Moved",
+    "confidence": "Confidence",
+    "key_factors": "Key Factors",
+    "assumptions": "Assumptions",
+    "refresh_insights": "Refresh Insights"
+  },
+  
+  "profile": {
+    "title": "Profile",
+    "personal_info": "Personal Information",
+    "preferences": "Preferences",
+    "display_name": "Display Name",
+    "phone": "Phone Number",
+    "country": "Country",
+    "language": "Language",
+    "currency": "Currency",
+    "theme": "Theme",
+    "dark_mode": "Dark Mode",
+    "notifications": "Notifications",
+    "sign_out": "Sign Out",
+    "create_account": "Create Account",
+    "guest_account": "Guest Account",
+    "convert_account": "Convert your guest account to save data"
+  },
+  
+  "currencies": {
+    "USD": "US Dollar",
+    "SAR": "Saudi Riyal",
+    "AED": "UAE Dirham",
+    "EGP": "Egyptian Pound",
+    "KWD": "Kuwaiti Dinar",
+    "BHD": "Bahraini Dinar",
+    "OMR": "Omani Rial",
+    "QAR": "Qatari Riyal",
+    "JOD": "Jordanian Dinar"
+  },
+  
+  "karats": {
+    "24K": "24K Pure Gold",
+    "22K": "22K Gold",
+    "21K": "21K Gold",
+    "18K": "18K Gold"
+  },
+  
+  "errors": {
+    "network": "Network connection error",
+    "api_limit": "API limit reached",
+    "auth_failed": "Authentication failed",
+    "invalid_email": "Invalid email address",
+    "weak_password": "Password too weak",
+    "user_not_found": "User not found",
+    "wrong_password": "Wrong password",
+    "something_wrong": "Something went wrong"
+  },
+  
+  "success": {
+    "alert_created": "Alert created successfully",
+    "alert_deleted": "Alert deleted",
+    "profile_updated": "Profile updated",
+    "entry_saved": "Entry saved to portfolio",
+    "copied": "Copied to clipboard"
+  },
+  
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "share": "Share",
+    "copy": "Copy",
+    "close": "Close",
+    "loading": "Loading...",
+    "retry": "Retry",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "view_all": "View All"
+  }
+}

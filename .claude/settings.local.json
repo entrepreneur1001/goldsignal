@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter analyze:*)",
+      "Bash(flutter pub:*)",
+      "Bash(flutter build:*)",
+      "Bash(flutter:*)",
+      "Bash(pod install:*)",
+      "Bash(xcodebuild:*)",
+      "Bash(grep:*)",
+      "Bash(pod cache clean:*)",
+      "Bash(killall:*)",
+      "Bash(pod update:*)",
+      "Bash(find:*)",
+      "Bash(wc:*)",
+      "Bash(curl -s -L \"https://metalpriceapi.com/documentation\")",
+      "Bash(curl -s -L \"https://metalpriceapi.com\")"
+    ],
+    "deny": [],
+    "ask": [],
+    "additionalDirectories": [
+      "/Users/mostafaradwan/Library/Developer/Xcode/DerivedData"
+    ]
+  }
+}

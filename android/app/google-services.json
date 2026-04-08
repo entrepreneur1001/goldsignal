@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "180716366944",
+    "project_id": "goldsignal1001",
+    "storage_bucket": "goldsignal1001.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:180716366944:android:fdb5676e6dbd755146e705",
+        "android_client_info": {
+          "package_name": "com.goldsignal.goldsignal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAU9JFsceJvMZeDcRLArvu5_00eCf2xfXI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

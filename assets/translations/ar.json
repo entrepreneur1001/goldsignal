@@ -1,0 +1,160 @@
+{
+  "app_name": "جولد سيجنال",
+  "welcome": "مرحباً بك في جولد سيجنال",
+  "guest_mode": "المتابعة كضيف",
+  "sign_in": "تسجيل الدخول",
+  "sign_up": "إنشاء حساب",
+  "email": "البريد الإلكتروني",
+  "password": "كلمة المرور",
+  "forgot_password": "نسيت كلمة المرور؟",
+  
+  "dashboard": {
+    "title": "الرئيسية",
+    "gold_price": "سعر الذهب",
+    "silver_price": "سعر الفضة",
+    "last_updated": "آخر تحديث",
+    "refresh": "تحديث",
+    "offline_mode": "وضع عدم الاتصال",
+    "per_ounce": "للأوقية",
+    "per_gram": "للجرام"
+  },
+  
+  "calculator": {
+    "title": "الحاسبة",
+    "weight": "الوزن",
+    "karat": "العيار",
+    "quantity": "الكمية",
+    "total_value": "القيمة الإجمالية",
+    "calculate": "احسب",
+    "grams": "جرام",
+    "ounces": "أوقية"
+  },
+  
+  "alerts": {
+    "title": "تنبيهات الأسعار",
+    "create_alert": "إنشاء تنبيه",
+    "no_alerts": "لا توجد تنبيهات",
+    "alert_when": "التنبيه عندما",
+    "price_above": "يرتفع السعر فوق",
+    "price_below": "ينخفض السعر تحت",
+    "delete_alert": "حذف التنبيه"
+  },
+  
+  "chatbot": {
+    "title": "مساعد المعادن",
+    "placeholder": "اسألني عن الذهب والفضة...",
+    "send": "إرسال",
+    "api_key_required": "يرجى إضافة مفتاح OpenAI في الإعدادات",
+    "thinking": "جاري التفكير...",
+    "error": "عذراً، لم أتمكن من معالجة هذا الطلب"
+  },
+  
+  "portfolio": {
+    "title": "المحفظة",
+    "add_entry": "إضافة إدخال",
+    "total_value": "القيمة الإجمالية",
+    "performance": "الأداء",
+    "holdings": "المقتنيات",
+    "purchase_date": "تاريخ الشراء",
+    "purchase_price": "سعر الشراء",
+    "current_value": "القيمة الحالية",
+    "profit_loss": "الربح/الخسارة"
+  },
+  
+  "jewelry": {
+    "title": "فحص سعر المجوهرات",
+    "store_name": "اسم المتجر",
+    "quoted_price": "السعر المعروض",
+    "making_charges": "رسوم الصياغة",
+    "vat": "ضريبة القيمة المضافة %",
+    "analyze": "تحليل",
+    "fair_price": "سعر عادل",
+    "high_price": "سعر مرتفع",
+    "very_high_price": "سعر مرتفع جداً",
+    "market_value": "القيمة السوقية",
+    "premium": "العلاوة"
+  },
+  
+  "insights": {
+    "title": "رؤى السوق",
+    "todays_move": "حركة اليوم",
+    "why_moved": "لماذا تحرك الذهب",
+    "confidence": "مستوى الثقة",
+    "key_factors": "العوامل الرئيسية",
+    "assumptions": "الافتراضات",
+    "refresh_insights": "تحديث الرؤى"
+  },
+  
+  "profile": {
+    "title": "الملف الشخصي",
+    "personal_info": "المعلومات الشخصية",
+    "preferences": "التفضيلات",
+    "display_name": "الاسم المعروض",
+    "phone": "رقم الهاتف",
+    "country": "الدولة",
+    "language": "اللغة",
+    "currency": "العملة",
+    "theme": "المظهر",
+    "dark_mode": "الوضع الليلي",
+    "notifications": "الإشعارات",
+    "sign_out": "تسجيل الخروج",
+    "create_account": "إنشاء حساب",
+    "guest_account": "حساب ضيف",
+    "convert_account": "حول حساب الضيف لحفظ البيانات"
+  },
+  
+  "currencies": {
+    "USD": "دولار أمريكي",
+    "SAR": "ريال سعودي",
+    "AED": "درهم إماراتي",
+    "EGP": "جنيه مصري",
+    "KWD": "دينار كويتي",
+    "BHD": "دينار بحريني",
+    "OMR": "ريال عماني",
+    "QAR": "ريال قطري",
+    "JOD": "دينار أردني"
+  },
+  
+  "karats": {
+    "24K": "ذهب عيار 24",
+    "22K": "ذهب عيار 22",
+    "21K": "ذهب عيار 21",
+    "18K": "ذهب عيار 18"
+  },
+  
+  "errors": {
+    "network": "خطأ في الاتصال بالشبكة",
+    "api_limit": "تم الوصول لحد الاستخدام",
+    "auth_failed": "فشل التحقق من الهوية",
+    "invalid_email": "البريد الإلكتروني غير صالح",
+    "weak_password": "كلمة المرور ضعيفة",
+    "user_not_found": "المستخدم غير موجود",
+    "wrong_password": "كلمة المرور خاطئة",
+    "something_wrong": "حدث خطأ ما"
+  },
+  
+  "success": {
+    "alert_created": "تم إنشاء التنبيه بنجاح",
+    "alert_deleted": "تم حذف التنبيه",
+    "profile_updated": "تم تحديث الملف الشخصي",
+    "entry_saved": "تم حفظ الإدخال في المحفظة",
+    "copied": "تم النسخ"
+  },
+  
+  "common": {
+    "ok": "موافق",
+    "cancel": "إلغاء",
+    "save": "حفظ",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "share": "مشاركة",
+    "copy": "نسخ",
+    "close": "إغلاق",
+    "loading": "جاري التحميل...",
+    "retry": "إعادة المحاولة",
+    "search": "بحث",
+    "filter": "تصفية",
+    "sort": "ترتيب",
+    "view_all": "عرض الكل"
+  }
+}
