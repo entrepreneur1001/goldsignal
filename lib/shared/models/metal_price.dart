@@ -42,12 +42,8 @@ class MetalPrice {
     'changePercent24h': changePercent24h,
   };
   
-  // Get price per gram (for compatibility with different currencies)
-  double getPricePerGram(String targetCurrency) {
-    // For now, return the stored price per gram
-    // In a real app, you'd convert based on exchange rates
-    return pricePerGram;
-  }
+  // Price per gram (already in the selected currency from provider push)
+  double getPricePerGram() => pricePerGram;
   
   // Calculate price for specific karat
   double getPriceForKarat(String karat) {

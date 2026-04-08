@@ -184,6 +184,8 @@ class AuthService {
           return 'Wrong password provided.';
         case 'email-already-in-use':
           return 'An account already exists with this email.';
+        case 'credential-already-in-use':
+          return 'This email is already linked to another account. Try signing in instead.';
         case 'invalid-email':
           return 'Invalid email address.';
         case 'weak-password':

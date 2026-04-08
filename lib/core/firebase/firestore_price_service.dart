@@ -90,8 +90,8 @@ class FirestorePriceService {
     }
   }
 
-  /// Re-check Firestore freshness inside a transaction to avoid duplicate API calls.
-  /// Returns fresh data if another user just updated, otherwise null.
+  /// Re-check if another user *just* refreshed Firestore (within 30 seconds)
+  /// to avoid duplicate scraper/API calls from concurrent users.
   Future<Map<String, dynamic>?> checkAndLock(String currency) async {
     try {
       final doc = await _firestore.collection('prices').doc(currency).get();
@@ -101,8 +101,8 @@ class FirestorePriceService {
       final updatedAt = (data['updatedAt'] as Timestamp?)?.toDate();
       if (updatedAt == null) return null;
 
-      // If someone else just refreshed within staleDuration, use their data
-      if (DateTime.now().difference(updatedAt) <= staleDuration) {
+      // Only use if another user refreshed within the last 30 seconds
+      if (DateTime.now().difference(updatedAt).inSeconds <= 30) {
         return Map<String, dynamic>.from(data);
       }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/firebase/auth_service.dart';
 import '../../../../shared/providers/currency_provider.dart';
@@ -50,6 +51,58 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
   }
   
+  Future<void> _deleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Account'),
+        content: const Text(
+          'This will permanently delete your account and all your data. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        // Delete Firestore user data
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .delete();
+        // Delete the Firebase Auth account
+        await user.delete();
+      }
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AuthScreen()),
+          (route) => false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete account: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _signOut() async {
     showDialog(
       context: context,
@@ -172,13 +225,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                           if (_currentUser?.isAnonymous ?? true)
                             ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(
+                              onPressed: () async {
+                                await Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (_) => const AuthScreen(),
+                                    builder: (_) => const AuthScreen(isLinkingGuest: true),
                                   ),
                                 );
+                                // Refresh user state after returning
+                                if (mounted) {
+                                  setState(() {
+                                    _currentUser = FirebaseAuth.instance.currentUser;
+                                  });
+                                }
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.white,
@@ -371,6 +430,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
               
+              // Delete Account Button
+              if (!(_currentUser?.isAnonymous ?? true))
+                Center(
+                  child: TextButton(
+                    onPressed: _deleteAccount,
+                    child: const Text(
+                      'Delete Account',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+
               const SizedBox(height: 32),
             ],
           ),

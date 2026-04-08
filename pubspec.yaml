@@ -41,9 +41,10 @@ dependencies:
   
   # Networking
   dio: ^5.3.0
+  html: ^0.15.5
   
   # AI & Language
-  dart_openai: ^6.1.1
+  groq: ^1.1.1
   
   # Storage
   hive_flutter: ^1.1.0

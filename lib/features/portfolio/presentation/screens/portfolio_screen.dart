@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../../../../core/firebase/firestore_portfolio_service.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
-import '../../../../shared/models/metal_price.dart';
 
 class PortfolioScreen extends ConsumerStatefulWidget {
   const PortfolioScreen({super.key});
@@ -15,7 +16,14 @@ class PortfolioScreen extends ConsumerStatefulWidget {
 
 class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
   late Box<PortfolioItem> _portfolioBox;
+  final FirestorePortfolioService _firestoreService = FirestorePortfolioService();
   bool _isInitialized = false;
+
+  String? get _uid => FirebaseAuth.instance.currentUser?.uid;
+  bool get _isLoggedIn {
+    final user = FirebaseAuth.instance.currentUser;
+    return user != null && !user.isAnonymous;
+  }
 
   @override
   void initState() {
@@ -30,9 +38,28 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     _portfolioBox = Hive.isBoxOpen('portfolio')
         ? Hive.box<PortfolioItem>('portfolio')
         : await Hive.openBox<PortfolioItem>('portfolio');
+
+    // If logged in, sync from Firestore
+    if (_isLoggedIn) {
+      await _loadFromFirestore();
+    }
+
     setState(() {
       _isInitialized = true;
     });
+  }
+
+  Future<void> _loadFromFirestore() async {
+    try {
+      final items = await _firestoreService.loadAll(_uid!);
+      // Replace local Hive data with Firestore data
+      await _portfolioBox.clear();
+      for (final data in items) {
+        _portfolioBox.add(PortfolioItem.fromFirestoreMap(data));
+      }
+    } catch (e) {
+      print('Failed to load portfolio from Firestore: $e');
+    }
   }
 
   void _showAddItemDialog() {
@@ -41,8 +68,50 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => AddPortfolioItemDialog(
-        onAdd: (item) {
+        onSave: (item) async {
           _portfolioBox.add(item);
+          // Sync to Firestore if logged in
+          if (_isLoggedIn) {
+            try {
+              final docId = await _firestoreService.saveItem(
+                _uid!,
+                item.toFirestoreMap(),
+              );
+              item.firestoreId = docId;
+              // Update the last item in Hive with the firestoreId
+              await _portfolioBox.putAt(_portfolioBox.length - 1, item);
+            } catch (e) {
+              print('Failed to sync new item to Firestore: $e');
+            }
+          }
+          setState(() {});
+        },
+      ),
+    );
+  }
+
+  void _showEditItemDialog(PortfolioItem item, int index) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AddPortfolioItemDialog(
+        existingItem: item,
+        onSave: (updatedItem) async {
+          updatedItem.firestoreId = item.firestoreId;
+          await _portfolioBox.putAt(index, updatedItem);
+          // Sync to Firestore if logged in
+          if (_isLoggedIn && updatedItem.firestoreId != null) {
+            try {
+              await _firestoreService.saveItem(
+                _uid!,
+                updatedItem.toFirestoreMap(),
+                docId: updatedItem.firestoreId,
+              );
+            } catch (e) {
+              print('Failed to sync edit to Firestore: $e');
+            }
+          }
           setState(() {});
         },
       ),
@@ -52,15 +121,14 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
   double _calculateTotalValue() {
     final goldPrice = ref.watch(metalPriceProvider);
     final silverPrice = ref.watch(silverPriceProvider);
-    final currency = ref.watch(selectedCurrencyProvider);
-    
+
     if (goldPrice == null && silverPrice == null) return 0.0;
     
     double total = 0.0;
     for (var item in _portfolioBox.values) {
       final price = item.metal == 'Gold' ? goldPrice : silverPrice;
       if (price != null) {
-        final pricePerGram = price.getPricePerGram(currency);
+        final pricePerGram = price.getPricePerGram();
         final karatMultiplier = item.karat / 24;
         total += pricePerGram * karatMultiplier * item.weight;
       }
@@ -71,19 +139,18 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
   double _calculateTotalProfitLoss() {
     final goldPrice = ref.watch(metalPriceProvider);
     final silverPrice = ref.watch(silverPriceProvider);
-    final currency = ref.watch(selectedCurrencyProvider);
-    
+
     if (goldPrice == null && silverPrice == null) return 0.0;
     
     double totalCost = 0.0;
     double totalValue = 0.0;
     
     for (var item in _portfolioBox.values) {
-      totalCost += item.purchasePrice;
-      
+      totalCost += item.purchasePrice * item.weight;
+
       final price = item.metal == 'Gold' ? goldPrice : silverPrice;
       if (price != null) {
-        final pricePerGram = price.getPricePerGram(currency);
+        final pricePerGram = price.getPricePerGram();
         final karatMultiplier = item.karat / 24;
         totalValue += pricePerGram * karatMultiplier * item.weight;
       }
@@ -126,19 +193,25 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                     const SizedBox(height: 24),
                     
                     // Summary Cards
-                    _buildSummaryCard(
-                      'Total Value',
-                      _calculateTotalValue(),
-                      const Color(0xFFFFB800),
-                      Icons.account_balance_wallet,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildSummaryCard(
-                      'Total Profit/Loss',
-                      _calculateTotalProfitLoss(),
-                      _calculateTotalProfitLoss() >= 0 ? Colors.green : Colors.red,
-                      _calculateTotalProfitLoss() >= 0 ? Icons.trending_up : Icons.trending_down,
-                    ),
+                    Builder(builder: (_) {
+                      final totalProfitLoss = _calculateTotalProfitLoss();
+                      return Column(children: [
+                        _buildSummaryCard(
+                          'Total Value',
+                          _calculateTotalValue(),
+                          const Color(0xFFFFB800),
+                          Icons.account_balance_wallet,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildSummaryCard(
+                          'Total Profit/Loss',
+                          totalProfitLoss,
+                          totalProfitLoss >= 0 ? Colors.green : Colors.red,
+                          totalProfitLoss >= 0 ? Icons.trending_up : Icons.trending_down,
+                          showSign: true,
+                        ),
+                      ]);
+                    }),
                     const SizedBox(height: 24),
                     
                     // Holdings Header
@@ -220,10 +293,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     );
   }
 
-  Widget _buildSummaryCard(String title, double value, Color color, IconData icon) {
+  Widget _buildSummaryCard(String title, double value, Color color, IconData icon, {bool showSign = false}) {
     final currency = ref.watch(selectedCurrencyProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -268,7 +340,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _formatCurrency(value, currency),
+                  _formatCurrency(value, currency, showSign: showSign),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
@@ -297,11 +369,14 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     double profitLossPercent = 0.0;
     
     if (price != null) {
-      final pricePerGram = price.getPricePerGram(currency);
+      final pricePerGram = price.getPricePerGram();
       final karatMultiplier = item.karat / 24;
       currentValue = pricePerGram * karatMultiplier * item.weight;
-      profitLoss = currentValue - item.purchasePrice;
-      profitLossPercent = (profitLoss / item.purchasePrice) * 100;
+      final totalCost = item.purchasePrice * item.weight;
+      profitLoss = currentValue - totalCost;
+      profitLossPercent = totalCost != 0
+          ? (profitLoss / totalCost) * 100
+          : 0.0;
     }
     
     return Dismissible(
@@ -314,23 +389,40 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
         child: const Icon(Icons.delete, color: Colors.white),
       ),
       onDismissed: (direction) {
+        final firestoreId = item.firestoreId;
         _portfolioBox.deleteAt(index);
+        if (_isLoggedIn && firestoreId != null) {
+          _firestoreService.deleteItem(_uid!, firestoreId);
+        }
         setState(() {});
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Item removed'),
             action: SnackBarAction(
               label: 'Undo',
-              onPressed: () {
+              onPressed: () async {
                 _portfolioBox.add(item);
+                // Re-create in Firestore on undo
+                if (_isLoggedIn) {
+                  try {
+                    final newDocId = await _firestoreService.saveItem(
+                      _uid!,
+                      item.toFirestoreMap(),
+                    );
+                    item.firestoreId = newDocId;
+                    await _portfolioBox.putAt(_portfolioBox.length - 1, item);
+                  } catch (_) {}
+                }
                 setState(() {});
               },
             ),
           ),
         );
       },
-      child: Container(
+      child: GestureDetector(
+        onTap: () => _showEditItemDialog(item, index),
+        child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -405,7 +497,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '${profitLossPercent.toStringAsFixed(1)}%',
+                        '${profitLoss > 0 ? '+' : ''}${profitLossPercent.toStringAsFixed(1)}%',
                         style: TextStyle(
                           color: profitLoss >= 0 ? Colors.green : Colors.red,
                           fontWeight: FontWeight.bold,
@@ -421,11 +513,11 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _buildItemDetail('Purchase', _formatCurrency(item.purchasePrice, currency)),
+                _buildItemDetail('Purchase', _formatCurrency(item.purchasePrice * item.weight, currency)),
                 _buildItemDetail('Current', _formatCurrency(currentValue, currency)),
                 _buildItemDetail(
                   'P/L',
-                  _formatCurrency(profitLoss, currency),
+                  _formatCurrency(profitLoss, currency, showSign: true),
                   valueColor: profitLoss >= 0 ? Colors.green : Colors.red,
                 ),
               ],
@@ -442,6 +534,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
             ],
           ],
         ),
+      ),
       ),
     );
   }
@@ -472,7 +565,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     );
   }
 
-  String _formatCurrency(double value, String currency) {
+  String _formatCurrency(double value, String currency, {bool showSign = false}) {
     final symbols = {
       'USD': '\$',
       'SAR': 'SAR ',
@@ -482,9 +575,10 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
       'EUR': '€',
       'GBP': '£',
     };
-    
+
     final symbol = symbols[currency] ?? '$currency ';
-    return '$symbol${value.toStringAsFixed(2)}';
+    final sign = showSign && value > 0 ? '+' : '';
+    return '$sign$symbol${value.toStringAsFixed(2)}';
   }
 
   String _formatDate(DateTime date) {
@@ -494,6 +588,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
 
 // Portfolio Item Model
 class PortfolioItem {
+  String? firestoreId;
   final String metal;
   final int karat;
   final double weight;
@@ -502,6 +597,7 @@ class PortfolioItem {
   final String? notes;
 
   PortfolioItem({
+    this.firestoreId,
     required this.metal,
     required this.karat,
     required this.weight,
@@ -509,6 +605,27 @@ class PortfolioItem {
     required this.purchaseDate,
     this.notes,
   });
+
+  Map<String, dynamic> toFirestoreMap() => {
+    'metal': metal,
+    'karat': karat,
+    'weight': weight,
+    'purchasePrice': purchasePrice,
+    'purchaseDate': purchaseDate.millisecondsSinceEpoch,
+    'notes': notes ?? '',
+  };
+
+  factory PortfolioItem.fromFirestoreMap(Map<String, dynamic> data) {
+    return PortfolioItem(
+      firestoreId: data['firestoreId'],
+      metal: data['metal'] ?? 'Gold',
+      karat: data['karat'] ?? 24,
+      weight: (data['weight'] as num).toDouble(),
+      purchasePrice: (data['purchasePrice'] as num).toDouble(),
+      purchaseDate: DateTime.fromMillisecondsSinceEpoch(data['purchaseDate'] as int),
+      notes: data['notes'] == '' ? null : data['notes'],
+    );
+  }
 }
 
 // Hive Adapter for PortfolioItem
@@ -518,13 +635,27 @@ class PortfolioItemAdapter extends TypeAdapter<PortfolioItem> {
 
   @override
   PortfolioItem read(BinaryReader reader) {
+    final metal = reader.readString();
+    final karat = reader.readInt();
+    final weight = reader.readDouble();
+    final purchasePrice = reader.readDouble();
+    final purchaseDate = DateTime.fromMillisecondsSinceEpoch(reader.readInt());
+    final notes = reader.readString();
+    // Read firestoreId if available (backward compat with old entries)
+    String? firestoreId;
+    try {
+      final id = reader.readString();
+      if (id.isNotEmpty) firestoreId = id;
+    } catch (_) {}
+
     return PortfolioItem(
-      metal: reader.readString(),
-      karat: reader.readInt(),
-      weight: reader.readDouble(),
-      purchasePrice: reader.readDouble(),
-      purchaseDate: DateTime.fromMillisecondsSinceEpoch(reader.readInt()),
-      notes: reader.readString(),
+      firestoreId: firestoreId,
+      metal: metal,
+      karat: karat,
+      weight: weight,
+      purchasePrice: purchasePrice,
+      purchaseDate: purchaseDate,
+      notes: notes.isEmpty ? null : notes,
     );
   }
 
@@ -536,17 +667,22 @@ class PortfolioItemAdapter extends TypeAdapter<PortfolioItem> {
     writer.writeDouble(obj.purchasePrice);
     writer.writeInt(obj.purchaseDate.millisecondsSinceEpoch);
     writer.writeString(obj.notes ?? '');
+    writer.writeString(obj.firestoreId ?? '');
   }
 }
 
-// Add Portfolio Item Dialog
+// Add/Edit Portfolio Item Dialog
 class AddPortfolioItemDialog extends StatefulWidget {
-  final Function(PortfolioItem) onAdd;
+  final Function(PortfolioItem) onSave;
+  final PortfolioItem? existingItem;
 
   const AddPortfolioItemDialog({
     super.key,
-    required this.onAdd,
+    required this.onSave,
+    this.existingItem,
   });
+
+  bool get isEditing => existingItem != null;
 
   @override
   State<AddPortfolioItemDialog> createState() => _AddPortfolioItemDialogState();
@@ -557,10 +693,24 @@ class _AddPortfolioItemDialogState extends State<AddPortfolioItemDialog> {
   final _weightController = TextEditingController();
   final _priceController = TextEditingController();
   final _notesController = TextEditingController();
-  
+
   String _selectedMetal = 'Gold';
   int _selectedKarat = 24;
   DateTime _selectedDate = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.existingItem != null) {
+      final item = widget.existingItem!;
+      _selectedMetal = item.metal;
+      _selectedKarat = item.karat;
+      _weightController.text = item.weight.toString();
+      _priceController.text = item.purchasePrice.toString();
+      _selectedDate = item.purchaseDate;
+      _notesController.text = item.notes ?? '';
+    }
+  }
 
   @override
   void dispose() {
@@ -606,7 +756,7 @@ class _AddPortfolioItemDialogState extends State<AddPortfolioItemDialog> {
               ),
               const SizedBox(height: 20),
               Text(
-                'Add Holding',
+                widget.isEditing ? 'Edit Holding' : 'Add Holding',
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -708,7 +858,7 @@ class _AddPortfolioItemDialogState extends State<AddPortfolioItemDialog> {
                   FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                 ],
                 decoration: const InputDecoration(
-                  labelText: 'Purchase Price',
+                  labelText: 'Purchase Price (per gram)',
                   prefixIcon: Icon(Icons.attach_money),
                 ),
                 validator: (value) {
@@ -778,16 +928,16 @@ class _AddPortfolioItemDialogState extends State<AddPortfolioItemDialog> {
                             purchaseDate: _selectedDate,
                             notes: _notesController.text.isEmpty ? null : _notesController.text,
                           );
-                          widget.onAdd(item);
+                          widget.onSave(item);
                           Navigator.pop(context);
                         }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFFB800),
                       ),
-                      child: const Text(
-                        'Add',
-                        style: TextStyle(color: Colors.white),
+                      child: Text(
+                        widget.isEditing ? 'Save' : 'Add',
+                        style: const TextStyle(color: Colors.white),
                       ),
                     ),
                   ),

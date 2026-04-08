@@ -3,7 +3,7 @@
 /// JSON keys in `secrets.json` must match these compile-time names exactly
 /// (same strings as in [String.fromEnvironment]):
 ///   METAL_PRICE_API_KEY  → https://metalpriceapi.com (used by [MetalPriceApiService])
-///   OPENAI_API_KEY       → https://platform.openai.com/api-keys (used by chatbot)
+///   GROQ_API_KEY         → https://console.groq.com/keys (used by chatbot)
 ///
 /// Local: `cp secrets.json.example secrets.json`, fill in values, then:
 ///   flutter run --dart-define-from-file=secrets.json
@@ -16,9 +16,9 @@ class ApiConfig {
     defaultValue: '',
   );
 
-  /// OpenAI project / user API key (`sk-...`).
-  static const String openAiApiKey = String.fromEnvironment(
-    'OPENAI_API_KEY',
+  /// Groq API key (`gsk_...`).
+  static const String groqApiKey = String.fromEnvironment(
+    'GROQ_API_KEY',
     defaultValue: '',
   );
 

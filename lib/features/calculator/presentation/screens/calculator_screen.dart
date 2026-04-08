@@ -30,8 +30,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
   
   void _calculateValue() {
     final goldPrice = ref.read(metalPriceProvider);
-    final selectedCurrency = ref.read(selectedCurrencyProvider);
-    
+
     if (goldPrice == null || _weightController.text.isEmpty) {
       setState(() {
         _totalValue = 0.0;
@@ -43,7 +42,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
     final quantity = int.tryParse(_quantityController.text) ?? 1;
     
     // Get price per gram in selected currency
-    final pricePerGram = goldPrice.getPricePerGram(selectedCurrency);
+    final pricePerGram = goldPrice.getPricePerGram();
     
     // Calculate karat price
     final karatPrice = pricePerGram * (_selectedKarat / 24);
@@ -314,7 +313,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
     
     final weight = double.tryParse(_weightController.text) ?? 0.0;
     final quantity = int.tryParse(_quantityController.text) ?? 1;
-    final pricePerGram = goldPrice.getPricePerGram(currency);
+    final pricePerGram = goldPrice.getPricePerGram();
     final karatPrice = pricePerGram * (_selectedKarat / 24);
     
     return Column(

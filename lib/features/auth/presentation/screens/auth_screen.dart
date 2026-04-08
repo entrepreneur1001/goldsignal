@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../../../../core/firebase/auth_service.dart';
+import '../../../../core/firebase/firestore_portfolio_service.dart';
 import '../../../dashboard/presentation/screens/dashboard_screen.dart';
+import '../../../portfolio/presentation/screens/portfolio_screen.dart';
 
 class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key});
+  final bool isLinkingGuest;
+
+  const AuthScreen({super.key, this.isLinkingGuest = false});
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -50,20 +56,47 @@ class _AuthScreenState extends State<AuthScreen> {
   
   Future<void> _handleEmailAuth() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() => _isLoading = true);
-    
+
     try {
-      final user = _isSignUp
-          ? await _authService.signUpWithEmail(
-              _emailController.text.trim(),
-              _passwordController.text,
-            )
-          : await _authService.signInWithEmail(
-              _emailController.text.trim(),
-              _passwordController.text,
-            );
-      
+      User? user;
+
+      if (widget.isLinkingGuest && _isSignUp) {
+        // Guest signing up → link anonymous account with email
+        user = await _authService.convertGuestToEmail(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+        // Sync local portfolio to Firestore under the same uid
+        if (user != null) {
+          await _syncLocalPortfolioToFirestore(user.uid);
+        }
+      } else if (widget.isLinkingGuest && !_isSignUp) {
+        // Guest signing into existing account → handle data merge
+        final localItems = await _getLocalPortfolioItems();
+        // Delete the anonymous user first
+        await FirebaseAuth.instance.currentUser?.delete();
+        user = await _authService.signInWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+        // If guest had portfolio data, ask what to do with it
+        if (user != null && localItems.isNotEmpty && mounted) {
+          await _showDataMergeDialog(user.uid, localItems);
+        }
+      } else if (_isSignUp) {
+        user = await _authService.signUpWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+      } else {
+        user = await _authService.signInWithEmail(
+          _emailController.text.trim(),
+          _passwordController.text,
+        );
+      }
+
       if (user != null && mounted) {
         Navigator.pushReplacement(
           context,
@@ -76,6 +109,94 @@ class _AuthScreenState extends State<AuthScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  Future<List<PortfolioItem>> _getLocalPortfolioItems() async {
+    try {
+      if (!Hive.isAdapterRegistered(0)) {
+        Hive.registerAdapter(PortfolioItemAdapter());
+      }
+      final box = Hive.isBoxOpen('portfolio')
+          ? Hive.box<PortfolioItem>('portfolio')
+          : await Hive.openBox<PortfolioItem>('portfolio');
+      return box.values.toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> _syncLocalPortfolioToFirestore(String uid) async {
+    final items = await _getLocalPortfolioItems();
+    if (items.isEmpty) return;
+
+    final firestoreService = FirestorePortfolioService();
+    final maps = items.map((e) => e.toFirestoreMap()).toList();
+    final docIds = await firestoreService.syncFromLocal(uid, maps);
+
+    // Update local Hive items with Firestore IDs
+    final box = Hive.box<PortfolioItem>('portfolio');
+    for (var i = 0; i < items.length && i < docIds.length; i++) {
+      items[i].firestoreId = docIds[i];
+      await box.putAt(i, items[i]);
+    }
+  }
+
+  Future<void> _showDataMergeDialog(String uid, List<PortfolioItem> localItems) async {
+    final choice = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Portfolio Data'),
+        content: Text(
+          'You have ${localItems.length} item(s) from your guest session. '
+          'What would you like to do?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'discard'),
+            child: const Text('Discard'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'replace'),
+            child: const Text('Use Account Data'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, 'merge'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFFB800),
+            ),
+            child: const Text('Merge', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    final firestoreService = FirestorePortfolioService();
+    final box = Hive.isBoxOpen('portfolio')
+        ? Hive.box<PortfolioItem>('portfolio')
+        : await Hive.openBox<PortfolioItem>('portfolio');
+
+    if (choice == 'merge') {
+      // Push local items to Firestore, then load everything from Firestore
+      final maps = localItems.map((e) => e.toFirestoreMap()).toList();
+      await firestoreService.syncFromLocal(uid, maps);
+      // Reload all from Firestore
+      final allItems = await firestoreService.loadAll(uid);
+      await box.clear();
+      for (final data in allItems) {
+        box.add(PortfolioItem.fromFirestoreMap(data));
+      }
+    } else if (choice == 'replace') {
+      // Discard local, load from Firestore
+      final allItems = await firestoreService.loadAll(uid);
+      await box.clear();
+      for (final data in allItems) {
+        box.add(PortfolioItem.fromFirestoreMap(data));
+      }
+    } else {
+      // Discard local data
+      await box.clear();
     }
   }
   

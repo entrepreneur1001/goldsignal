@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/api/metalpriceapi_service.dart';
-import '../../../../core/utils/app_config.dart';
 import '../../../../shared/models/metal_price.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
+import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/widgets/price_card.dart';
 import '../../../../shared/widgets/currency_selector.dart';
 
@@ -22,63 +22,70 @@ class _PricesScreenState extends ConsumerState<PricesScreen> {
   bool _isLoading = false;
   bool _isRefreshing = false;
   MetalPricesResponse? _pricesData;
-  String _selectedCurrency = 'USD';
   DateTime _lastUpdated = DateTime.now();
-  
+
   @override
   void initState() {
     super.initState();
     _loadInitialData();
   }
-  
+
   Future<void> _loadInitialData() async {
-    setState(() => _isLoading = true);
-    
-    // Get saved currency preference
-    _selectedCurrency = AppConfig.defaultCurrency;
-    
-    await _fetchPrices();
-    
-    setState(() => _isLoading = false);
+    // Show cached data instantly if available
+    final cached = _apiService.getCachedPrices();
+    if (cached != null) {
+      _pricesData = cached;
+      _lastUpdated = cached.timestamp;
+      // Delay provider update to after widget tree finishes building
+      Future(() => _pushToProviders(cached, ref.read(selectedCurrencyProvider)));
+      setState(() {}); // render immediately with cached data
+    } else {
+      setState(() => _isLoading = true);
+    }
+
+    // Always fetch fresh data in background
+    await _fetchFresh();
+    if (_isLoading) setState(() => _isLoading = false);
   }
-  
-  Future<void> _fetchPrices({bool forceRefresh = false}) async {
+
+  Future<void> _fetchFresh() async {
     try {
-      final response = await _apiService.getLatestPrices(
-        forceRefresh: forceRefresh,
-      );
+      final response = await _apiService.fetchFreshPrices();
 
       setState(() {
         _pricesData = response;
         _lastUpdated = response.timestamp;
       });
 
-      _pushToProviders(response);
+      _pushToProviders(response, ref.read(selectedCurrencyProvider));
     } catch (e) {
-      _showErrorSnackBar('Failed to fetch prices');
+      // Only show error if we have nothing to display
+      if (_pricesData == null) {
+        _showErrorSnackBar('Failed to fetch prices');
+      }
     }
   }
 
-  void _pushToProviders(MetalPricesResponse response) {
-    final goldPrice = response.goldPriceIn(_selectedCurrency);
+  void _pushToProviders(MetalPricesResponse response, String currency) {
+    final goldPrice = response.goldPriceIn(currency);
     if (goldPrice != null) {
       ref.read(metalPriceProvider.notifier).updatePrice(MetalPrice(
         metal: 'Gold',
         pricePerOunce: goldPrice,
         pricePerGram: goldPrice / 31.1034768,
-        currency: _selectedCurrency,
+        currency: currency,
         timestamp: response.timestamp,
         change24h: 0,
         changePercent24h: 0,
       ));
     }
-    final silverPrice = response.silverPriceIn(_selectedCurrency);
+    final silverPrice = response.silverPriceIn(currency);
     if (silverPrice != null) {
       ref.read(silverPriceProvider.notifier).updatePrice(MetalPrice(
         metal: 'Silver',
         pricePerOunce: silverPrice,
         pricePerGram: silverPrice / 31.1034768,
-        currency: _selectedCurrency,
+        currency: currency,
         timestamp: response.timestamp,
         change24h: 0,
         changePercent24h: 0,
@@ -88,21 +95,17 @@ class _PricesScreenState extends ConsumerState<PricesScreen> {
 
   Future<void> _handleManualRefresh() async {
     setState(() => _isRefreshing = true);
-    await _fetchPrices(forceRefresh: true);
+    await _fetchFresh();
     setState(() => _isRefreshing = false);
   }
 
-  void _onCurrencyChanged(String currency) async {
-    setState(() {
-      _selectedCurrency = currency;
-    });
+  void _onCurrencyChanged(String currency) {
+    // Update global provider (persists to SharedPreferences automatically)
+    ref.read(selectedCurrencyProvider.notifier).setCurrency(currency);
 
-    // Save preference
-    await AppConfig.setCurrency(currency);
-
-    // No API call needed — just re-render with the new currency conversion
+    // Push converted prices to other screens
     if (_pricesData != null) {
-      _pushToProviders(_pricesData!);
+      _pushToProviders(_pricesData!, currency);
     }
   }
   
@@ -114,6 +117,15 @@ class _PricesScreenState extends ConsumerState<PricesScreen> {
   
   @override
   Widget build(BuildContext context) {
+    final selectedCurrency = ref.watch(selectedCurrencyProvider);
+
+    // Re-push prices when currency changes from another screen
+    ref.listen<String>(selectedCurrencyProvider, (prev, next) {
+      if (_pricesData != null && prev != next) {
+        _pushToProviders(_pricesData!, next);
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gold & Silver Prices'),
@@ -127,10 +139,10 @@ class _PricesScreenState extends ConsumerState<PricesScreen> {
               child: const Icon(Icons.refresh),
             ),
           ),
-          
+
           // Currency selector
           CurrencySelector(
-            selectedCurrency: _selectedCurrency,
+            selectedCurrency: selectedCurrency,
             onCurrencyChanged: _onCurrencyChanged,
           ),
         ],
@@ -170,14 +182,14 @@ class _PricesScreenState extends ConsumerState<PricesScreen> {
                   if (_pricesData != null) ...[
                     Builder(builder: (_) {
                       final prevPrices = _apiService.getPreviousPrices();
-                      final goldPrice = _pricesData!.goldPriceIn(_selectedCurrency) ?? 0;
-                      final prevGoldPrice = prevPrices?.goldPriceIn(_selectedCurrency) ?? goldPrice;
+                      final goldPrice = _pricesData!.goldPriceIn(selectedCurrency) ?? 0;
+                      final prevGoldPrice = prevPrices?.goldPriceIn(selectedCurrency) ?? goldPrice;
                       final goldChange = goldPrice - prevGoldPrice;
                       final goldChangePercent = prevGoldPrice != 0
                           ? (goldChange / prevGoldPrice) * 100
                           : 0.0;
-                      final silverPrice = _pricesData!.silverPriceIn(_selectedCurrency) ?? 0;
-                      final prevSilverPrice = prevPrices?.silverPriceIn(_selectedCurrency) ?? silverPrice;
+                      final silverPrice = _pricesData!.silverPriceIn(selectedCurrency) ?? 0;
+                      final prevSilverPrice = prevPrices?.silverPriceIn(selectedCurrency) ?? silverPrice;
                       final silverChange = silverPrice - prevSilverPrice;
                       final silverChangePercent = prevSilverPrice != 0
                           ? (silverChange / prevSilverPrice) * 100
@@ -190,7 +202,7 @@ class _PricesScreenState extends ConsumerState<PricesScreen> {
                       color: const Color(0xFFFFD700),
                       pricePerOunce: goldPrice,
                       pricePerGram: goldPrice / 31.1034768,
-                      currency: _selectedCurrency,
+                      currency: selectedCurrency,
                       change24h: goldChange,
                       changePercent: goldChangePercent,
                     ).animate().slideX(begin: -1, duration: 600.ms),
@@ -204,7 +216,7 @@ class _PricesScreenState extends ConsumerState<PricesScreen> {
                       color: const Color(0xFFC0C0C0),
                       pricePerOunce: silverPrice,
                       pricePerGram: silverPrice / 31.1034768,
-                      currency: _selectedCurrency,
+                      currency: selectedCurrency,
                       change24h: silverChange,
                       changePercent: silverChangePercent,
                     ).animate().slideX(begin: 1, duration: 600.ms),
@@ -241,7 +253,8 @@ class _PricesScreenState extends ConsumerState<PricesScreen> {
   }
   
   Widget _buildKaratPrice(String karat, double purity) {
-    final goldPricePerGram = (_pricesData?.goldPriceIn(_selectedCurrency) ?? 0) / 31.1034768;
+    final selectedCurrency = ref.read(selectedCurrencyProvider);
+    final goldPricePerGram = (_pricesData?.goldPriceIn(selectedCurrency) ?? 0) / 31.1034768;
     final karatPrice = goldPricePerGram * purity;
     
     return Padding(
@@ -272,7 +285,7 @@ class _PricesScreenState extends ConsumerState<PricesScreen> {
             ],
           ),
           Text(
-            '$_selectedCurrency ${karatPrice.toStringAsFixed(2)}',
+            '$selectedCurrency ${karatPrice.toStringAsFixed(2)}',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.bold,
             ),
