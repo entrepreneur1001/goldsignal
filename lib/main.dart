@@ -4,25 +4,32 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:goldsignal/firebase_options.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'core/utils/app_config.dart';
 import 'shared/themes/app_theme.dart';
+import 'shared/providers/app_info_provider.dart';
 import 'features/auth/presentation/screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  
+
   // Initialize Hive
   await Hive.initFlutter();
-  
+
   // Initialize other configurations
   await AppConfig.initialize();
-  
+
+  final packageInfo = await PackageInfo.fromPlatform();
+
   runApp(
-    const ProviderScope(
-      child: GoldSignalApp(),
+    ProviderScope(
+      overrides: [
+        packageInfoProvider.overrideWith((ref) => packageInfo),
+      ],
+      child: const GoldSignalApp(),
     ),
   );
 }

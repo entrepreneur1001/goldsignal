@@ -4,22 +4,22 @@ import '../../core/api/metalpriceapi_service.dart';
 class CurrencySelector extends StatelessWidget {
   final String selectedCurrency;
   final Function(String) onCurrencyChanged;
-  
+
   const CurrencySelector({
     super.key,
     required this.selectedCurrency,
     required this.onCurrencyChanged,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<String>(
       onSelected: onCurrencyChanged,
-      itemBuilder: (context) => _buildCurrencyMenu(context),
+      itemBuilder: (context) => _buildCurrencyMenu(),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Theme.of(context).primaryColor.withValues(alpha:0.1),
+          color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -41,24 +41,22 @@ class CurrencySelector extends StatelessWidget {
       ),
     );
   }
-  
-  List<PopupMenuItem<String>> _buildCurrencyMenu(BuildContext context) {
+
+  List<PopupMenuItem<String>> _buildCurrencyMenu() {
     final List<PopupMenuItem<String>> items = [];
-    
-    // Priority currencies
+
     final priorityCurrencies = [
-      Currency(code: 'USD', name: 'US Dollar', flag: '🇺🇸', isArabCurrency: false),
-      Currency(code: 'SAR', name: 'Saudi Riyal', flag: '🇸🇦', isArabCurrency: true),
-      Currency(code: 'AED', name: 'UAE Dirham', flag: '🇦🇪', isArabCurrency: true),
-      Currency(code: 'EGP', name: 'Egyptian Pound', flag: '🇪🇬', isArabCurrency: true),
-      Currency(code: 'KWD', name: 'Kuwaiti Dinar', flag: '🇰🇼', isArabCurrency: true),
-      Currency(code: 'BHD', name: 'Bahraini Dinar', flag: '🇧🇭', isArabCurrency: true),
-      Currency(code: 'OMR', name: 'Omani Rial', flag: '🇴🇲', isArabCurrency: true),
-      Currency(code: 'QAR', name: 'Qatari Riyal', flag: '🇶🇦', isArabCurrency: true),
-      Currency(code: 'JOD', name: 'Jordanian Dinar', flag: '🇯🇴', isArabCurrency: true),
+      Currency(code: 'USD', name: 'US Dollar', isArabCurrency: false),
+      Currency(code: 'SAR', name: 'Saudi Riyal', isArabCurrency: true),
+      Currency(code: 'AED', name: 'UAE Dirham', isArabCurrency: true),
+      Currency(code: 'EGP', name: 'Egyptian Pound', isArabCurrency: true),
+      Currency(code: 'KWD', name: 'Kuwaiti Dinar', isArabCurrency: true),
+      Currency(code: 'BHD', name: 'Bahraini Dinar', isArabCurrency: true),
+      Currency(code: 'OMR', name: 'Omani Rial', isArabCurrency: true),
+      Currency(code: 'QAR', name: 'Qatari Riyal', isArabCurrency: true),
+      Currency(code: 'JOD', name: 'Jordanian Dinar', isArabCurrency: true),
     ];
-    
-    // Recent section header
+
     items.add(
       const PopupMenuItem(
         enabled: false,
@@ -70,18 +68,15 @@ class CurrencySelector extends StatelessWidget {
             color: Colors.grey,
           ),
         ),
-        
       ),
     );
-    
-    // Add Arab currencies
+
     for (final currency in priorityCurrencies) {
       items.add(_buildCurrencyItem(currency));
     }
-    
+
     items.add(const PopupMenuItem(child: Divider()));
-    
-    // Other currencies header
+
     items.add(
       const PopupMenuItem(
         enabled: false,
@@ -95,38 +90,33 @@ class CurrencySelector extends StatelessWidget {
         ),
       ),
     );
-    
-    // Add other major currencies
+
     final otherCurrencies = [
-      Currency(code: 'EUR', name: 'Euro', flag: '🇪🇺', isArabCurrency: false),
-      Currency(code: 'GBP', name: 'British Pound', flag: '🇬🇧', isArabCurrency: false),
-      Currency(code: 'JPY', name: 'Japanese Yen', flag: '🇯🇵', isArabCurrency: false),
-      Currency(code: 'CNY', name: 'Chinese Yuan', flag: '🇨🇳', isArabCurrency: false),
-      Currency(code: 'INR', name: 'Indian Rupee', flag: '🇮🇳', isArabCurrency: false),
-      Currency(code: 'PKR', name: 'Pakistani Rupee', flag: '🇵🇰', isArabCurrency: false),
-      Currency(code: 'TRY', name: 'Turkish Lira', flag: '🇹🇷', isArabCurrency: false),
+      Currency(code: 'EUR', name: 'Euro', isArabCurrency: false),
+      Currency(code: 'GBP', name: 'British Pound', isArabCurrency: false),
+      Currency(code: 'JPY', name: 'Japanese Yen', isArabCurrency: false),
+      Currency(code: 'CNY', name: 'Chinese Yuan', isArabCurrency: false),
+      Currency(code: 'INR', name: 'Indian Rupee', isArabCurrency: false),
+      Currency(code: 'PKR', name: 'Pakistani Rupee', isArabCurrency: false),
+      Currency(code: 'TRY', name: 'Turkish Lira', isArabCurrency: false),
     ];
-    
+
     for (final currency in otherCurrencies) {
       items.add(_buildCurrencyItem(currency));
     }
-    
+
     return items;
   }
-  
+
   PopupMenuItem<String> _buildCurrencyItem(Currency currency) {
     return PopupMenuItem<String>(
       value: currency.code,
       child: Row(
         children: [
-          Text(
-            currency.flag,
-            style: const TextStyle(fontSize: 20),
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   currency.code,

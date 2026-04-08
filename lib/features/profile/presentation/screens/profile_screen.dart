@@ -2,10 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/firebase/auth_service.dart';
+import '../../../../shared/providers/app_info_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../features/auth/presentation/screens/auth_screen.dart';
+
+/// TermsFeed-hosted privacy policy for Gold Signal.
+final Uri _privacyPolicyUri = Uri.https(
+  'www.termsfeed.com',
+  '/live/d95900d3-ad0a-435c-ab8b-e6bdc8bf556f',
+);
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -17,40 +24,13 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final AuthService _authService = AuthService();
   User? _currentUser;
-  
-  String _preferredUnit = 'gram';
-  String _preferredKarat = '24K';
-  String _selectedLanguage = 'en';
-  bool _notificationsEnabled = true;
-  bool _darkModeEnabled = false;
-  
+
   @override
   void initState() {
     super.initState();
-    _loadPreferences();
     _currentUser = FirebaseAuth.instance.currentUser;
   }
-  
-  Future<void> _loadPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _preferredUnit = prefs.getString('preferred_unit') ?? 'gram';
-      _preferredKarat = prefs.getString('preferred_karat') ?? '24K';
-      _selectedLanguage = prefs.getString('selected_language') ?? 'en';
-      _notificationsEnabled = prefs.getBool('notifications_enabled') ?? true;
-      _darkModeEnabled = prefs.getBool('dark_mode_enabled') ?? false;
-    });
-  }
-  
-  Future<void> _savePreference(String key, dynamic value) async {
-    final prefs = await SharedPreferences.getInstance();
-    if (value is String) {
-      await prefs.setString(key, value);
-    } else if (value is bool) {
-      await prefs.setBool(key, value);
-    }
-  }
-  
+
   Future<void> _deleteAccount() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -80,12 +60,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        // Delete Firestore user data
         await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .delete();
-        // Delete the Firebase Auth account
         await user.delete();
       }
       if (mounted) {
@@ -134,11 +112,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
+  Future<void> _openPrivacyPolicy() async {
+    try {
+      final ok = await launchUrl(
+        _privacyPolicyUri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open the privacy policy link.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open link: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final selectedCurrency = ref.watch(selectedCurrencyProvider);
+    final packageInfo = ref.watch(packageInfoProvider);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -160,7 +160,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    
+
                     // User Info Card
                     Container(
                       padding: const EdgeInsets.all(20),
@@ -232,7 +232,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     builder: (_) => const AuthScreen(isLinkingGuest: true),
                                   ),
                                 );
-                                // Refresh user state after returning
                                 if (mounted) {
                                   setState(() {
                                     _currentUser = FirebaseAuth.instance.currentUser;
@@ -251,158 +250,62 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ],
                 ),
               ),
-              
+
               const SizedBox(height: 8),
-              
-              // Settings Sections
+
               _buildSectionHeader('Preferences'),
-              
-              // Currency Selection
+
+              // Currency — synced with Prices screen via selectedCurrencyProvider
               ListTile(
                 leading: const Icon(Icons.attach_money),
                 title: const Text('Currency'),
                 subtitle: Text(selectedCurrency),
-                onTap: () {
-                  _showCurrencySelector();
-                },
+                onTap: _showCurrencySelector,
               ),
-              
-              // Unit Selection
-              ListTile(
-                leading: const Icon(Icons.straighten),
-                title: const Text('Weight Unit'),
-                subtitle: Text(_preferredUnit),
-                onTap: () {
-                  _showUnitSelector();
-                },
-              ),
-              
-              // Default Karat
-              ListTile(
-                leading: const Icon(Icons.star),
-                title: const Text('Default Karat'),
-                subtitle: Text(_preferredKarat),
-                onTap: () {
-                  _showKaratSelector();
-                },
-              ),
-              
-              // Language Selection
-              ListTile(
-                leading: const Icon(Icons.language),
-                title: const Text('Language'),
-                subtitle: Text(_getLanguageName(_selectedLanguage)),
-                onTap: () {
-                  _showLanguageSelector();
-                },
-              ),
-              
+
               const Divider(),
-              
-              _buildSectionHeader('App Settings'),
-              
-              // Dark Mode
-              SwitchListTile(
-                secondary: const Icon(Icons.dark_mode),
-                title: const Text('Dark Mode'),
-                subtitle: const Text('Use dark theme'),
-                value: _darkModeEnabled,
-                onChanged: (value) {
-                  setState(() {
-                    _darkModeEnabled = value;
-                  });
-                  _savePreference('dark_mode_enabled', value);
-                },
-              ),
-              
-              // Notifications
-              SwitchListTile(
-                secondary: const Icon(Icons.notifications),
-                title: const Text('Notifications'),
-                subtitle: const Text('Price alerts and updates'),
-                value: _notificationsEnabled,
-                onChanged: (value) {
-                  setState(() {
-                    _notificationsEnabled = value;
-                  });
-                  _savePreference('notifications_enabled', value);
-                },
-              ),
-              
-              const Divider(),
-              
+
               _buildSectionHeader('Data & Privacy'),
-              
-              // Export Data
-              ListTile(
-                leading: const Icon(Icons.download),
-                title: const Text('Export Portfolio'),
-                subtitle: const Text('Download your data as CSV'),
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Exporting portfolio...')),
-                  );
-                },
-              ),
-              
-              // Clear Cache
-              ListTile(
-                leading: const Icon(Icons.delete_sweep),
-                title: const Text('Clear Cache'),
-                subtitle: const Text('Free up storage space'),
-                onTap: () async {
-                  final prefs = await SharedPreferences.getInstance();
-                  await prefs.clear();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Cache cleared')),
-                    );
-                  }
-                },
-              ),
-              
-              // Privacy Policy
+
+              // Privacy Policy — https://www.termsfeed.com/live/d95900d3-ad0a-435c-ab8b-e6bdc8bf556f
               ListTile(
                 leading: const Icon(Icons.privacy_tip),
                 title: const Text('Privacy Policy'),
-                onTap: () {
-                  // Open privacy policy
-                },
+                trailing: const Icon(Icons.open_in_new, size: 20),
+                onTap: _openPrivacyPolicy,
               ),
-              
+
               const Divider(),
-              
+
               _buildSectionHeader('About'),
-              
-              // Version
+
+              // Version — PackageInfo loaded in main() before runApp
               ListTile(
                 leading: const Icon(Icons.info),
                 title: const Text('Version'),
-                subtitle: const Text('1.0.0'),
+                subtitle: Text(
+                  '${packageInfo.version} (build ${packageInfo.buildNumber})',
+                ),
               ),
-              
+
               // Rate App
               ListTile(
                 leading: const Icon(Icons.star_rate),
                 title: const Text('Rate App'),
                 subtitle: const Text('Help us improve'),
-                onTap: () {
-                  // Open app store
-                },
+                onTap: () {},
               ),
-              
+
               // Share App
               ListTile(
                 leading: const Icon(Icons.share),
                 title: const Text('Share App'),
                 subtitle: const Text('Tell your friends'),
-                onTap: () {
-                  // Share app link
-                },
+                onTap: () {},
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Sign Out Button
               if (!(_currentUser?.isAnonymous ?? true))
                 Padding(
@@ -429,7 +332,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ),
                 ),
-              
+
               // Delete Account Button
               if (!(_currentUser?.isAnonymous ?? true))
                 Center(
@@ -452,7 +355,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
     );
   }
-  
+
   Widget _buildSectionHeader(String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -468,7 +371,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
     );
   }
-  
+
   void _showCurrencySelector() {
     final currencies = ref.read(availableCurrenciesProvider);
     showModalBottomSheet(
@@ -492,103 +395,5 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         );
       },
     );
-  }
-  
-  void _showUnitSelector() {
-    final units = ['gram', 'ounce', 'kilogram'];
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return ListView.builder(
-          itemCount: units.length,
-          itemBuilder: (context, index) {
-            final unit = units[index];
-            return ListTile(
-              title: Text(unit),
-              trailing: _preferredUnit == unit
-                  ? const Icon(Icons.check, color: Color(0xFFFFB800))
-                  : null,
-              onTap: () {
-                setState(() {
-                  _preferredUnit = unit;
-                });
-                _savePreference('preferred_unit', unit);
-                Navigator.pop(context);
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-  
-  void _showKaratSelector() {
-    final karats = ['24K', '22K', '21K', '18K'];
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return ListView.builder(
-          itemCount: karats.length,
-          itemBuilder: (context, index) {
-            final karat = karats[index];
-            return ListTile(
-              title: Text(karat),
-              trailing: _preferredKarat == karat
-                  ? const Icon(Icons.check, color: Color(0xFFFFB800))
-                  : null,
-              onTap: () {
-                setState(() {
-                  _preferredKarat = karat;
-                });
-                _savePreference('preferred_karat', karat);
-                Navigator.pop(context);
-              },
-            );
-          },
-        );
-      },
-    );
-  }
-  
-  void _showLanguageSelector() {
-    final languages = {
-      'en': 'English',
-      'ar': 'العربية',
-      'ur': 'اردو',
-    };
-    
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return ListView(
-          children: languages.entries.map((entry) {
-            return ListTile(
-              title: Text(entry.value),
-              trailing: _selectedLanguage == entry.key
-                  ? const Icon(Icons.check, color: Color(0xFFFFB800))
-                  : null,
-              onTap: () {
-                setState(() {
-                  _selectedLanguage = entry.key;
-                });
-                _savePreference('selected_language', entry.key);
-                Navigator.pop(context);
-              },
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
-  
-  String _getLanguageName(String code) {
-    switch (code) {
-      case 'ar':
-        return 'العربية';
-      case 'ur':
-        return 'اردو';
-      default:
-        return 'English';
-    }
   }
 }

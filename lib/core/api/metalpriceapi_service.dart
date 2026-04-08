@@ -400,7 +400,7 @@ class Currency {
   Currency({
     required this.code,
     required this.name,
-    required this.flag,
+    this.flag = '',
     required this.isArabCurrency,
   });
   
@@ -415,7 +415,7 @@ class Currency {
     return Currency(
       code: json['code'],
       name: json['name'],
-      flag: json['flag'],
+      flag: json['flag'] as String? ?? '',
       isArabCurrency: json['isArabCurrency'],
     );
   }

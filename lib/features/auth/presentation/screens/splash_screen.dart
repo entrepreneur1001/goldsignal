@@ -14,29 +14,26 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   final AuthService _authService = AuthService();
-  
+
   @override
   void initState() {
     super.initState();
     _initializeApp();
   }
-  
+
   Future<void> _initializeApp() async {
-    // Wait for splash animation
+    // Let the splash animation play (package info is loaded synchronously in main()).
     await Future.delayed(const Duration(seconds: 2));
-    
-    // Check authentication status
+
     final User? currentUser = _authService.currentUser;
-    
+
     if (mounted) {
       if (currentUser != null) {
-        // User is signed in (guest or registered)
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const DashboardScreen()),
         );
       } else {
-        // No user, show auth screen
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const AuthScreen()),
@@ -44,7 +41,7 @@ class _SplashScreenState extends State<SplashScreen> {
       }
     }
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -78,9 +75,9 @@ class _SplashScreenState extends State<SplashScreen> {
                 .scale(duration: 600.ms, curve: Curves.easeOutBack)
                 .then()
                 .shake(duration: 300.ms, hz: 3, rotation: 0.02),
-            
+
             const SizedBox(height: 24),
-            
+
             // App name
             Text(
               'GoldSignal',
@@ -98,9 +95,9 @@ class _SplashScreenState extends State<SplashScreen> {
                 ],
               ),
             ).animate().fadeIn(duration: 600.ms, delay: 300.ms),
-            
+
             const SizedBox(height: 8),
-            
+
             // Tagline
             Text(
               'Track Gold & Silver Prices',
@@ -110,9 +107,9 @@ class _SplashScreenState extends State<SplashScreen> {
                 letterSpacing: 0.5,
               ),
             ).animate().fadeIn(duration: 600.ms, delay: 500.ms),
-            
+
             const SizedBox(height: 48),
-            
+
             // Loading indicator
             CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(
