@@ -129,7 +129,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     );
   }
 
-  void _showEditItemDialog(PortfolioItem item, int index) {
+  void _showEditItemDialog(PortfolioItem item) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -138,7 +138,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
         existingItem: item,
         onSave: (updatedItem) async {
           updatedItem.firestoreId = item.firestoreId;
-          await _portfolioBox.putAt(index, updatedItem);
+          final hi = _hiveIndexForItem(item);
+          if (hi < 0) return;
+          await _portfolioBox.putAt(hi, updatedItem);
           // Sync to Firestore if logged in
           if (_isLoggedIn && updatedItem.firestoreId != null) {
             try {
@@ -338,7 +340,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     final item = _listOrder[index];
-                    return _buildPortfolioItem(item, index);
+                    return _buildPortfolioItem(item);
                   },
                   childCount: _listOrder.length,
                   addAutomaticKeepAlives: false,
@@ -421,7 +423,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     );
   }
 
-  Widget _buildPortfolioItem(PortfolioItem item, int index) {
+  Widget _buildPortfolioItem(PortfolioItem item) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final currency = ref.watch(selectedCurrencyProvider);
@@ -490,7 +492,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
         }
       },
       child: GestureDetector(
-        onTap: () => _showEditItemDialog(item, index),
+        onTap: () => _showEditItemDialog(item),
         child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         padding: const EdgeInsets.all(16),
