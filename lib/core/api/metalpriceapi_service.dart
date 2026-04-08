@@ -1,12 +1,14 @@
 import 'package:dio/dio.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../utils/api_config.dart';
+import '../firebase/firestore_price_service.dart';
 
 class MetalPriceApiService {
   final Dio _dio = Dio();
   final String baseUrl = 'https://api.metalpriceapi.com/v1';
+  final FirestorePriceService _firestoreService = FirestorePriceService();
   late Box _cacheBox;
-  
+
   MetalPriceApiService() {
     _initializeService();
   }
@@ -42,66 +44,124 @@ class MetalPriceApiService {
     return parts.join(' ');
   }
   
-  // Get latest gold and silver prices
+  // All supported currencies fetched in a single API call
+  static const _allCurrencies = 'XAU,XAG,SAR,AED,EGP,KWD,BHD,OMR,QAR,JOD,EUR,GBP,JPY,CNY,INR,PKR,TRY';
+  static const _cacheKey = 'latest_prices';
+
+  // Get latest prices for ALL currencies in one call.
+  // 3-tier cache: Hive (5 min) → Firestore (15 min) → API
   Future<MetalPricesResponse> getLatestPrices({
-    required String currency,
     bool forceRefresh = false,
+    String? currency, // ignored — kept for backward compat, always fetches all
   }) async {
     try {
-      // Check cache first (5 minutes cache)
-      final cacheKey = 'latest_prices_$currency';
-      final cachedData = _cacheBox.get(cacheKey);
-      
-      if (!forceRefresh && cachedData != null) {
-        final cacheTime = DateTime.parse(cachedData['timestamp']);
-        final now = DateTime.now();
-        
-        // Return cached data if less than 5 minutes old
-        if (now.difference(cacheTime).inMinutes < 5) {
-          return MetalPricesResponse.fromJson(cachedData['data']);
+      // --- Tier 1: Hive local cache (5 minutes) ---
+      if (!forceRefresh) {
+        final cachedData = _cacheBox.get(_cacheKey);
+        if (cachedData != null) {
+          final cacheTime = DateTime.parse(cachedData['timestamp']);
+          if (DateTime.now().difference(cacheTime).inMinutes < 5) {
+            print('[Cache] Tier 1 HIT - Hive local cache');
+            return MetalPricesResponse.fromJson(cachedData['data']);
+          }
         }
       }
-      
-      // Fetch from API
+
+      // --- Tier 2: Firestore shared cache (15 minutes) ---
+      if (!forceRefresh) {
+        final firestoreData = await _firestoreService.getCachedPrices('latest');
+        if (firestoreData != null) {
+          print('[Cache] Tier 2 HIT - Firestore shared cache');
+          final apiData = _firestoreToApiFormat(firestoreData);
+          await _saveToHive(apiData);
+          return MetalPricesResponse.fromJson(apiData);
+        }
+      }
+
+      // --- Tier 3: MetalpriceAPI (live) ---
+      // Re-check Firestore to avoid duplicate API calls from concurrent users
+      final freshCheck = await _firestoreService.checkAndLock('latest');
+      if (freshCheck != null) {
+        print('[Cache] Tier 2 HIT (race guard) - another user just refreshed');
+        final apiData = _firestoreToApiFormat(freshCheck);
+        await _saveToHive(apiData);
+        return MetalPricesResponse.fromJson(apiData);
+      }
+
+      // Check daily quota before calling API
+      final allowed = await _firestoreService.tryIncrementApiCallCount();
+      if (!allowed) {
+        print('[API] Daily quota (100) exhausted. Using stale data.');
+        return _fallbackToAnyCache();
+      }
+
+      print('[API] Tier 3 - Calling MetalpriceAPI for all currencies');
       final response = await _dio.get(
         '/latest',
         queryParameters: {
           'api_key': ApiConfig.metalPriceApiKey,
           'base': 'USD',
-          'currencies': '$currency,XAU,XAG',
+          'currencies': _allCurrencies,
         },
       );
-      
-      // Save previous price for 24h change calculation before overwriting cache
-      if (cachedData != null) {
-        await _cacheBox.put('prev_$cacheKey', cachedData);
+
+      // Save previous price for 24h change calculation
+      final oldCached = _cacheBox.get(_cacheKey);
+      if (oldCached != null) {
+        await _cacheBox.put('prev_$_cacheKey', oldCached);
       }
 
-      // Cache the response
-      await _cacheBox.put(cacheKey, {
-        'timestamp': DateTime.now().toIso8601String(),
-        'data': response.data,
-      });
+      // Write to both Firestore (shared) and Hive (local)
+      await _firestoreService.cachePrices('latest', response.data);
+      await _saveToHive(response.data);
 
       return MetalPricesResponse.fromJson(response.data);
     } catch (e) {
       print('Error fetching metal prices: $e');
-      
-      // Return cached data if available
-      final cacheKey = 'latest_prices_$currency';
-      final cachedData = _cacheBox.get(cacheKey);
-      
-      if (cachedData != null) {
-        return MetalPricesResponse.fromJson(cachedData['data']);
-      }
-      
-      throw Exception('Failed to fetch metal prices');
+      return _fallbackToAnyCache();
     }
   }
-  
+
+  /// Save API response data to Hive local cache.
+  Future<void> _saveToHive(Map<String, dynamic> data) async {
+    await _cacheBox.put(_cacheKey, {
+      'timestamp': DateTime.now().toIso8601String(),
+      'data': data,
+    });
+  }
+
+  /// Convert Firestore document format back to API response format.
+  Map<String, dynamic> _firestoreToApiFormat(Map<String, dynamic> firestoreData) {
+    return {
+      'success': firestoreData['success'] ?? true,
+      'base': firestoreData['base'] ?? 'USD',
+      'timestamp': firestoreData['apiTimestamp'],
+      'rates': firestoreData['rates'],
+    };
+  }
+
+  /// Fallback: try Hive first, then Firestore (even if stale), then throw.
+  Future<MetalPricesResponse> _fallbackToAnyCache() async {
+    // Try Hive (even stale)
+    final cachedData = _cacheBox.get(_cacheKey);
+    if (cachedData != null) {
+      return MetalPricesResponse.fromJson(cachedData['data']);
+    }
+
+    // Try Firestore (even stale)
+    try {
+      final doc = await _firestoreService.getStalePrices('latest');
+      if (doc != null) {
+        return MetalPricesResponse.fromJson(_firestoreToApiFormat(doc));
+      }
+    } catch (_) {}
+
+    throw Exception('Failed to fetch metal prices');
+  }
+
   // Get the previous cached response for 24h change calculation
-  MetalPricesResponse? getPreviousPrices(String currency) {
-    final prevData = _cacheBox.get('prev_latest_prices_$currency');
+  MetalPricesResponse? getPreviousPrices() {
+    final prevData = _cacheBox.get('prev_$_cacheKey');
     if (prevData != null) {
       return MetalPricesResponse.fromJson(prevData['data']);
     }
@@ -310,12 +370,29 @@ class MetalPricesResponse {
     );
   }
   
-  // API returns both "XAU" (fractional) and "USDXAU" (price per ounce).
-  // Prefer the direct USDXAU/USDXAG keys for better precision.
-  double? get goldPrice => rates['USDXAU'];
-  double? get silverPrice => rates['USDXAG'];
-  
-  double? getPriceInCurrency(String currency) => rates[currency];
+  // Gold/silver price in USD
+  double? get goldPriceUsd => rates['USDXAU'];
+  double? get silverPriceUsd => rates['USDXAG'];
+
+  // Gold price converted to any currency
+  double? goldPriceIn(String currency) {
+    final usdGold = rates['USDXAU'];
+    if (usdGold == null) return null;
+    if (currency == 'USD') return usdGold;
+    final rate = rates[currency]; // e.g., SAR = 3.75 per 1 USD
+    if (rate == null) return null;
+    return usdGold * rate;
+  }
+
+  // Silver price converted to any currency
+  double? silverPriceIn(String currency) {
+    final usdSilver = rates['USDXAG'];
+    if (usdSilver == null) return null;
+    if (currency == 'USD') return usdSilver;
+    final rate = rates[currency];
+    if (rate == null) return null;
+    return usdSilver * rate;
+  }
 }
 
 class Currency {

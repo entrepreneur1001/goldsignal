@@ -22,11 +22,11 @@ class ApiConfig {
     defaultValue: '',
   );
 
-  static const int metalApiDailyLimit = 3;
-  static const int userRefreshDailyLimit = 10;
+  static const int metalApiDailyLimit = 100;
   static const int chatMessagesDailyLimit = 50;
 
-  static const Duration priceCacheDuration = Duration(minutes: 5);
+  static const Duration hiveCacheDuration = Duration(minutes: 5);
+  static const Duration firestoreCacheDuration = Duration(minutes: 15);
   static const Duration historicalCacheDuration = Duration(hours: 24);
   static const Duration currencyCacheDuration = Duration(days: 7);
 }

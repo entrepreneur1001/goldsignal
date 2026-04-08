@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:goldsignal/core/utils/api_config.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/api/metalpriceapi_service.dart';
 import '../../../../core/utils/app_config.dart';
+import '../../../../shared/models/metal_price.dart';
+import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/widgets/price_card.dart';
 import '../../../../shared/widgets/currency_selector.dart';
 
@@ -23,7 +24,6 @@ class _PricesScreenState extends ConsumerState<PricesScreen> {
   MetalPricesResponse? _pricesData;
   String _selectedCurrency = 'USD';
   DateTime _lastUpdated = DateTime.now();
-  int _refreshCount = 0;
   
   @override
   void initState() {
@@ -45,47 +45,65 @@ class _PricesScreenState extends ConsumerState<PricesScreen> {
   Future<void> _fetchPrices({bool forceRefresh = false}) async {
     try {
       final response = await _apiService.getLatestPrices(
-        currency: _selectedCurrency,
         forceRefresh: forceRefresh,
       );
-      
+
       setState(() {
         _pricesData = response;
         _lastUpdated = response.timestamp;
       });
+
+      _pushToProviders(response);
     } catch (e) {
       _showErrorSnackBar('Failed to fetch prices');
     }
   }
-  
-  Future<void> _handleManualRefresh() async {
-    // Check daily refresh limit
-    if (_refreshCount >= ApiConfig.userRefreshDailyLimit) {
-      _showErrorSnackBar('Daily refresh limit reached');
-      return;
+
+  void _pushToProviders(MetalPricesResponse response) {
+    final goldPrice = response.goldPriceIn(_selectedCurrency);
+    if (goldPrice != null) {
+      ref.read(metalPriceProvider.notifier).updatePrice(MetalPrice(
+        metal: 'Gold',
+        pricePerOunce: goldPrice,
+        pricePerGram: goldPrice / 31.1034768,
+        currency: _selectedCurrency,
+        timestamp: response.timestamp,
+        change24h: 0,
+        changePercent24h: 0,
+      ));
     }
-    
+    final silverPrice = response.silverPriceIn(_selectedCurrency);
+    if (silverPrice != null) {
+      ref.read(silverPriceProvider.notifier).updatePrice(MetalPrice(
+        metal: 'Silver',
+        pricePerOunce: silverPrice,
+        pricePerGram: silverPrice / 31.1034768,
+        currency: _selectedCurrency,
+        timestamp: response.timestamp,
+        change24h: 0,
+        changePercent24h: 0,
+      ));
+    }
+  }
+
+  Future<void> _handleManualRefresh() async {
     setState(() => _isRefreshing = true);
-    
     await _fetchPrices(forceRefresh: true);
-    _refreshCount++;
-    
     setState(() => _isRefreshing = false);
   }
-  
+
   void _onCurrencyChanged(String currency) async {
     setState(() {
       _selectedCurrency = currency;
-      _isLoading = true;
     });
-    
+
     // Save preference
     await AppConfig.setCurrency(currency);
-    
-    // Fetch new prices
-    await _fetchPrices();
-    
-    setState(() => _isLoading = false);
+
+    // No API call needed — just re-render with the new currency conversion
+    if (_pricesData != null) {
+      _pushToProviders(_pricesData!);
+    }
   }
   
   void _showErrorSnackBar(String message) {
@@ -142,16 +160,6 @@ class _PricesScreenState extends ConsumerState<PricesScreen> {
                           'Updated: ${DateFormat('MMM dd, HH:mm').format(_lastUpdated)}',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
-                        const Spacer(),
-                        if (_refreshCount > 0)
-                          Chip(
-                            label: Text(
-                              'Refreshes: $_refreshCount/${ApiConfig.userRefreshDailyLimit}',
-                              style: const TextStyle(fontSize: 11),
-                            ),
-                            padding: EdgeInsets.zero,
-                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
                       ],
                     ),
                   ).animate().fadeIn(),
@@ -161,15 +169,15 @@ class _PricesScreenState extends ConsumerState<PricesScreen> {
                   // Gold price card
                   if (_pricesData != null) ...[
                     Builder(builder: (_) {
-                      final prevPrices = _apiService.getPreviousPrices(_selectedCurrency);
-                      final goldPrice = _pricesData!.goldPrice ?? 0;
-                      final prevGoldPrice = prevPrices?.goldPrice ?? goldPrice;
+                      final prevPrices = _apiService.getPreviousPrices();
+                      final goldPrice = _pricesData!.goldPriceIn(_selectedCurrency) ?? 0;
+                      final prevGoldPrice = prevPrices?.goldPriceIn(_selectedCurrency) ?? goldPrice;
                       final goldChange = goldPrice - prevGoldPrice;
                       final goldChangePercent = prevGoldPrice != 0
                           ? (goldChange / prevGoldPrice) * 100
                           : 0.0;
-                      final silverPrice = _pricesData!.silverPrice ?? 0;
-                      final prevSilverPrice = prevPrices?.silverPrice ?? silverPrice;
+                      final silverPrice = _pricesData!.silverPriceIn(_selectedCurrency) ?? 0;
+                      final prevSilverPrice = prevPrices?.silverPriceIn(_selectedCurrency) ?? silverPrice;
                       final silverChange = silverPrice - prevSilverPrice;
                       final silverChangePercent = prevSilverPrice != 0
                           ? (silverChange / prevSilverPrice) * 100
@@ -233,7 +241,7 @@ class _PricesScreenState extends ConsumerState<PricesScreen> {
   }
   
   Widget _buildKaratPrice(String karat, double purity) {
-    final goldPricePerGram = (_pricesData?.goldPrice ?? 0) / 31.1034768;
+    final goldPricePerGram = (_pricesData?.goldPriceIn(_selectedCurrency) ?? 0) / 31.1034768;
     final karatPrice = goldPricePerGram * purity;
     
     return Padding(
