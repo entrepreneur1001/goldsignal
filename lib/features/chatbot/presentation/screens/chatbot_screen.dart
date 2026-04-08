@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:groq/groq.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../../core/utils/api_config.dart';
+import '../../../../core/utils/currency_conversion.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/models/metal_price.dart';
@@ -131,7 +132,8 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     }
 
     // Build portfolio context
-    String portfolioContext = _buildPortfolioContext(gold, silver, currency);
+    final rates = ref.read(metalPriceApiProvider).getCachedPrices()?.rates;
+    String portfolioContext = _buildPortfolioContext(gold, silver, currency, rates);
 
     return """You are a knowledgeable and helpful precious metals investment assistant specialized in gold and silver.
     You provide accurate, practical advice about gold/silver investments, market analysis, and jewelry pricing.
@@ -153,11 +155,28 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     Keep responses concise and actionable. Use bullet points when listing multiple items.""";
   }
 
-  String _buildPortfolioContext(MetalPrice? gold, MetalPrice? silver, String currency) {
+  String _buildPortfolioContext(
+    MetalPrice? gold,
+    MetalPrice? silver,
+    String currency,
+    Map<String, double>? rates,
+  ) {
     try {
       if (!Hive.isBoxOpen('portfolio')) return "";
       final box = Hive.box<PortfolioItem>('portfolio');
       if (box.isEmpty) return "User has no portfolio holdings yet.";
+
+      double purchaseInDisplay(PortfolioItem item) {
+        final raw = item.purchasePrice * item.weight;
+        if (rates == null) return raw;
+        return convertWithUsdBaseRates(
+              raw,
+              item.purchaseCurrency,
+              currency,
+              rates,
+            ) ??
+            raw;
+      }
 
       final items = box.values.toList();
       double totalCurrentValue = 0;
@@ -166,7 +185,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
 
       for (final item in items) {
         final price = item.metal == 'Gold' ? gold : silver;
-        final purchaseCost = item.purchasePrice * item.weight;
+        final purchaseCost = purchaseInDisplay(item);
         totalPurchaseCost += purchaseCost;
 
         double currentValue = 0;
@@ -178,7 +197,9 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
 
         final pl = currentValue - purchaseCost;
         final plPercent = purchaseCost > 0 ? (pl / purchaseCost * 100) : 0.0;
-        holdings.add("${item.weight}g ${item.metal} ${item.karat}K (bought at $currency ${item.purchasePrice.toStringAsFixed(2)}/g, current value: $currency ${currentValue.toStringAsFixed(2)}, P/L: ${plPercent >= 0 ? '+' : ''}${plPercent.toStringAsFixed(1)}%)");
+        holdings.add(
+          "${item.weight}g ${item.metal} ${item.karat}K (bought at ${item.purchasePrice.toStringAsFixed(2)}/${item.purchaseCurrency}/g, current value in $currency: ${currentValue.toStringAsFixed(2)}, P/L: ${plPercent >= 0 ? '+' : ''}${plPercent.toStringAsFixed(1)}%)",
+        );
       }
 
       final totalPL = totalCurrentValue - totalPurchaseCost;
