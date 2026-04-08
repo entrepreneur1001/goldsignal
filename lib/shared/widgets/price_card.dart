@@ -38,8 +38,8 @@ class PriceCard extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              color.withOpacity(0.1),
-              color.withOpacity(0.05),
+              color.withValues(alpha:0.1),
+              color.withValues(alpha:0.05),
             ],
           ),
         ),
@@ -54,7 +54,7 @@ class PriceCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.2),
+                      color: color.withValues(alpha:0.2),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(icon, color: color, size: 28),
@@ -81,8 +81,8 @@ class PriceCard extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: isPositive 
-                          ? Colors.green.withOpacity(0.1)
-                          : Colors.red.withOpacity(0.1),
+                          ? Colors.green.withValues(alpha:0.1)
+                          : Colors.red.withValues(alpha:0.1),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Row(
@@ -136,7 +136,7 @@ class PriceCard extends StatelessWidget {
                   Container(
                     height: 40,
                     width: 1,
-                    color: Colors.grey.withOpacity(0.3),
+                    color: Colors.grey.withValues(alpha:0.3),
                   ),
                   
                   // Per Gram
@@ -165,7 +165,7 @@ class PriceCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.1),
+                  color: Colors.grey.withValues(alpha:0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Row(

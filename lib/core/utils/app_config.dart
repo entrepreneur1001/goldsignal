@@ -22,7 +22,7 @@ class AppConfig {
     await Hive.openBox('silverPrices');
     await Hive.openBox('currencyRates');
     await Hive.openBox('userAlerts');
-    await Hive.openBox('portfolio');
+    // 'portfolio' box is opened in PortfolioScreen with its typed adapter
     await Hive.openBox('chatHistory');
   }
   

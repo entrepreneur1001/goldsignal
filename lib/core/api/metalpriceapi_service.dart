@@ -21,6 +21,25 @@ class MetalPriceApiService {
         'Content-Type': 'application/json',
       },
     );
+    _dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) {
+        print('cURL: ${_buildCurl(options)}');
+        handler.next(options);
+      },
+    ));
+  }
+
+  String _buildCurl(RequestOptions options) {
+    final parts = <String>['curl'];
+    parts.add('-X ${options.method}');
+    options.headers.forEach((key, value) {
+      parts.add("-H '$key: $value'");
+    });
+    if (options.data != null) {
+      parts.add("-d '${options.data}'");
+    }
+    parts.add("'${options.uri}'");
+    return parts.join(' ');
   }
   
   // Get latest gold and silver prices
@@ -53,12 +72,17 @@ class MetalPriceApiService {
         },
       );
       
+      // Save previous price for 24h change calculation before overwriting cache
+      if (cachedData != null) {
+        await _cacheBox.put('prev_$cacheKey', cachedData);
+      }
+
       // Cache the response
       await _cacheBox.put(cacheKey, {
         'timestamp': DateTime.now().toIso8601String(),
         'data': response.data,
       });
-      
+
       return MetalPricesResponse.fromJson(response.data);
     } catch (e) {
       print('Error fetching metal prices: $e');
@@ -75,6 +99,15 @@ class MetalPriceApiService {
     }
   }
   
+  // Get the previous cached response for 24h change calculation
+  MetalPricesResponse? getPreviousPrices(String currency) {
+    final prevData = _cacheBox.get('prev_latest_prices_$currency');
+    if (prevData != null) {
+      return MetalPricesResponse.fromJson(prevData['data']);
+    }
+    return null;
+  }
+
   // Get historical prices
   Future<Map<String, dynamic>> getHistoricalPrices({
     required String metal,
@@ -260,19 +293,27 @@ class MetalPricesResponse {
     required this.rates,
   });
   
-  factory MetalPricesResponse.fromJson(Map<String, dynamic> json) {
+  factory MetalPricesResponse.fromJson(Map json) {
+    final rawRates = json['rates'] ?? {};
+    final rates = <String, double>{};
+    rawRates.forEach((key, value) {
+      rates[key.toString()] = (value as num).toDouble();
+    });
+
     return MetalPricesResponse(
       success: json['success'] ?? true,
       base: json['base'] ?? 'USD',
       timestamp: json['timestamp'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(json['timestamp'] * 1000)
+          ? DateTime.fromMillisecondsSinceEpoch((json['timestamp'] as num).toInt() * 1000)
           : DateTime.now(),
-      rates: Map<String, double>.from(json['rates'] ?? {}),
+      rates: rates,
     );
   }
   
-  double? get goldPrice => rates['XAU'];
-  double? get silverPrice => rates['XAG'];
+  // API returns both "XAU" (fractional) and "USDXAU" (price per ounce).
+  // Prefer the direct USDXAU/USDXAG keys for better precision.
+  double? get goldPrice => rates['USDXAU'];
+  double? get silverPrice => rates['USDXAG'];
   
   double? getPriceInCurrency(String currency) => rates[currency];
 }

@@ -20,16 +20,26 @@ class MetalPriceNotifier extends Notifier<MetalPrice?> {
     return null;
   }
   
-  Future<void> fetchLatestPrices() async {
+  Future<void> fetchLatestPrices({String currency = 'USD'}) async {
     try {
-      final response = await _apiService.getLatestPrices(currency: 'USD');
-      // Assuming the response contains gold price data
-      // You'll need to adjust this based on the actual API response structure
+      final response = await _apiService.getLatestPrices(currency: currency);
+      final goldPrice = response.goldPrice;
+      if (goldPrice != null) {
+        state = MetalPrice(
+          metal: 'Gold',
+          pricePerOunce: goldPrice,
+          pricePerGram: goldPrice / 31.1034768,
+          currency: currency,
+          timestamp: response.timestamp,
+          change24h: 0,
+          changePercent24h: 0,
+        );
+      }
     } catch (e) {
-      // Handle error
+      // State remains null on error
     }
   }
-  
+
   void updatePrice(MetalPrice price) {
     state = price;
   }
@@ -41,24 +51,34 @@ final silverPriceProvider = NotifierProvider<SilverPriceNotifier, MetalPrice?>((
 
 class SilverPriceNotifier extends Notifier<MetalPrice?> {
   late MetalPriceApiService _apiService;
-  
+
   @override
   MetalPrice? build() {
     _apiService = ref.watch(metalPriceApiProvider);
     fetchLatestPrices();
     return null;
   }
-  
-  Future<void> fetchLatestPrices() async {
+
+  Future<void> fetchLatestPrices({String currency = 'USD'}) async {
     try {
-      final response = await _apiService.getLatestPrices(currency: 'USD');
-      // Assuming the response contains silver price data
-      // You'll need to adjust this based on the actual API response structure
+      final response = await _apiService.getLatestPrices(currency: currency);
+      final silverPrice = response.silverPrice;
+      if (silverPrice != null) {
+        state = MetalPrice(
+          metal: 'Silver',
+          pricePerOunce: silverPrice,
+          pricePerGram: silverPrice / 31.1034768,
+          currency: currency,
+          timestamp: response.timestamp,
+          change24h: 0,
+          changePercent24h: 0,
+        );
+      }
     } catch (e) {
-      // Handle error
+      // State remains null on error
     }
   }
-  
+
   void updatePrice(MetalPrice price) {
     state = price;
   }

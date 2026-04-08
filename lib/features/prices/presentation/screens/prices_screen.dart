@@ -131,7 +131,7 @@ class _PricesScreenState extends ConsumerState<PricesScreen> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor.withOpacity(0.1),
+                      color: Theme.of(context).primaryColor.withValues(alpha:0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
@@ -160,30 +160,48 @@ class _PricesScreenState extends ConsumerState<PricesScreen> {
                   
                   // Gold price card
                   if (_pricesData != null) ...[
+                    Builder(builder: (_) {
+                      final prevPrices = _apiService.getPreviousPrices(_selectedCurrency);
+                      final goldPrice = _pricesData!.goldPrice ?? 0;
+                      final prevGoldPrice = prevPrices?.goldPrice ?? goldPrice;
+                      final goldChange = goldPrice - prevGoldPrice;
+                      final goldChangePercent = prevGoldPrice != 0
+                          ? (goldChange / prevGoldPrice) * 100
+                          : 0.0;
+                      final silverPrice = _pricesData!.silverPrice ?? 0;
+                      final prevSilverPrice = prevPrices?.silverPrice ?? silverPrice;
+                      final silverChange = silverPrice - prevSilverPrice;
+                      final silverChangePercent = prevSilverPrice != 0
+                          ? (silverChange / prevSilverPrice) * 100
+                          : 0.0;
+
+                      return Column(children: [
                     PriceCard(
                       metal: 'Gold',
                       icon: Icons.monetization_on,
                       color: const Color(0xFFFFD700),
-                      pricePerOunce: _pricesData!.goldPrice ?? 0,
-                      pricePerGram: (_pricesData!.goldPrice ?? 0) / 31.1034768,
+                      pricePerOunce: goldPrice,
+                      pricePerGram: goldPrice / 31.1034768,
                       currency: _selectedCurrency,
-                      change24h: 2.5, // Mock data - would come from API
-                      changePercent: 0.13, // Mock data
+                      change24h: goldChange,
+                      changePercent: goldChangePercent,
                     ).animate().slideX(begin: -1, duration: 600.ms),
-                    
+
                     const SizedBox(height: 16),
-                    
+
                     // Silver price card
                     PriceCard(
                       metal: 'Silver',
                       icon: Icons.paid,
                       color: const Color(0xFFC0C0C0),
-                      pricePerOunce: _pricesData!.silverPrice ?? 0,
-                      pricePerGram: (_pricesData!.silverPrice ?? 0) / 31.1034768,
+                      pricePerOunce: silverPrice,
+                      pricePerGram: silverPrice / 31.1034768,
                       currency: _selectedCurrency,
-                      change24h: 0.05, // Mock data
-                      changePercent: 0.21, // Mock data
+                      change24h: silverChange,
+                      changePercent: silverChangePercent,
                     ).animate().slideX(begin: 1, duration: 600.ms),
+                      ]);
+                    }),
                     
                     const SizedBox(height: 24),
                     
@@ -229,7 +247,7 @@ class _PricesScreenState extends ConsumerState<PricesScreen> {
                 width: 40,
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor.withOpacity(0.2),
+                  color: Theme.of(context).primaryColor.withValues(alpha:0.2),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(

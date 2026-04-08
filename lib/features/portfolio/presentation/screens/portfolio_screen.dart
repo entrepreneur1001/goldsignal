@@ -27,7 +27,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     if (!Hive.isAdapterRegistered(0)) {
       Hive.registerAdapter(PortfolioItemAdapter());
     }
-    _portfolioBox = await Hive.openBox<PortfolioItem>('portfolio');
+    _portfolioBox = Hive.isBoxOpen('portfolio')
+        ? Hive.box<PortfolioItem>('portfolio')
+        : await Hive.openBox<PortfolioItem>('portfolio');
     setState(() {
       _isInitialized = true;
     });

@@ -1,27 +1,28 @@
 /// API keys are supplied at build/run time — never commit real values.
 ///
-/// Local: copy [secrets.json.example] to `secrets.json` (gitignored), then run:
+/// JSON keys in `secrets.json` must match these compile-time names exactly
+/// (same strings as in [String.fromEnvironment]):
+///   METAL_PRICE_API_KEY  → https://metalpriceapi.com (used by [MetalPriceApiService])
+///   OPENAI_API_KEY       → https://platform.openai.com/api-keys (used by chatbot)
+///
+/// Local: `cp secrets.json.example secrets.json`, fill in values, then:
 ///   flutter run --dart-define-from-file=secrets.json
 ///
-/// CI: inject the same keys via `--dart-define=KEY=value` or your secret store.
+/// CI: `--dart-define=METAL_PRICE_API_KEY=...` etc., or a secrets file from your vault.
 class ApiConfig {
+  /// metalpriceapi.com — same key as query param `api_key` in API requests.
   static const String metalPriceApiKey = String.fromEnvironment(
     'METAL_PRICE_API_KEY',
     defaultValue: '',
   );
 
-  static const String exchangeRateApiKey = String.fromEnvironment(
-    'EXCHANGE_RATE_API_KEY',
-    defaultValue: '',
-  );
-
+  /// OpenAI project / user API key (`sk-...`).
   static const String openAiApiKey = String.fromEnvironment(
     'OPENAI_API_KEY',
     defaultValue: '',
   );
 
   static const int metalApiDailyLimit = 3;
-  static const int currencyApiDailyLimit = 50;
   static const int userRefreshDailyLimit = 10;
   static const int chatMessagesDailyLimit = 50;
 

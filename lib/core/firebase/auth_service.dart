@@ -39,10 +39,10 @@ class AuthService {
       return credential.user;
     } catch (e) {
       print('Email sign in failed: $e');
-      throw _handleAuthError(e);
+      throw Exception(_handleAuthError(e));
     }
   }
-  
+
   // Sign up with email
   Future<User?> signUpWithEmail(String email, String password) async {
     try {
@@ -50,7 +50,7 @@ class AuthService {
         email: email,
         password: password,
       );
-      
+
       if (credential.user != null) {
         // Create user profile in Firestore
         await _createUserProfile(
@@ -59,39 +59,39 @@ class AuthService {
           isGuest: false,
         );
       }
-      
+
       return credential.user;
     } catch (e) {
       print('Email sign up failed: $e');
-      throw _handleAuthError(e);
+      throw Exception(_handleAuthError(e));
     }
   }
-  
+
   // Convert guest account to email account
   Future<User?> convertGuestToEmail(String email, String password) async {
     try {
       final User? user = currentUser;
-      
+
       if (user != null && user.isAnonymous) {
         // Create email credential
         final AuthCredential credential = EmailAuthProvider.credential(
           email: email,
           password: password,
         );
-        
+
         // Link anonymous account with email credential
         final UserCredential userCredential = await user.linkWithCredential(credential);
-        
+
         // Update user profile in Firestore
         await _updateUserProfileToRegistered(user.uid, email);
-        
+
         return userCredential.user;
       }
-      
+
       return null;
     } catch (e) {
       print('Account conversion failed: $e');
-      throw _handleAuthError(e);
+      throw Exception(_handleAuthError(e));
     }
   }
   
@@ -101,17 +101,17 @@ class AuthService {
       await _auth.signOut();
     } catch (e) {
       print('Sign out failed: $e');
-      throw e;
+      rethrow;
     }
   }
-  
+
   // Reset password
   Future<void> resetPassword(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
     } catch (e) {
       print('Password reset failed: $e');
-      throw _handleAuthError(e);
+      throw Exception(_handleAuthError(e));
     }
   }
   
@@ -156,7 +156,7 @@ class AuthService {
       });
     } catch (e) {
       print('Failed to create user profile: $e');
-      throw e;
+      rethrow;
     }
   }
   
@@ -170,7 +170,7 @@ class AuthService {
       });
     } catch (e) {
       print('Failed to update user profile: $e');
-      throw e;
+      rethrow;
     }
   }
   

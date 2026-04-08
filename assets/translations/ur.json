@@ -1,0 +1,160 @@
+{
+  "app_name": "GoldSignal",
+  "welcome": "GoldSignal میں خوش آمدید",
+  "guest_mode": "مہمان کے طور پر جاری رکھیں",
+  "sign_in": "سائن ان",
+  "sign_up": "سائن اپ",
+  "email": "ای میل",
+  "password": "پاس ورڈ",
+  "forgot_password": "پاس ورڈ بھول گئے؟",
+
+  "dashboard": {
+    "title": "ڈیش بورڈ",
+    "gold_price": "سونے کی قیمت",
+    "silver_price": "چاندی کی قیمت",
+    "last_updated": "آخری اپ ڈیٹ",
+    "refresh": "ریفریش",
+    "offline_mode": "آف لائن موڈ",
+    "per_ounce": "فی اونس",
+    "per_gram": "فی گرام"
+  },
+
+  "calculator": {
+    "title": "کیلکولیٹر",
+    "weight": "وزن",
+    "karat": "قیراط",
+    "quantity": "مقدار",
+    "total_value": "کل قیمت",
+    "calculate": "حساب لگائیں",
+    "grams": "گرام",
+    "ounces": "اونس"
+  },
+
+  "alerts": {
+    "title": "قیمت الرٹس",
+    "create_alert": "الرٹ بنائیں",
+    "no_alerts": "کوئی الرٹ سیٹ نہیں",
+    "alert_when": "الرٹ کب",
+    "price_above": "قیمت اوپر جائے",
+    "price_below": "قیمت نیچے جائے",
+    "delete_alert": "الرٹ حذف کریں"
+  },
+
+  "chatbot": {
+    "title": "میٹلز بوٹ",
+    "placeholder": "سونے اور چاندی کے بارے میں پوچھیں...",
+    "send": "بھیجیں",
+    "api_key_required": "براہ کرم سیٹنگز میں اپنی OpenAI API کلید شامل کریں",
+    "thinking": "سوچ رہا ہوں...",
+    "error": "معذرت، یہ درخواست پر عمل نہیں ہو سکا"
+  },
+
+  "portfolio": {
+    "title": "پورٹ فولیو",
+    "add_entry": "اندراج شامل کریں",
+    "total_value": "کل قیمت",
+    "performance": "کارکردگی",
+    "holdings": "ہولڈنگز",
+    "purchase_date": "خریداری کی تاریخ",
+    "purchase_price": "خریداری کی قیمت",
+    "current_value": "موجودہ قیمت",
+    "profit_loss": "نفع/نقصان"
+  },
+
+  "jewelry": {
+    "title": "زیورات کی قیمت چیک",
+    "store_name": "دکان کا نام",
+    "quoted_price": "بتائی گئی قیمت",
+    "making_charges": "بنوائی",
+    "vat": "VAT %",
+    "analyze": "تجزیہ",
+    "fair_price": "مناسب قیمت",
+    "high_price": "زیادہ قیمت",
+    "very_high_price": "بہت زیادہ قیمت",
+    "market_value": "مارکیٹ قیمت",
+    "premium": "پریمیم"
+  },
+
+  "insights": {
+    "title": "مارکیٹ بصیرت",
+    "todays_move": "آج کی تبدیلی",
+    "why_moved": "سونا کیوں بدلا",
+    "confidence": "اعتماد",
+    "key_factors": "اہم عوامل",
+    "assumptions": "مفروضے",
+    "refresh_insights": "بصیرت ریفریش کریں"
+  },
+
+  "profile": {
+    "title": "پروفائل",
+    "personal_info": "ذاتی معلومات",
+    "preferences": "ترجیحات",
+    "display_name": "ظاہری نام",
+    "phone": "فون نمبر",
+    "country": "ملک",
+    "language": "زبان",
+    "currency": "کرنسی",
+    "theme": "تھیم",
+    "dark_mode": "ڈارک موڈ",
+    "notifications": "اطلاعات",
+    "sign_out": "سائن آؤٹ",
+    "create_account": "اکاؤنٹ بنائیں",
+    "guest_account": "مہمان اکاؤنٹ",
+    "convert_account": "ڈیٹا محفوظ کرنے کے لیے اپنا مہمان اکاؤنٹ تبدیل کریں"
+  },
+
+  "currencies": {
+    "USD": "امریکی ڈالر",
+    "SAR": "سعودی ریال",
+    "AED": "اماراتی درہم",
+    "EGP": "مصری پاؤنڈ",
+    "KWD": "کویتی دینار",
+    "BHD": "بحرینی دینار",
+    "OMR": "عمانی ریال",
+    "QAR": "قطری ریال",
+    "JOD": "اردنی دینار"
+  },
+
+  "karats": {
+    "24K": "24 قیراط خالص سونا",
+    "22K": "22 قیراط سونا",
+    "21K": "21 قیراط سونا",
+    "18K": "18 قیراط سونا"
+  },
+
+  "errors": {
+    "network": "نیٹ ورک کنکشن کی خرابی",
+    "api_limit": "API کی حد پوری ہو گئی",
+    "auth_failed": "تصدیق ناکام",
+    "invalid_email": "غلط ای میل ایڈریس",
+    "weak_password": "کمزور پاس ورڈ",
+    "user_not_found": "صارف نہیں ملا",
+    "wrong_password": "غلط پاس ورڈ",
+    "something_wrong": "کچھ غلط ہو گیا"
+  },
+
+  "success": {
+    "alert_created": "الرٹ کامیابی سے بنایا گیا",
+    "alert_deleted": "الرٹ حذف ہو گیا",
+    "profile_updated": "پروفائل اپ ڈیٹ ہو گیا",
+    "entry_saved": "پورٹ فولیو میں محفوظ ہو گیا",
+    "copied": "کلپ بورڈ پر کاپی ہو گیا"
+  },
+
+  "common": {
+    "ok": "ٹھیک ہے",
+    "cancel": "منسوخ",
+    "save": "محفوظ کریں",
+    "delete": "حذف کریں",
+    "edit": "ترمیم",
+    "share": "شیئر کریں",
+    "copy": "کاپی",
+    "close": "بند کریں",
+    "loading": "لوڈ ہو رہا ہے...",
+    "retry": "دوبارہ کوشش",
+    "search": "تلاش",
+    "filter": "فلٹر",
+    "sort": "ترتیب",
+    "view_all": "سب دیکھیں"
+  }
+}
