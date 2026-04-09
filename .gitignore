@@ -46,3 +46,8 @@ app.*.map.json
 
 # Local API keys (see secrets.json.example)
 secrets.json
+
+# Android release signing — never commit keystores or their passwords
+android/key.properties
+*.jks
+*.keystore

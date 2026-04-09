@@ -14,7 +14,9 @@
       "Bash(find:*)",
       "Bash(wc:*)",
       "Bash(curl -s -L \"https://metalpriceapi.com/documentation\")",
-      "Bash(curl -s -L \"https://metalpriceapi.com\")"
+      "Bash(curl -s -L \"https://metalpriceapi.com\")",
+      "Bash(dart run:*)",
+      "Bash(ls /Users/mostafaradwan/Documents/apps/goldsignal/android/app/build.gradle*)"
     ],
     "deny": [],
     "ask": [],
