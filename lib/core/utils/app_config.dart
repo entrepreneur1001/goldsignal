@@ -24,6 +24,8 @@ class AppConfig {
     await Hive.openBox('userAlerts');
     // 'portfolio' box is opened in PortfolioScreen with its typed adapter
     await Hive.openBox('chatHistory');
+    await Hive.openBox('localMarketPrices');
+    await Hive.openBox('priceHistory');
   }
   
   static Future<void> _setDefaults() async {
@@ -42,6 +44,9 @@ class AppConfig {
     }
     if (!_prefs.containsKey('theme')) {
       await _prefs.setString('theme', 'system');
+    }
+    if (!_prefs.containsKey('price_side')) {
+      await _prefs.setString('price_side', 'sell');
     }
   }
   

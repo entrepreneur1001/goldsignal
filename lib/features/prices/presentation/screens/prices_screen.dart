@@ -2,293 +2,437 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/api/metalpriceapi_service.dart';
+import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/models/metal_price.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
+import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/widgets/price_card.dart';
 import '../../../../shared/widgets/currency_selector.dart';
+import '../../../charts/presentation/screens/price_chart_screen.dart';
 
-class PricesScreen extends ConsumerStatefulWidget {
+class PricesScreen extends ConsumerWidget {
   const PricesScreen({super.key});
 
   @override
-  ConsumerState<PricesScreen> createState() => _PricesScreenState();
-}
-
-class _PricesScreenState extends ConsumerState<PricesScreen> {
-  final MetalPriceApiService _apiService = MetalPriceApiService();
-  
-  bool _isLoading = false;
-  bool _isRefreshing = false;
-  MetalPricesResponse? _pricesData;
-  DateTime _lastUpdated = DateTime.now();
-
-  @override
-  void initState() {
-    super.initState();
-    _loadInitialData();
-  }
-
-  Future<void> _loadInitialData() async {
-    // Show cached data instantly if available
-    final cached = _apiService.getCachedPrices();
-    if (cached != null) {
-      _pricesData = cached;
-      _lastUpdated = cached.timestamp;
-      // Delay provider update to after widget tree finishes building
-      Future(() => _pushToProviders(cached, ref.read(selectedCurrencyProvider)));
-      setState(() {}); // render immediately with cached data
-    } else {
-      setState(() => _isLoading = true);
-    }
-
-    // Always fetch fresh data in background
-    await _fetchFresh();
-    if (_isLoading) setState(() => _isLoading = false);
-  }
-
-  Future<void> _fetchFresh() async {
-    try {
-      final response = await _apiService.fetchFreshPrices();
-
-      setState(() {
-        _pricesData = response;
-        _lastUpdated = response.timestamp;
-      });
-
-      _pushToProviders(response, ref.read(selectedCurrencyProvider));
-    } catch (e) {
-      // Only show error if we have nothing to display
-      if (_pricesData == null) {
-        _showErrorSnackBar('Failed to fetch prices');
-      }
-    }
-  }
-
-  void _pushToProviders(MetalPricesResponse response, String currency) {
-    final goldPrice = response.goldPriceIn(currency);
-    if (goldPrice != null) {
-      ref.read(metalPriceProvider.notifier).updatePrice(MetalPrice(
-        metal: 'Gold',
-        pricePerOunce: goldPrice,
-        pricePerGram: goldPrice / 31.1034768,
-        currency: currency,
-        timestamp: response.timestamp,
-        change24h: 0,
-        changePercent24h: 0,
-      ));
-    }
-    final silverPrice = response.silverPriceIn(currency);
-    if (silverPrice != null) {
-      ref.read(silverPriceProvider.notifier).updatePrice(MetalPrice(
-        metal: 'Silver',
-        pricePerOunce: silverPrice,
-        pricePerGram: silverPrice / 31.1034768,
-        currency: currency,
-        timestamp: response.timestamp,
-        change24h: 0,
-        changePercent24h: 0,
-      ));
-    }
-  }
-
-  Future<void> _handleManualRefresh() async {
-    setState(() => _isRefreshing = true);
-    await _fetchFresh();
-    setState(() => _isRefreshing = false);
-  }
-
-  void _onCurrencyChanged(String currency) {
-    // Update global provider (persists to SharedPreferences automatically)
-    ref.read(selectedCurrencyProvider.notifier).setCurrency(currency);
-
-    // Push converted prices to other screens
-    if (_pricesData != null) {
-      _pushToProviders(_pricesData!, currency);
-    }
-  }
-  
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
-  
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final selectedCurrency = ref.watch(selectedCurrencyProvider);
-
-    // Re-push prices when currency changes from another screen
-    ref.listen<String>(selectedCurrencyProvider, (prev, next) {
-      if (_pricesData != null && prev != next) {
-        _pushToProviders(_pricesData!, next);
-      }
-    });
+    final isLocal = ref.watch(isLocalMarketProvider);
+    final marketState = ref.watch(marketPricesControllerProvider);
+    final localPrices = ref.watch(localMarketPricesProvider);
+    final priceSide = ref.watch(priceSideProvider);
+    final goldPrice = ref.watch(metalPriceProvider);
+    final silverPrice = ref.watch(silverPriceProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gold & Silver Prices'),
         actions: [
-          // Refresh button
           IconButton(
-            onPressed: _isRefreshing ? null : _handleManualRefresh,
+            icon: const Icon(Icons.show_chart),
+            tooltip: "Price history",
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PriceChartScreen()),
+            ),
+          ),
+          IconButton(
+            onPressed: marketState.isRefreshing
+                ? null
+                : () => ref.read(marketPricesControllerProvider.notifier).refresh(),
             icon: AnimatedRotation(
-              turns: _isRefreshing ? 1 : 0,
+              turns: marketState.isRefreshing ? 1 : 0,
               duration: const Duration(seconds: 1),
               child: const Icon(Icons.refresh),
             ),
           ),
-
-          // Currency selector
           CurrencySelector(
             selectedCurrency: selectedCurrency,
-            onCurrencyChanged: _onCurrencyChanged,
+            onCurrencyChanged: (currency) {
+              ref.read(selectedCurrencyProvider.notifier).setCurrency(currency);
+            },
           ),
         ],
       ),
-      body: _isLoading
+      body: marketState.isRefreshing && goldPrice == null && localPrices == null
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: _handleManualRefresh,
+              onRefresh: () =>
+                  ref.read(marketPricesControllerProvider.notifier).refresh(),
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
-                  // Last updated time
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor.withValues(alpha:0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.access_time, size: 16),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Updated: ${DateFormat('MMM dd, HH:mm').format(_lastUpdated)}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ).animate().fadeIn(),
-                  
-                  const SizedBox(height: 16),
-                  
-                  // Gold price card
-                  if (_pricesData != null) ...[
-                    Builder(builder: (_) {
-                      final prevPrices = _apiService.getPreviousPrices();
-                      final goldPrice = _pricesData!.goldPriceIn(selectedCurrency) ?? 0;
-                      final prevGoldPrice = prevPrices?.goldPriceIn(selectedCurrency) ?? goldPrice;
-                      final goldChange = goldPrice - prevGoldPrice;
-                      final goldChangePercent = prevGoldPrice != 0
-                          ? (goldChange / prevGoldPrice) * 100
-                          : 0.0;
-                      final silverPrice = _pricesData!.silverPriceIn(selectedCurrency) ?? 0;
-                      final prevSilverPrice = prevPrices?.silverPriceIn(selectedCurrency) ?? silverPrice;
-                      final silverChange = silverPrice - prevSilverPrice;
-                      final silverChangePercent = prevSilverPrice != 0
-                          ? (silverChange / prevSilverPrice) * 100
-                          : 0.0;
-
-                      return Column(children: [
-                    PriceCard(
-                      metal: 'Gold',
-                      icon: Icons.monetization_on,
-                      color: const Color(0xFFFFD700),
-                      pricePerOunce: goldPrice,
-                      pricePerGram: goldPrice / 31.1034768,
-                      currency: selectedCurrency,
-                      change24h: goldChange,
-                      changePercent: goldChangePercent,
-                    ).animate().slideX(begin: -1, duration: 600.ms),
-
+                  if (isLocal) ...[
+                    _buildLocalBanner(context),
+                    const SizedBox(height: 12),
+                    _buildBuySellToggle(context, ref, priceSide),
                     const SizedBox(height: 16),
-
-                    // Silver price card
-                    PriceCard(
-                      metal: 'Silver',
-                      icon: Icons.paid,
-                      color: const Color(0xFFC0C0C0),
-                      pricePerOunce: silverPrice,
-                      pricePerGram: silverPrice / 31.1034768,
-                      currency: selectedCurrency,
-                      change24h: silverChange,
-                      changePercent: silverChangePercent,
-                    ).animate().slideX(begin: 1, duration: 600.ms),
-                      ]);
-                    }),
-                    
-                    const SizedBox(height: 24),
-                    
-                    // Quick karat prices
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Gold Karat Prices (per gram)',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: 16),
-                            _buildKaratPrice('24K', 1.0),
-                            _buildKaratPrice('22K', 0.916),
-                            _buildKaratPrice('21K', 0.875),
-                            _buildKaratPrice('18K', 0.75),
-                          ],
-                        ),
-                      ),
-                    ).animate().fadeIn(delay: 300.ms),
+                  ],
+                  _buildUpdatedRow(context, marketState.lastUpdated, localPrices),
+                  const SizedBox(height: 16),
+                  if (isLocal && localPrices != null)
+                    ..._buildLocalContent(context, localPrices, priceSide)
+                  else if (marketState.globalData != null)
+                    ..._buildGlobalContent(
+                      context,
+                      ref,
+                      marketState.globalData!,
+                      selectedCurrency,
+                    )
+                  else if (goldPrice != null)
+                    ..._buildFromProviders(context, goldPrice, silverPrice),
+                  if (marketState.error != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Using cached data. ${marketState.error}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Colors.orange,
+                          ),
+                    ),
                   ],
                 ],
               ),
             ),
     );
   }
-  
-  Widget _buildKaratPrice(String karat, double purity) {
-    final selectedCurrency = ref.read(selectedCurrencyProvider);
-    final goldPricePerGram = (_pricesData?.goldPriceIn(selectedCurrency) ?? 0) / 31.1034768;
-    final karatPrice = goldPricePerGram * purity;
-    
+
+  Widget _buildLocalBanner(BuildContext context) {
+    return Card(
+      color: const Color(0xFFDEB059).withValues(alpha: 0.15),
+      child: ListTile(
+        leading: const Icon(Icons.storefront, color: Color(0xFFDEB059)),
+        title: const Text('Egypt Local Market'),
+        subtitle: const Text('Prices from iSagha.com — jeweler buy/sell rates'),
+        trailing: IconButton(
+          icon: const Icon(Icons.open_in_new, size: 20),
+          onPressed: () => launchUrl(
+            Uri.parse('https://market.isagha.com/prices'),
+            mode: LaunchMode.externalApplication,
+          ),
+        ),
+      ),
+    ).animate().fadeIn();
+  }
+
+  Widget _buildBuySellToggle(
+    BuildContext context,
+    WidgetRef ref,
+    PriceSide side,
+  ) {
+    return SegmentedButton<PriceSide>(
+      segments: const [
+        ButtonSegment(
+          value: PriceSide.sell,
+          label: Text('Sell'),
+          icon: Icon(Icons.shopping_bag_outlined),
+        ),
+        ButtonSegment(
+          value: PriceSide.buy,
+          label: Text('Buy'),
+          icon: Icon(Icons.sell_outlined),
+        ),
+      ],
+      selected: {side},
+      onSelectionChanged: (selection) {
+        ref.read(priceSideProvider.notifier).setSide(selection.first);
+      },
+    );
+  }
+
+  Widget _buildUpdatedRow(
+    BuildContext context,
+    DateTime? lastUpdated,
+    LocalMarketPrices? local,
+  ) {
+    final time = local?.updatedAt ?? lastUpdated ?? DateTime.now();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.access_time, size: 16),
+          const SizedBox(width: 8),
+          Text(
+            'Updated: ${DateFormat('MMM dd, HH:mm').format(time)}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    ).animate().fadeIn();
+  }
+
+  List<Widget> _buildLocalContent(
+    BuildContext context,
+    LocalMarketPrices local,
+    PriceSide side,
+  ) {
+    final headline = local.headlineGold;
+    final silverHeadline = local.headlineSilver;
+
+    return [
+      if (headline != null)
+        PriceCard(
+          metal: 'Gold 21K',
+          icon: Icons.monetization_on,
+          color: const Color(0xFFFFD700),
+          pricePerOunce: headline.priceFor(side) * 31.1034768,
+          pricePerGram: headline.priceFor(side),
+          currency: 'EGP',
+          change24h: headline.change,
+          changePercent: headline.changePercent,
+        ).animate().slideX(begin: -1, duration: 600.ms),
+      const SizedBox(height: 16),
+      if (silverHeadline != null)
+        PriceCard(
+          metal: 'Silver 999',
+          icon: Icons.paid,
+          color: const Color(0xFFC0C0C0),
+          pricePerOunce: silverHeadline.priceFor(side) * 31.1034768,
+          pricePerGram: silverHeadline.priceFor(side),
+          currency: 'EGP',
+          change24h: silverHeadline.change,
+          changePercent: silverHeadline.changePercent,
+        ).animate().slideX(begin: 1, duration: 600.ms),
+      const SizedBox(height: 24),
+      _buildLocalKaratCard(context, 'Gold Prices (per gram)', local.gold, side),
+      const SizedBox(height: 16),
+      _buildLocalKaratCard(context, 'Silver Prices (per gram)', local.silver, side),
+      if (local.fxRates.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        _buildFxCard(context, local),
+      ],
+    ];
+  }
+
+  Widget _buildLocalKaratCard(
+    BuildContext context,
+    String title,
+    List<LocalKaratPrice> rows,
+    PriceSide side,
+  ) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 16),
+            for (final row in rows) _buildLocalKaratRow(context, row, side),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(delay: 300.ms);
+  }
+
+  Widget _buildLocalKaratRow(
+    BuildContext context,
+    LocalKaratPrice row,
+    PriceSide side,
+  ) {
+    final label = _karatLabel(row.karat);
+    final price = row.priceFor(side);
+    final gap = side == PriceSide.sell ? row.globalGapSell : row.globalGapBuy;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
+                if (gap > 0)
+                  Text(
+                    'Gap vs global: +${gap.toStringAsFixed(2)} EGP',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.red.shade600,
+                        ),
+                  ),
+              ],
+            ),
+          ),
+          Text(
+            'EGP ${price.toStringAsFixed(2)}',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _karatLabel(String karat) {
+    switch (karat) {
+      case 'gold_pound':
+        return 'Gold Pound';
+      case 'silver_pound':
+        return 'Silver Pound';
+      default:
+        return '${karat}K';
+    }
+  }
+
+  Widget _buildFxCard(BuildContext context, LocalMarketPrices local) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'FX Rates (EGP)',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
+            for (final fx in local.fxRates)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(fx.code),
+                    Text(
+                      'Sell ${fx.sell.toStringAsFixed(2)} / Buy ${fx.buy.toStringAsFixed(2)}',
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildGlobalContent(
+    BuildContext context,
+    WidgetRef ref,
+    MetalPricesResponse data,
+    String currency,
+  ) {
+    final api = ref.read(metalPriceApiProvider);
+    final goldPrice = data.goldPriceIn(currency) ?? 0;
+    final goldDelta = api.computeChange(
+      current: goldPrice,
+      previousPrice: (prev) => prev.goldPriceIn(currency),
+    );
+    final silverPrice = data.silverPriceIn(currency) ?? 0;
+    final silverDelta = api.computeChange(
+      current: silverPrice,
+      previousPrice: (prev) => prev.silverPriceIn(currency),
+    );
+
+    return [
+      PriceCard(
+        metal: 'Gold',
+        icon: Icons.monetization_on,
+        color: const Color(0xFFFFD700),
+        pricePerOunce: goldPrice,
+        pricePerGram: goldPrice / 31.1034768,
+        currency: currency,
+        change24h: goldDelta.change,
+        changePercent: goldDelta.changePercent,
+      ).animate().slideX(begin: -1, duration: 600.ms),
+      const SizedBox(height: 16),
+      PriceCard(
+        metal: 'Silver',
+        icon: Icons.paid,
+        color: const Color(0xFFC0C0C0),
+        pricePerOunce: silverPrice,
+        pricePerGram: silverPrice / 31.1034768,
+        currency: currency,
+        change24h: silverDelta.change,
+        changePercent: silverDelta.changePercent,
+      ).animate().slideX(begin: 1, duration: 600.ms),
+      const SizedBox(height: 24),
+      Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Gold Karat Prices (per gram)',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 16),
+              for (final entry in [
+                ('24K', 1.0),
+                ('22K', 0.916),
+                ('21K', 0.875),
+                ('18K', 0.75),
+              ])
+                _buildGlobalKaratRow(
+                  context,
+                  entry.$1,
+                  entry.$2,
+                  goldPrice / 31.1034768,
+                  currency,
+                ),
+            ],
+          ),
+        ),
+      ).animate().fadeIn(delay: 300.ms),
+    ];
+  }
+
+  List<Widget> _buildFromProviders(
+    BuildContext context,
+    MetalPrice gold,
+    MetalPrice? silver,
+  ) {
+    return [
+      PriceCard(
+        metal: gold.metal,
+        icon: Icons.monetization_on,
+        color: const Color(0xFFFFD700),
+        pricePerOunce: gold.pricePerOunce,
+        pricePerGram: gold.pricePerGram,
+        currency: gold.currency,
+        change24h: gold.change24h,
+        changePercent: gold.changePercent24h,
+      ),
+      if (silver != null) ...[
+        const SizedBox(height: 16),
+        PriceCard(
+          metal: silver.metal,
+          icon: Icons.paid,
+          color: const Color(0xFFC0C0C0),
+          pricePerOunce: silver.pricePerOunce,
+          pricePerGram: silver.pricePerGram,
+          currency: silver.currency,
+          change24h: silver.change24h,
+          changePercent: silver.changePercent24h,
+        ),
+      ],
+    ];
+  }
+
+  Widget _buildGlobalKaratRow(
+    BuildContext context,
+    String karat,
+    double purity,
+    double goldPerGram,
+    String currency,
+  ) {
+    final karatPrice = goldPerGram * purity;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).primaryColor.withValues(alpha:0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  karat,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                '${(purity * 100).toInt()}% Pure',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ),
+          Text(karat, style: const TextStyle(fontWeight: FontWeight.bold)),
           Text(
-            '$selectedCurrency ${karatPrice.toStringAsFixed(2)}',
+            '$currency ${karatPrice.toStringAsFixed(2)}',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+                  fontWeight: FontWeight.bold,
+                ),
           ),
         ],
       ),

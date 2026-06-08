@@ -6,6 +6,7 @@ import '../../../../core/utils/api_config.dart';
 import '../../../../core/utils/currency_conversion.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
+import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/models/metal_price.dart';
 import '../../../portfolio/presentation/screens/portfolio_screen.dart';
 
@@ -123,12 +124,21 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
 
   String _buildSystemPrompt(MetalPrice? gold, MetalPrice? silver, String currency) {
     String priceContext = "";
-    if (gold != null) {
-      priceContext += "Current gold price: $currency ${gold.pricePerOunce.toStringAsFixed(2)}/oz ($currency ${gold.pricePerGram.toStringAsFixed(2)}/g). ";
-      priceContext += "24h change: ${gold.formattedChangePercent}. ";
-    }
-    if (silver != null) {
-      priceContext += "Current silver price: $currency ${silver.pricePerOunce.toStringAsFixed(2)}/oz ($currency ${silver.pricePerGram.toStringAsFixed(2)}/g). ";
+    final isLocal = currency == 'EGP';
+    final local = ref.read(localMarketPricesProvider);
+    final side = ref.read(priceSideProvider);
+
+    if (isLocal && local != null) {
+      priceContext += buildLocalMarketPrompt(local, side);
+      priceContext += " Headline 21K gold ${side.name} price: ${local.headlineGold?.priceFor(side).toStringAsFixed(2) ?? 'N/A'} EGP/g. ";
+    } else {
+      if (gold != null) {
+        priceContext += "Current gold price: $currency ${gold.pricePerOunce.toStringAsFixed(2)}/oz ($currency ${gold.pricePerGram.toStringAsFixed(2)}/g). ";
+        priceContext += "24h change: ${gold.formattedChangePercent}. ";
+      }
+      if (silver != null) {
+        priceContext += "Current silver price: $currency ${silver.pricePerOunce.toStringAsFixed(2)}/oz ($currency ${silver.pricePerGram.toStringAsFixed(2)}/g). ";
+      }
     }
 
     // Build portfolio context
@@ -161,6 +171,8 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     String currency,
     Map<String, double>? rates,
   ) {
+    final isLocal = currency == 'EGP';
+    final local = ref.read(localMarketPricesProvider);
     try {
       if (!Hive.isBoxOpen('portfolio')) return "";
       final box = Hive.box<PortfolioItem>('portfolio');
@@ -189,7 +201,16 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
         totalPurchaseCost += purchaseCost;
 
         double currentValue = 0;
-        if (price != null) {
+        if (isLocal && local != null) {
+          if (item.metal == 'Gold') {
+            final perGram = localGoldPortfolioPrice(local, item.karat.round());
+            if (perGram != null) currentValue = perGram * item.weight;
+          } else {
+            final perGram = localSilverPortfolioPrice(local, item.karat.round());
+            if (perGram != null) currentValue = perGram * item.weight;
+          }
+          totalCurrentValue += currentValue;
+        } else if (price != null) {
           final karatMultiplier = item.karat / 24;
           currentValue = price.getPricePerGram() * karatMultiplier * item.weight;
           totalCurrentValue += currentValue;

@@ -23,7 +23,8 @@ class PriceCard extends StatelessWidget {
     required this.changePercent,
   });
   
-  bool get isPositive => change24h >= 0;
+  bool get isPositive =>
+      changePercent != 0 ? changePercent >= 0 : change24h >= 0;
   
   @override
   Widget build(BuildContext context) {

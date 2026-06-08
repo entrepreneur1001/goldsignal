@@ -5,6 +5,7 @@ import '../../../calculator/presentation/screens/calculator_screen.dart';
 import '../../../chatbot/presentation/screens/chatbot_screen.dart';
 import '../../../portfolio/presentation/screens/portfolio_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
+import '../../../../shared/providers/market_prices_provider.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -49,6 +50,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   
   @override
   Widget build(BuildContext context) {
+    // Bootstrap central price orchestrator for all tabs
+    ref.watch(marketPricesControllerProvider);
+
     return Scaffold(
       body: IndexedStack(
         index: _selectedIndex,

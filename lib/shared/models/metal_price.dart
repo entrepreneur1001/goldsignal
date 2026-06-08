@@ -57,7 +57,8 @@ class MetalPrice {
     return pricePerGram * (karatValues[karat] ?? 1.0);
   }
   
-  bool get isPositiveChange => change24h >= 0;
+  bool get isPositiveChange =>
+      changePercent24h != 0 ? changePercent24h >= 0 : change24h >= 0;
   
   String get formattedChange => isPositiveChange ? '+$change24h' : '$change24h';
   

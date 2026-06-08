@@ -5,7 +5,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/firebase/auth_service.dart';
 import '../../../../shared/providers/app_info_provider.dart';
+import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/providers/currency_provider.dart';
+import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../features/auth/presentation/screens/auth_screen.dart';
 
 /// TermsFeed-hosted privacy policy for Gold Signal.
@@ -138,6 +140,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final selectedCurrency = ref.watch(selectedCurrencyProvider);
+    final isLocal = ref.watch(isLocalMarketProvider);
+    final priceSide = ref.watch(priceSideProvider);
     final packageInfo = ref.watch(packageInfoProvider);
 
     return Scaffold(
@@ -259,9 +263,32 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ListTile(
                 leading: const Icon(Icons.attach_money),
                 title: const Text('Currency'),
-                subtitle: Text(selectedCurrency),
+                subtitle: Text(
+                  isLocal
+                      ? '$selectedCurrency — Egypt local market (iSagha)'
+                      : selectedCurrency,
+                ),
                 onTap: _showCurrencySelector,
               ),
+
+              if (isLocal)
+                ListTile(
+                  leading: const Icon(Icons.swap_horiz),
+                  title: const Text('Price Side'),
+                  subtitle: Text(
+                    priceSide == PriceSide.sell
+                        ? 'Sell — price when buying from jeweler'
+                        : 'Buy — price when selling to jeweler',
+                  ),
+                  trailing: Switch(
+                    value: priceSide == PriceSide.sell,
+                    onChanged: (isSell) {
+                      ref.read(priceSideProvider.notifier).setSide(
+                            isSell ? PriceSide.sell : PriceSide.buy,
+                          );
+                    },
+                  ),
+                ),
 
               const Divider(),
 
@@ -388,6 +415,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   : null,
               onTap: () {
                 ref.read(selectedCurrencyProvider.notifier).setCurrency(currency);
+                ref.read(marketPricesControllerProvider.notifier).refresh();
                 Navigator.pop(context);
               },
             );

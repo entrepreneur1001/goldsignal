@@ -1,0 +1,26 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /priceHistory/{docId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.marketType in ['local', 'global']
+        && request.resource.data.keys().hasAll(['currency', 'hourBucket', 'source']);
+      allow update, delete: if false;
+    }
+
+    match /prices/{docId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    match /metadata/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

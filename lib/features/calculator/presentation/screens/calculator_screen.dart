@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
+import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/widgets/currency_selector.dart';
 
 class CalculatorScreen extends ConsumerStatefulWidget {
@@ -16,7 +17,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
   final TextEditingController _weightController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController(text: '1');
   
-  int _selectedKarat = 24;
+  int _selectedKarat = 21;
   double _totalValue = 0.0;
   
   final List<int> _karatOptions = [24, 22, 21, 18];
@@ -30,24 +31,31 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
   
   void _calculateValue() {
     final goldPrice = ref.read(metalPriceProvider);
+    final isLocal = ref.read(isLocalMarketProvider);
+    final local = ref.read(localMarketPricesProvider);
+    final side = ref.read(priceSideProvider);
 
-    if (goldPrice == null || _weightController.text.isEmpty) {
-      setState(() {
-        _totalValue = 0.0;
-      });
+    if (_weightController.text.isEmpty) {
+      setState(() => _totalValue = 0.0);
       return;
     }
-    
+
     final weight = double.tryParse(_weightController.text) ?? 0.0;
     final quantity = int.tryParse(_quantityController.text) ?? 1;
-    
-    // Get price per gram in selected currency
-    final pricePerGram = goldPrice.getPricePerGram();
-    
-    // Calculate karat price
-    final karatPrice = pricePerGram * (_selectedKarat / 24);
-    
-    // Calculate total value
+
+    final karatPrice = activeGoldKaratPrice(
+      isLocal: isLocal,
+      local: local,
+      globalGold: goldPrice,
+      karat: _selectedKarat,
+      side: side,
+    );
+
+    if (karatPrice == null) {
+      setState(() => _totalValue = 0.0);
+      return;
+    }
+
     setState(() {
       _totalValue = karatPrice * weight * quantity;
     });
@@ -55,6 +63,19 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
   
   @override
   Widget build(BuildContext context) {
+    final isLocal = ref.watch(isLocalMarketProvider);
+    final priceSide = ref.watch(priceSideProvider);
+
+    ref.listen(selectedCurrencyProvider, (prev, next) {
+      if (next == 'EGP' && _selectedKarat == 24) {
+        setState(() => _selectedKarat = 21);
+      }
+      _calculateValue();
+    });
+    ref.listen(priceSideProvider, (_, __) => _calculateValue());
+    ref.listen(metalPriceProvider, (_, __) => _calculateValue());
+    ref.listen(localMarketPricesProvider, (_, __) => _calculateValue());
+
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     
@@ -91,8 +112,22 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 24),
-                
+
+                if (isLocal) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDEB059).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      'Using Egypt local ${priceSide.name} prices from iSagha',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 // Karat Selection
                 Text(
                   'Select Karat',
@@ -313,8 +348,16 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
     
     final weight = double.tryParse(_weightController.text) ?? 0.0;
     final quantity = int.tryParse(_quantityController.text) ?? 1;
-    final pricePerGram = goldPrice.getPricePerGram();
-    final karatPrice = pricePerGram * (_selectedKarat / 24);
+    final isLocal = ref.read(isLocalMarketProvider);
+    final local = ref.read(localMarketPricesProvider);
+    final side = ref.read(priceSideProvider);
+    final karatPrice = activeGoldKaratPrice(
+      isLocal: isLocal,
+      local: local,
+      globalGold: goldPrice,
+      karat: _selectedKarat,
+      side: side,
+    ) ?? 0.0;
     
     return Column(
       children: [

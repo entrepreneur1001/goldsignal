@@ -108,14 +108,58 @@ class MetalPriceApiService {
     }
   }
 
+  static const _prevBaselineHours = 20;
+
   /// Save current cache as previous (for 24h change), then write new data.
+  /// Previous baseline is only rotated when the outgoing cache is old enough,
+  /// so change reflects ~24h movement instead of the last refresh delta.
   Future<void> _savePreviousAndCache(Map<String, dynamic> data) async {
     final oldCached = _cacheBox.get(_cacheKey);
+    final prevKey = 'prev_v2_$_cacheKey';
+    final existingPrev = _cacheBox.get(prevKey);
+
     if (oldCached != null) {
-      await _cacheBox.put('prev_$_cacheKey', oldCached);
+      final oldTs = _cacheEntryTime(oldCached);
+      final prevTs =
+          existingPrev != null ? _cacheEntryTime(existingPrev) : null;
+
+      final shouldRotatePrev = oldTs != null &&
+          (prevTs == null
+              ? DateTime.now().difference(oldTs).inHours >= _prevBaselineHours
+              : oldTs.difference(prevTs).inHours >= _prevBaselineHours);
+
+      if (shouldRotatePrev) {
+        await _cacheBox.put(prevKey, oldCached);
+      }
     }
     await _firestoreService.cachePrices('latest', data);
     await _saveToHive(data);
+  }
+
+  DateTime? _cacheEntryTime(Map entry) {
+    final ts = entry['timestamp'];
+    if (ts is String) return DateTime.tryParse(ts);
+    return null;
+  }
+
+  /// 24h-style change vs the stored previous baseline (not the last refresh).
+  ({double change, double changePercent}) computeChange({
+    required double current,
+    required double? Function(MetalPricesResponse response) previousPrice,
+  }) {
+    final prev = getPreviousPrices();
+    if (prev == null) return (change: 0.0, changePercent: 0.0);
+
+    final prevValue = previousPrice(prev);
+    if (prevValue == null || prevValue == 0) {
+      return (change: 0.0, changePercent: 0.0);
+    }
+
+    final delta = current - prevValue;
+    return (
+      change: delta,
+      changePercent: (delta / prevValue) * 100,
+    );
   }
 
   /// Save API response data to Hive local cache.
@@ -157,7 +201,7 @@ class MetalPriceApiService {
 
   // Get the previous cached response for 24h change calculation
   MetalPricesResponse? getPreviousPrices() {
-    final prevData = _cacheBox.get('prev_$_cacheKey');
+    final prevData = _cacheBox.get('prev_v2_$_cacheKey');
     if (prevData != null) {
       return MetalPricesResponse.fromJson(prevData['data']);
     }
@@ -172,7 +216,7 @@ class MetalPriceApiService {
     required DateTime endDate,
   }) async {
     try {
-      final cacheKey = 'historical_${metal}_${currency}_${startDate}_$endDate';
+      final cacheKey = 'v2_historical_${metal}_${currency}_${startDate}_$endDate';
       final cachedData = _cacheBox.get(cacheKey);
       
       // Return cached data if available (24 hours cache for historical)
@@ -191,8 +235,8 @@ class MetalPriceApiService {
           'api_key': ApiConfig.metalPriceApiKey,
           'start_date': startDate.toIso8601String().split('T')[0],
           'end_date': endDate.toIso8601String().split('T')[0],
-          'base': metal,
-          'currencies': currency,
+          'base': 'USD',
+          'currencies': currency == 'USD' ? metal : '$metal,$currency',
         },
       );
       

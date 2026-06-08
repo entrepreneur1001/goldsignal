@@ -7,6 +7,7 @@ import '../../../../core/firebase/firestore_portfolio_service.dart';
 import '../../../../core/utils/currency_conversion.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
+import '../../../../shared/providers/market_prices_provider.dart';
 
 class PortfolioScreen extends ConsumerStatefulWidget {
   const PortfolioScreen({super.key});
@@ -161,6 +162,28 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     );
   }
 
+
+  double _itemMarketValue(PortfolioItem item) {
+    final isLocal = ref.read(isLocalMarketProvider);
+    final local = ref.read(localMarketPricesProvider);
+    final goldPrice = ref.read(metalPriceProvider);
+    final silverPrice = ref.read(silverPriceProvider);
+
+    if (isLocal && local != null) {
+      if (item.metal == 'Gold') {
+        final perGram = localGoldPortfolioPrice(local, item.karat.round());
+        if (perGram != null) return perGram * item.weight;
+      } else {
+        final perGram = localSilverPortfolioPrice(local, item.karat.round());
+        if (perGram != null) return perGram * item.weight;
+      }
+    }
+
+    final price = item.metal == 'Gold' ? goldPrice : silverPrice;
+    if (price == null) return 0.0;
+    return price.getPricePerGram() * (item.karat / 24) * item.weight;
+  }
+
   Map<String, double>? _fxRates() {
     return ref.read(metalPriceApiProvider).getCachedPrices()?.rates;
   }
@@ -183,28 +206,23 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
   }
 
   double _calculateTotalValue() {
-    final goldPrice = ref.watch(metalPriceProvider);
-    final silverPrice = ref.watch(silverPriceProvider);
+    ref.watch(isLocalMarketProvider);
+    ref.watch(localMarketPricesProvider);
+    ref.watch(metalPriceProvider);
+    ref.watch(silverPriceProvider);
 
-    if (goldPrice == null && silverPrice == null) return 0.0;
-    
     double total = 0.0;
     for (var item in _listOrder) {
-      final price = item.metal == 'Gold' ? goldPrice : silverPrice;
-      if (price != null) {
-        final pricePerGram = price.getPricePerGram();
-        final karatMultiplier = item.karat / 24;
-        total += pricePerGram * karatMultiplier * item.weight;
-      }
+      total += _itemMarketValue(item);
     }
     return total;
   }
 
   double _calculateTotalProfitLoss() {
-    final goldPrice = ref.watch(metalPriceProvider);
-    final silverPrice = ref.watch(silverPriceProvider);
-
-    if (goldPrice == null && silverPrice == null) return 0.0;
+    ref.watch(isLocalMarketProvider);
+    ref.watch(localMarketPricesProvider);
+    ref.watch(metalPriceProvider);
+    ref.watch(silverPriceProvider);
 
     final displayCurrency = ref.watch(selectedCurrencyProvider);
     final rates = _fxRates();
@@ -214,15 +232,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
 
     for (var item in _listOrder) {
       totalCost += _purchaseTotalInDisplay(item, displayCurrency, rates);
-
-      final price = item.metal == 'Gold' ? goldPrice : silverPrice;
-      if (price != null) {
-        final pricePerGram = price.getPricePerGram();
-        final karatMultiplier = item.karat / 24;
-        totalValue += pricePerGram * karatMultiplier * item.weight;
-      }
+      totalValue += _itemMarketValue(item);
     }
-    
+
     return totalValue - totalCost;
   }
 
@@ -257,6 +269,21 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    if (ref.watch(isLocalMarketProvider)) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDEB059).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Text(
+                          'Valued at Egypt local buy prices (iSagha)',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 24),
                     
                     // Summary Cards
@@ -429,18 +456,12 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     final currency = ref.watch(selectedCurrencyProvider);
     final rates = _fxRates();
 
-    final goldPrice = ref.watch(metalPriceProvider);
-    final silverPrice = ref.watch(silverPriceProvider);
-    final price = item.metal == 'Gold' ? goldPrice : silverPrice;
-
     double currentValue = 0.0;
     double profitLoss = 0.0;
     double profitLossPercent = 0.0;
 
-    if (price != null) {
-      final pricePerGram = price.getPricePerGram();
-      final karatMultiplier = item.karat / 24;
-      currentValue = pricePerGram * karatMultiplier * item.weight;
+    currentValue = _itemMarketValue(item);
+    if (currentValue > 0) {
       final totalCostDisplay = _purchaseTotalInDisplay(item, currency, rates);
       profitLoss = currentValue - totalCostDisplay;
       profitLossPercent = totalCostDisplay != 0
