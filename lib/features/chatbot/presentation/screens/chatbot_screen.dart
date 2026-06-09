@@ -9,7 +9,10 @@ import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/widgets/alerts_nav_button.dart';
 import '../../../../shared/models/metal_price.dart';
+import '../../../../shared/models/chat_conversation.dart';
+import '../../../../shared/providers/chat_history_provider.dart';
 import '../../../portfolio/presentation/screens/portfolio_screen.dart';
+import 'chat_history_screen.dart';
 
 class ChatbotScreen extends ConsumerStatefulWidget {
   const ChatbotScreen({super.key});
@@ -21,7 +24,6 @@ class ChatbotScreen extends ConsumerStatefulWidget {
 class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  final List<ChatMessage> _messages = [];
   bool _isTyping = false;
   late Groq _groq;
 
@@ -37,9 +39,10 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       ),
     );
     _groq.startChat();
+  }
 
-    // Add welcome message
-    _messages.add(ChatMessage(
+  ChatMessage _welcomeMessage() {
+    return ChatMessage(
       text: "Hello! I'm your gold and silver investment assistant. I can help you with:\n\n"
           "• Market insights and price analysis\n"
           "• Investment strategies (DCA, timing)\n"
@@ -50,7 +53,23 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
           "How can I assist you today?",
       isUser: false,
       timestamp: DateTime.now(),
-    ));
+    );
+  }
+
+  Future<void> _openHistory() async {
+    final before = ref.read(chatHistoryProvider).activeId;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ChatHistoryScreen()),
+    );
+    if (!mounted) return;
+    final after = ref.read(chatHistoryProvider).activeId;
+    if (before != after) {
+      // Switched to a different (or new) conversation: reset the model's
+      // in-memory context. The displayed history is preserved via the store.
+      _groq.clearChat();
+      _scrollToBottom();
+    }
   }
 
   @override
@@ -64,16 +83,16 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
 
-    // Add user message
-    setState(() {
-      _messages.add(ChatMessage(
-        text: message,
-        isUser: true,
-        timestamp: DateTime.now(),
-      ));
-      _messageController.clear();
-      _isTyping = true;
-    });
+    final history = ref.read(chatHistoryProvider.notifier);
+
+    // Persist the user message (creates a conversation on first send).
+    await history.appendMessage(ChatMessage(
+      text: message,
+      isUser: true,
+      timestamp: DateTime.now(),
+    ));
+    _messageController.clear();
+    if (mounted) setState(() => _isTyping = true);
 
     // Scroll to bottom
     _scrollToBottom();
@@ -91,35 +110,29 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       // Send to Groq
       final response = await _groq.sendMessage(message);
 
-      // Add AI response
-      setState(() {
-        _messages.add(ChatMessage(
-          text: response.choices.first.message.content,
-          isUser: false,
-          timestamp: DateTime.now(),
-        ));
-        _isTyping = false;
-      });
+      // Persist the AI response
+      await history.appendMessage(ChatMessage(
+        text: response.choices.first.message.content,
+        isUser: false,
+        timestamp: DateTime.now(),
+      ));
+      if (mounted) setState(() => _isTyping = false);
 
       _scrollToBottom();
     } on GroqException catch (e) {
-      setState(() {
-        _messages.add(ChatMessage(
-          text: "I apologize, but I encountered an error: ${e.message}",
-          isUser: false,
-          timestamp: DateTime.now(),
-        ));
-        _isTyping = false;
-      });
+      await history.appendMessage(ChatMessage(
+        text: "I apologize, but I encountered an error: ${e.message}",
+        isUser: false,
+        timestamp: DateTime.now(),
+      ));
+      if (mounted) setState(() => _isTyping = false);
     } catch (e) {
-      setState(() {
-        _messages.add(ChatMessage(
-          text: "I apologize, but I encountered an error. Please check your internet connection and try again.",
-          isUser: false,
-          timestamp: DateTime.now(),
-        ));
-        _isTyping = false;
-      });
+      await history.appendMessage(ChatMessage(
+        text: "I apologize, but I encountered an error. Please check your internet connection and try again.",
+        isUser: false,
+        timestamp: DateTime.now(),
+      ));
+      if (mounted) setState(() => _isTyping = false);
     }
   }
 
@@ -254,6 +267,10 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    final storedMessages = ref.watch(chatHistoryProvider).activeMessages;
+    final messages =
+        storedMessages.isEmpty ? [_welcomeMessage()] : storedMessages;
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
@@ -263,17 +280,17 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
         actions: [
           const AlertsNavButton(),
           IconButton(
-            icon: const Icon(Icons.clear_all),
+            tooltip: 'Chat history',
+            icon: const Icon(Icons.history),
+            onPressed: _openHistory,
+          ),
+          IconButton(
+            tooltip: 'New chat',
+            icon: const Icon(Icons.add_comment_outlined),
             onPressed: () {
+              ref.read(chatHistoryProvider.notifier).startNewChat();
               _groq.clearChat();
-              setState(() {
-                _messages.clear();
-                _messages.add(ChatMessage(
-                  text: "Chat cleared. How can I help you today?",
-                  isUser: false,
-                  timestamp: DateTime.now(),
-                ));
-              });
+              _scrollToBottom();
             },
           ),
         ],
@@ -302,12 +319,12 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
               child: ListView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.all(16),
-                itemCount: _messages.length + (_isTyping ? 1 : 0),
+                itemCount: messages.length + (_isTyping ? 1 : 0),
                 itemBuilder: (context, index) {
-                  if (index == _messages.length && _isTyping) {
+                  if (index == messages.length && _isTyping) {
                     return _buildTypingIndicator();
                   }
-                  return _buildMessage(_messages[index]);
+                  return _buildMessage(messages[index]);
                 },
               ),
             ),
@@ -512,14 +529,3 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
   }
 }
 
-class ChatMessage {
-  final String text;
-  final bool isUser;
-  final DateTime timestamp;
-
-  ChatMessage({
-    required this.text,
-    required this.isUser,
-    required this.timestamp,
-  });
-}

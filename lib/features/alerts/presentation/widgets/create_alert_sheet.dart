@@ -30,6 +30,7 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
   String _currency = 'USD';
   PriceSide? _side;
   AlertType _type = AlertType.price;
+  bool _use24hPercent = false;
   AlertCondition _condition = AlertCondition.above;
   final _targetController = TextEditingController();
   bool _autoRepeat = false;
@@ -113,12 +114,16 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
     }
 
     await ref.read(priceAlertsProvider.notifier).requestNotificationPermission();
+    final alertType = _type == AlertType.percentChange && _use24hPercent
+        ? AlertType.percentChange24h
+        : _type;
+
     await ref.read(priceAlertsProvider.notifier).createAlert(
           metal: _metal,
           karat: _karat,
           currency: _currency,
           side: _side,
-          type: _type,
+          type: alertType,
           condition: _condition,
           targetValue: target,
           repeatAfterHours: _autoRepeat ? _repeatAfterHours : null,
@@ -174,8 +179,11 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
               _type = s.first;
               if (_type == AlertType.percentChange) {
                 _targetController.text = '2';
-              } else if (preview != null) {
-                _targetController.text = preview.toStringAsFixed(2);
+              } else {
+                _use24hPercent = false;
+                if (preview != null) {
+                  _targetController.text = preview.toStringAsFixed(2);
+                }
               }
             }),
           ),
@@ -242,6 +250,16 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
             ),
           ),
           if (_type == AlertType.percentChange) ...[
+            const SizedBox(height: 12),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: false, label: Text('From now')),
+                ButtonSegment(value: true, label: Text('24h market')),
+              ],
+              selected: {_use24hPercent},
+              onSelectionChanged: (s) =>
+                  setState(() => _use24hPercent = s.first),
+            ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
@@ -260,9 +278,14 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
               'Current: ${preview.toStringAsFixed(2)} $_currency/g',
               style: Theme.of(context).textTheme.bodySmall,
             ),
-            if (_type == AlertType.percentChange)
+            if (_type == AlertType.percentChange && !_use24hPercent)
               Text(
                 'Baseline is set to the current price when you save',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            if (_type == AlertType.percentChange && _use24hPercent)
+              Text(
+                'Uses the same 24h change shown on the Prices screen',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
           ],

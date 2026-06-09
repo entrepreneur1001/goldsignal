@@ -1,6 +1,6 @@
 import 'local_market_prices.dart';
 
-enum AlertType { price, percentChange }
+enum AlertType { price, percentChange, percentChange24h }
 
 enum AlertCondition { above, below }
 
@@ -40,7 +40,9 @@ class PriceAlert {
   });
 
   bool get isLocal => currency == 'EGP';
-  bool get isPercentChange => type == AlertType.percentChange;
+  bool get isPercentChange =>
+      type == AlertType.percentChange || type == AlertType.percentChange24h;
+  bool get isPercent24h => type == AlertType.percentChange24h;
   bool get autoRepeats => repeatAfterHours != null && repeatAfterHours! > 0;
 
   bool get isSnoozed {
@@ -55,7 +57,8 @@ class PriceAlert {
 
     if (isPercentChange) {
       final dir = condition == AlertCondition.above ? 'up' : 'down';
-      return '$metalLabel $karatLabel$sideLabel $dir $targetValue%';
+      final window = isPercent24h ? ' (24h)' : '';
+      return '$metalLabel $karatLabel$sideLabel $dir $targetValue%$window';
     }
 
     final cond = condition == AlertCondition.above ? 'above' : 'below';
@@ -80,8 +83,15 @@ class PriceAlert {
     return ((current - baselinePrice!) / baselinePrice!) * 100;
   }
 
+  static AlertType _typeFromJson(String? raw) {
+    return switch (raw) {
+      'percentChange24h' => AlertType.percentChange24h,
+      'percentChange' => AlertType.percentChange,
+      _ => AlertType.price,
+    };
+  }
+
   factory PriceAlert.fromJson(Map<String, dynamic> json) {
-    final typeRaw = json['type'] as String?;
     return PriceAlert(
       id: json['id'] as String,
       metal: json['metal'] as String,
@@ -92,9 +102,7 @@ class PriceAlert {
           : json['side'] == 'sell'
               ? PriceSide.sell
               : null,
-      type: typeRaw == 'percentChange'
-          ? AlertType.percentChange
-          : AlertType.price,
+      type: _typeFromJson(json['type'] as String?),
       condition: json['condition'] == 'below'
           ? AlertCondition.below
           : AlertCondition.above,

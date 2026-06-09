@@ -1,10 +1,14 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:goldsignal/firebase_options.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'core/analytics/analytics_service.dart';
 import 'core/notifications/alert_notification_service.dart';
 import 'core/widget/home_widget_service.dart';
 import 'core/utils/app_config.dart';
@@ -17,6 +21,13 @@ void main() async {
 
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Route uncaught Flutter + async errors to Crashlytics.
+  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  PlatformDispatcher.instance.onError = (error, stack) {
+    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+    return true;
+  };
 
   // Initialize Hive
   await Hive.initFlutter();
@@ -82,6 +93,7 @@ class _GoldSignalAppState extends ConsumerState<GoldSignalApp> {
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
       debugShowCheckedModeBanner: false,
+      navigatorObservers: [AnalyticsService.instance.navigatorObserver],
       home: const SplashScreen(),
     );
   }

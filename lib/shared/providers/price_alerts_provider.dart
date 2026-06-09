@@ -175,8 +175,9 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
       targetValue: targetValue,
       createdAt: DateTime.now(),
     );
-    final baseline =
-        type == AlertType.percentChange ? resolveCurrentPrice(preview) : null;
+    final baseline = type == AlertType.percentChange
+        ? resolveCurrentPrice(preview)
+        : null;
 
     final alert = PriceAlert(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -202,6 +203,21 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
     _reload();
   }
 
+  Future<void> clearHistory() async {
+    final service = ref.read(priceAlertsServiceProvider);
+    final toClear = service
+        .getAll()
+        .where((a) => a.triggeredAt != null && !a.isSnoozed)
+        .toList();
+    if (toClear.isEmpty) return;
+
+    for (final alert in toClear) {
+      await service.delete(alert.id);
+      await _deleteFromCloud(alert.id);
+    }
+    _reload();
+  }
+
   Future<void> toggleAlert(String id, bool active) async {
     final alert = state.alerts.firstWhere((a) => a.id == id);
     final updated = active
@@ -214,7 +230,9 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
 
   Future<void> reactivateAlert(String id) async {
     final alert = state.alerts.firstWhere((a) => a.id == id);
-    final baseline = alert.isPercentChange ? resolveCurrentPrice(alert) : null;
+    final baseline = alert.type == AlertType.percentChange
+        ? resolveCurrentPrice(alert)
+        : null;
     final updated = alert.copyWith(
       isActive: true,
       clearTrigger: true,
@@ -236,8 +254,9 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
       final reactivateAt = alert.reactivateAt;
       if (reactivateAt == null || reactivateAt.isAfter(now)) continue;
 
-      final baseline =
-          alert.isPercentChange ? resolveCurrentPrice(alert) : alert.baselinePrice;
+      final baseline = alert.type == AlertType.percentChange
+          ? resolveCurrentPrice(alert)
+          : alert.baselinePrice;
       final updated = alert.copyWith(
         isActive: true,
         clearTrigger: true,
@@ -278,8 +297,47 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
     return ounce / _ounceToGram;
   }
 
-  bool _isTriggered(PriceAlert alert, double current) {
-    if (alert.isPercentChange) {
+  double? resolveRolling24hPercent(PriceAlert alert) {
+    if (alert.isLocal) {
+      final local = ref.read(localMarketPricesProvider);
+      if (local == null) return null;
+      final row = alert.metal == 'gold'
+          ? local.goldKarat(alert.karat)
+          : local.silverKarat(alert.karat);
+      return row?.changePercent;
+    }
+
+    final api = ref.read(metalPriceApiProvider);
+    final global = ref.read(marketPricesControllerProvider).globalData ??
+        api.getCachedPrices();
+    if (global == null) return null;
+
+    final currentOunce = alert.metal == 'gold'
+        ? global.goldPriceIn(alert.currency)
+        : global.silverPriceIn(alert.currency);
+    if (currentOunce == null) return null;
+
+    final delta = api.computeChange(
+      current: currentOunce,
+      previousPrice: (prev) => alert.metal == 'gold'
+          ? prev.goldPriceIn(alert.currency)
+          : prev.silverPriceIn(alert.currency),
+    );
+    return delta.changePercent;
+  }
+
+  bool _isTriggered(PriceAlert alert, double? current) {
+    if (alert.isPercent24h) {
+      final change = resolveRolling24hPercent(alert);
+      if (change == null) return false;
+      return switch (alert.condition) {
+        AlertCondition.above => change >= alert.targetValue,
+        AlertCondition.below => change <= -alert.targetValue,
+      };
+    }
+
+    if (alert.type == AlertType.percentChange) {
+      if (current == null) return false;
       final change = alert.changePercentFrom(current);
       if (change == null) return false;
       return switch (alert.condition) {
@@ -288,20 +346,29 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
       };
     }
 
+    if (current == null) return false;
     return switch (alert.condition) {
       AlertCondition.above => current >= alert.targetValue,
       AlertCondition.below => current <= alert.targetValue,
     };
   }
 
-  String _triggerMessage(PriceAlert alert, double current) {
-    if (alert.isPercentChange) {
+  String _triggerMessage(PriceAlert alert, double? current) {
+    if (alert.isPercent24h) {
+      final change = resolveRolling24hPercent(alert) ?? 0;
+      final sign = change >= 0 ? '+' : '';
+      final price = current != null
+          ? ' (${current.toStringAsFixed(2)} ${alert.currency}/g)'
+          : '';
+      return '${alert.label} — now $sign${change.toStringAsFixed(2)}%$price';
+    }
+    if (alert.type == AlertType.percentChange && current != null) {
       final change = alert.changePercentFrom(current) ?? 0;
       final sign = change >= 0 ? '+' : '';
       return '${alert.label} — now $sign${change.toStringAsFixed(2)}% '
           '(${current.toStringAsFixed(2)} ${alert.currency}/g)';
     }
-    return '${alert.label} — now ${current.toStringAsFixed(2)} ${alert.currency}/g';
+    return '${alert.label} — now ${current?.toStringAsFixed(2) ?? '—'} ${alert.currency}/g';
   }
 
   Future<void> checkAgainstLatestPrices() async {
@@ -315,7 +382,7 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
 
     for (final alert in active) {
       final current = resolveCurrentPrice(alert);
-      if (current == null) continue;
+      if (!alert.isPercent24h && current == null) continue;
       if (!_isTriggered(alert, current)) continue;
 
       final now = DateTime.now();
