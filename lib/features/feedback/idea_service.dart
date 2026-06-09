@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../core/analytics/analytics_service.dart';
 
 /// Submits user feature ideas to the `ideas` collection (admin-reviewed).
 class IdeaService {
@@ -19,5 +20,6 @@ class IdeaService {
       'platform': Platform.operatingSystem,
       'createdAt': FieldValue.serverTimestamp(),
     });
+    await AnalyticsService.instance.logEvent('idea_submitted');
   }
 }

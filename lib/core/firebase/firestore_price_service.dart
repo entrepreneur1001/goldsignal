@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Read-only access to the shared price cache in Firestore.
@@ -30,7 +31,7 @@ class FirestorePriceService {
 
       return data['rates'] != null ? Map<String, dynamic>.from(data) : null;
     } catch (e) {
-      print('FirestorePriceService.getCachedPrices error: $e');
+      debugPrint('FirestorePriceService.getCachedPrices error: $e');
       return null;
     }
   }

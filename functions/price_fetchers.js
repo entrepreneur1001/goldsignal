@@ -76,13 +76,6 @@ function parsePriceCell(raw) {
   return Number.isFinite(value) ? value : null;
 }
 
-function signedChange($cell, value) {
-  if (value == null) return null;
-  const classes = ($cell.attr('class') || '').split(/\s+/);
-  if (classes.includes('change-down') && value > 0) return -value;
-  return value;
-}
-
 function normalizeKaratLabel(label, metalClass) {
   if (metalClass === 'gold') {
     if (label.includes('عيار 24')) return '24';

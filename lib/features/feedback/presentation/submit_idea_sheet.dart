@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/providers/app_info_provider.dart';
@@ -31,9 +32,16 @@ class _SubmitIdeaSheetState extends ConsumerState<SubmitIdeaSheet> {
   Future<void> _submit() async {
     final idea = _controller.text.trim();
     if (idea.isEmpty || _submitting) return;
-    setState(() => _submitting = true);
 
     final messenger = ScaffoldMessenger.of(context);
+    if (FirebaseAuth.instance.currentUser == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Please sign in to submit an idea.')),
+      );
+      return;
+    }
+    setState(() => _submitting = true);
+
     final appVersion = ref.read(packageInfoProvider).version;
     try {
       await IdeaService().submit(idea: idea, appVersion: appVersion);

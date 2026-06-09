@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../../../core/analytics/analytics_service.dart';
+import '../../../../core/utils/currency_format.dart';
 import '../../../../core/firebase/firestore_portfolio_service.dart';
 import '../../../../core/utils/currency_conversion.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
@@ -100,7 +102,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
         _portfolioBox.add(PortfolioItem.fromFirestoreMap(data));
       }
     } catch (e) {
-      print('Failed to load portfolio from Firestore: $e');
+      debugPrint('Failed to load portfolio from Firestore: $e');
     }
   }
 
@@ -123,9 +125,13 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
               // Update the last item in Hive with the firestoreId
               await _portfolioBox.putAt(_portfolioBox.length - 1, item);
             } catch (e) {
-              print('Failed to sync new item to Firestore: $e');
+              debugPrint('Failed to sync new item to Firestore: $e');
             }
           }
+          await AnalyticsService.instance.logEvent(
+            'portfolio_item_added',
+            parameters: {'metal': item.metal},
+          );
           setState(() {
             _syncListOrderFromBox();
           });
@@ -155,7 +161,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                 docId: updatedItem.firestoreId,
               );
             } catch (e) {
-              print('Failed to sync edit to Firestore: $e');
+              debugPrint('Failed to sync edit to Firestore: $e');
             }
           }
           setState(() {
@@ -248,7 +254,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                   const SizedBox(height: 2),
                   Text(
                     result.isDue
-                        ? _formatCurrency(result.amount, currency)
+                        ? formatCurrency(result.amount, currency)
                         : 'Below nisab',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
@@ -260,7 +266,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
             ),
             Text(
               result.isDue
-                  ? 'on ${_formatCurrency(total, currency)}'
+                  ? 'on ${formatCurrency(total, currency)}'
                   : 'No zakat',
               style: theme.textTheme.bodySmall,
             ),
@@ -553,7 +559,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _formatCurrency(value, currency, showSign: showSign),
+                  formatCurrency(value, currency, showSign: showSign),
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
@@ -736,7 +742,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                 Expanded(
                   child: _buildItemDetail(
                     'Purchase',
-                    _formatCurrency(
+                    formatCurrency(
                       _purchaseTotalInDisplay(item, currency, rates),
                       currency,
                     ),
@@ -745,13 +751,13 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                 Expanded(
                   child: _buildItemDetail(
                     'Current',
-                    _formatCurrency(currentValue, currency),
+                    formatCurrency(currentValue, currency),
                   ),
                 ),
                 Expanded(
                   child: _buildItemDetail(
                     'P/L',
-                    _formatCurrency(profitLoss, currency, showSign: true),
+                    formatCurrency(profitLoss, currency, showSign: true),
                     valueColor: profitLoss >= 0 ? Colors.green : Colors.red,
                   ),
                 ),
@@ -800,22 +806,6 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
         ),
       ],
     );
-  }
-
-  String _formatCurrency(double value, String currency, {bool showSign = false}) {
-    final symbols = {
-      'USD': '\$',
-      'SAR': 'SAR ',
-      'AED': 'AED ',
-      'EGP': 'EGP ',
-      'KWD': 'KWD ',
-      'EUR': '€',
-      'GBP': '£',
-    };
-
-    final symbol = symbols[currency] ?? '$currency ';
-    final sign = showSign && value > 0 ? '+' : '';
-    return '$sign$symbol${value.toStringAsFixed(2)}';
   }
 
   String _formatDate(DateTime date) {
@@ -1020,34 +1010,33 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
               const SizedBox(height: 20),
               
               // Metal Selection
-              Row(
-                children: [
-                  Expanded(
-                    child: RadioListTile<String>(
-                      title: const Text('Gold'),
-                      value: 'Gold',
-                      groupValue: _selectedMetal,
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedMetal = value!;
-                        });
-                      },
+              RadioGroup<String>(
+                groupValue: _selectedMetal,
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() {
+                    _selectedMetal = value;
+                    if (value == 'Silver') {
+                      _selectedKarat = 24; // Silver is always 24K
+                    }
+                  });
+                },
+                child: const Row(
+                  children: [
+                    Expanded(
+                      child: RadioListTile<String>(
+                        title: Text('Gold'),
+                        value: 'Gold',
+                      ),
                     ),
-                  ),
-                  Expanded(
-                    child: RadioListTile<String>(
-                      title: const Text('Silver'),
-                      value: 'Silver',
-                      groupValue: _selectedMetal,
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedMetal = value!;
-                          _selectedKarat = 24; // Silver is always 24K
-                        });
-                      },
+                    Expanded(
+                      child: RadioListTile<String>(
+                        title: Text('Silver'),
+                        value: 'Silver',
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               
               // Karat Selection (only for gold)

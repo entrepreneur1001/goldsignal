@@ -7,6 +7,7 @@ import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../portfolio/presentation/screens/portfolio_screen.dart';
 import '../../zakat.dart';
+import '../../../../core/utils/currency_format.dart';
 
 class ZakatCalculatorScreen extends ConsumerStatefulWidget {
   const ZakatCalculatorScreen({super.key});
@@ -104,7 +105,8 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
 
     final gold24 = _gold24PerGram();
     final silver = _silverPerGram();
-    final pricesReady = gold24 != null && silver != null;
+    // Gold price is required; silver is optional (some markets only quote gold).
+    final pricesReady = gold24 != null;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -157,24 +159,28 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
     ThemeData theme,
     String currency,
     double gold24,
-    double silver,
+    double? silver,
   ) {
+    final silverPrice = silver ?? 0.0;
     final portfolio = _portfolioValues(gold24, silver);
 
     final extraGoldValue = gold24 * (_extraGoldKarat / 24) * _parse(_extraGoldController);
-    final extraSilverValue = silver * _parse(_extraSilverController);
+    final extraSilverValue = silverPrice * _parse(_extraSilverController);
     final cash = _parse(_cashController);
 
     final totalGold = portfolio.gold + extraGoldValue;
     final totalSilver = portfolio.silver + extraSilverValue;
     final total = totalGold + totalSilver + cash;
 
+    // Without a silver price, fall back to the gold nisab basis.
+    final effectiveBasis =
+        silver == null ? NisabBasis.gold : _nisabBasis;
     final nisabValue = Zakat.nisabValue(
-      basis: _nisabBasis,
+      basis: effectiveBasis,
       gold24PerGram: gold24,
-      silverPerGram: silver,
+      silverPerGram: silverPrice,
     );
-    final nisabGrams = Zakat.nisabGrams(_nisabBasis);
+    final nisabGrams = Zakat.nisabGrams(effectiveBasis);
     final result = Zakat.compute(totalWealth: total, nisabValue: nisabValue);
     final isDue = result.isDue;
     final zakat = result.amount;
@@ -208,8 +214,8 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
                 onChanged: (v) => setState(() => _includePortfolio = v),
                 title: const Text('Include my portfolio'),
                 subtitle: Text(
-                  'Gold ${_fmt(portfolio.gold, currency)} · '
-                  'Silver ${_fmt(portfolio.silver, currency)}',
+                  'Gold ${formatCurrency(portfolio.gold, currency)} · '
+                  'Silver ${formatCurrency(portfolio.silver, currency)}',
                 ),
               ),
             ],
@@ -255,8 +261,8 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
         const SizedBox(height: 8),
         Text(
           'Nisab = ${nisabGrams.toStringAsFixed(0)}g '
-          '${_nisabBasis == NisabBasis.silver ? 'silver' : 'gold'} '
-          '≈ ${_fmt(nisabValue, currency)}. '
+          '${effectiveBasis == NisabBasis.silver ? 'silver' : 'gold'} '
+          '≈ ${formatCurrency(nisabValue, currency)}. '
           'Silver basis is recommended when combining assets.',
           style: theme.textTheme.bodySmall,
         ),
@@ -305,19 +311,19 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            isDue ? _fmt(zakat, currency) : _fmt(0, currency),
+            isDue ? formatCurrency(zakat, currency) : formatCurrency(0, currency),
             style: theme.textTheme.headlineLarge?.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 16),
-          _resultRow('Zakatable wealth', _fmt(total, currency)),
+          _resultRow('Zakatable wealth', formatCurrency(total, currency)),
           const SizedBox(height: 4),
-          _resultRow('Nisab threshold', _fmt(nisabValue, currency)),
+          _resultRow('Nisab threshold', formatCurrency(nisabValue, currency)),
           if (!isDue && shortfall > 0) ...[
             const SizedBox(height: 4),
-            _resultRow('Below nisab by', _fmt(shortfall, currency)),
+            _resultRow('Below nisab by', formatCurrency(shortfall, currency)),
           ],
         ],
       ),
@@ -409,17 +415,4 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
     );
   }
 
-  String _fmt(double value, String currency) {
-    const symbols = {
-      'USD': '\$',
-      'SAR': 'SAR ',
-      'AED': 'AED ',
-      'EGP': 'EGP ',
-      'KWD': 'KWD ',
-      'EUR': '€',
-      'GBP': '£',
-    };
-    final symbol = symbols[currency] ?? '$currency ';
-    return '$symbol${value.toStringAsFixed(2)}';
-  }
 }

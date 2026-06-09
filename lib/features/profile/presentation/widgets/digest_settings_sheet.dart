@@ -41,10 +41,23 @@ class DigestSettingsSheet extends ConsumerWidget {
             value: prefs.enabled,
             onChanged: (value) async {
               if (value) {
-                // Ensure notifications are permitted before enabling.
-                await ref
+                // Only enable if notifications are actually permitted —
+                // otherwise the digest could never be delivered.
+                final granted = await ref
                     .read(priceAlertsProvider.notifier)
                     .requestNotificationPermission();
+                if (!granted) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Enable notifications to receive the daily digest.',
+                        ),
+                      ),
+                    );
+                  }
+                  return;
+                }
               }
               await notifier.setEnabled(value);
             },

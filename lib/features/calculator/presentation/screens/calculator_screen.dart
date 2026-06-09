@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/currency_format.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
@@ -42,7 +43,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
     }
 
     final weight = double.tryParse(_weightController.text) ?? 0.0;
-    final quantity = int.tryParse(_quantityController.text) ?? 1;
+    final quantity = (int.tryParse(_quantityController.text) ?? 1).clamp(1, 1 << 30);
 
     final karatPrice = activeGoldKaratPrice(
       isLocal: isLocal,
@@ -70,12 +71,18 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
     ref.listen(selectedCurrencyProvider, (prev, next) {
       if (next == 'EGP' && _selectedKarat == 24) {
         setState(() => _selectedKarat = 21);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('24K isn\'t sold in the Egypt local market — switched to 21K.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
       }
       _calculateValue();
     });
-    ref.listen(priceSideProvider, (_, __) => _calculateValue());
-    ref.listen(metalPriceProvider, (_, __) => _calculateValue());
-    ref.listen(localMarketPricesProvider, (_, __) => _calculateValue());
+    ref.listen(priceSideProvider, (_, _) => _calculateValue());
+    ref.listen(metalPriceProvider, (_, _) => _calculateValue());
+    ref.listen(localMarketPricesProvider, (_, _) => _calculateValue());
 
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -286,7 +293,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                         builder: (context, ref, child) {
                           final currency = ref.watch(selectedCurrencyProvider);
                           return Text(
-                            _formatCurrency(_totalValue, currency),
+                            formatCurrency(_totalValue, currency),
                             style: theme.textTheme.headlineLarge?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -351,7 +358,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
     }
     
     final weight = double.tryParse(_weightController.text) ?? 0.0;
-    final quantity = int.tryParse(_quantityController.text) ?? 1;
+    final quantity = (int.tryParse(_quantityController.text) ?? 1).clamp(1, 1 << 30);
     final isLocal = ref.read(isLocalMarketProvider);
     final local = ref.read(localMarketPricesProvider);
     final side = ref.read(priceSideProvider);
@@ -373,7 +380,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
         const SizedBox(height: 8),
         _buildDetailRow(
           'Price per gram',
-          _formatCurrency(karatPrice, currency),
+          formatCurrency(karatPrice, currency),
         ),
       ],
     );
@@ -402,18 +409,4 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
     );
   }
   
-  String _formatCurrency(double value, String currency) {
-    final symbols = {
-      'USD': '\$',
-      'SAR': 'SAR ',
-      'AED': 'AED ',
-      'EGP': 'EGP ',
-      'KWD': 'KWD ',
-      'EUR': '€',
-      'GBP': '£',
-    };
-    
-    final symbol = symbols[currency] ?? '$currency ';
-    return '$symbol${value.toStringAsFixed(2)}';
-  }
 }

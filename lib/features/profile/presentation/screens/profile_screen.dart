@@ -13,9 +13,13 @@ import '../../../alerts/presentation/screens/alerts_screen.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
 import '../widgets/widget_settings_sheet.dart';
 import '../widgets/digest_settings_sheet.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../rating/presentation/rate_app_sheet.dart';
 import '../../../feedback/presentation/submit_idea_sheet.dart';
+import '../../../system/store_launcher.dart';
 import 'edit_profile_screen.dart';
+import '../../../../core/config/app_remote_config.dart';
+import '../../../../shared/providers/app_config_provider.dart';
 import '../../../../shared/providers/digest_provider.dart';
 
 /// TermsFeed-hosted privacy policy for Gold Signal.
@@ -39,6 +43,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void initState() {
     super.initState();
     _currentUser = FirebaseAuth.instance.currentUser;
+  }
+
+  Future<void> _shareApp() async {
+    final config = ref.read(appRemoteConfigProvider) ?? const AppRemoteConfig();
+    final url = storeUrl(config);
+    await SharePlus.instance.share(
+      ShareParams(
+        text: 'Track live gold & silver prices, alerts and your portfolio '
+            'with GoldSignal: $url',
+        subject: 'GoldSignal',
+      ),
+    );
   }
 
   Future<void> _openEditProfile() async {
@@ -115,13 +131,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
           TextButton(
             onPressed: () async {
+              final navigator = Navigator.of(context);
               await _authService.signOut();
-              if (mounted) {
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(builder: (_) => const AuthScreen()),
-                  (route) => false,
-                );
-              }
+              navigator.pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const AuthScreen()),
+                (route) => false,
+              );
             },
             child: const Text(
               'Sign Out',
@@ -433,7 +448,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 leading: const Icon(Icons.share),
                 title: const Text('Share App'),
                 subtitle: const Text('Tell your friends'),
-                onTap: () {},
+                onTap: _shareApp,
               ),
 
               const SizedBox(height: 16),

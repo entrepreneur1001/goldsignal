@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/analytics/analytics_service.dart';
 import '../../core/firebase/firestore_price_alerts_service.dart';
 import '../../core/notifications/alert_notification_service.dart';
 import '../../core/notifications/push_messaging_service.dart';
@@ -149,9 +150,12 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
     state = state.copyWith(clearSnackbar: true);
   }
 
-  Future<void> requestNotificationPermission() async {
-    await AlertNotificationService.instance.requestPermission();
+  /// Requests notification permission and refreshes the FCM token.
+  /// Returns whether permission was granted.
+  Future<bool> requestNotificationPermission() async {
+    final granted = await AlertNotificationService.instance.requestPermission();
     await PushMessagingService.instance.refreshToken();
+    return granted;
   }
 
   Future<void> createAlert({
@@ -195,6 +199,10 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
     await ref.read(priceAlertsServiceProvider).save(alert);
     await _syncAlertToCloud(alert);
     _reload();
+    await AnalyticsService.instance.logEvent(
+      'alert_created',
+      parameters: {'type': type.name, 'metal': metal},
+    );
   }
 
   Future<void> deleteAlert(String id) async {

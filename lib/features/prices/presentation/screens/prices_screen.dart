@@ -62,6 +62,7 @@ class PricesScreen extends ConsumerWidget {
             ),
           ),
           IconButton(
+            tooltip: 'Refresh prices',
             onPressed: marketState.isRefreshing
                 ? null
                 : () => ref.read(marketPricesControllerProvider.notifier).refresh(),

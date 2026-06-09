@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../../shared/models/savings_goal.dart';
 import '../../../../shared/providers/savings_goals_provider.dart';
+import '../../../../shared/widgets/empty_state.dart';
 import '../../../portfolio/presentation/screens/portfolio_screen.dart';
 
 class SavingsGoalsScreen extends ConsumerWidget {
@@ -44,26 +45,11 @@ class SavingsGoalsScreen extends ConsumerWidget {
   }
 
   Widget _buildEmpty(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.savings_outlined, size: 56, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text('No savings goals yet',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(
-              'Set a target like "save 100g of gold" and track your progress '
-              'as you add holdings to your portfolio.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-      ),
+    return const EmptyState(
+      icon: Icons.savings_outlined,
+      title: 'No savings goals yet',
+      message: 'Set a target like "save 100g of gold" and track your progress '
+          'as you add holdings to your portfolio.',
     );
   }
 }

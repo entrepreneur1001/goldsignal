@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:groq/groq.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/utils/api_config.dart';
 import '../../../../core/utils/currency_conversion.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
@@ -114,6 +115,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       isUser: true,
       timestamp: DateTime.now(),
     ));
+    AnalyticsService.instance.logEvent('chat_message_sent');
     _messageController.clear();
     if (mounted) setState(() => _isTyping = true);
 

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../utils/api_config.dart';
@@ -27,7 +28,7 @@ class MetalPriceApiService {
     );
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
-        print('cURL: ${_buildCurl(options)}');
+        debugPrint('cURL: ${_buildCurl(options)}');
         handler.next(options);
       },
     ));
@@ -57,7 +58,7 @@ class MetalPriceApiService {
   MetalPricesResponse? getCachedPrices() {
     final cachedData = _cacheBox.get(_cacheKey);
     if (cachedData != null) {
-      print('[Cache] Returning cached prices from Hive');
+      debugPrint('[Cache] Returning cached prices from Hive');
       return MetalPricesResponse.fromJson(cachedData['data']);
     }
     return null;
@@ -77,7 +78,7 @@ class MetalPriceApiService {
         maxAge: _sharedCacheMaxAge,
       );
       if (shared != null) {
-        print('[Cache] Using shared Firestore price cache');
+        debugPrint('[Cache] Using shared Firestore price cache');
         final apiData = _firestoreToApiFormat(shared);
         await _savePreviousAndCache(apiData);
         return MetalPricesResponse.fromJson(apiData);
@@ -85,18 +86,18 @@ class MetalPriceApiService {
 
       // --- Fallback: direct scrape for an immediate fresh reading ---
       try {
-        print('[Scraper] Scraping livepriceofgold.com');
+        debugPrint('[Scraper] Scraping livepriceofgold.com');
         final scrapedData = await _scraper.scrapeLatestPrices();
         await _savePreviousAndCache(scrapedData);
         return MetalPricesResponse.fromJson(scrapedData);
       } catch (scrapeError) {
-        print('[Scraper] Scraping failed: $scrapeError');
+        debugPrint('[Scraper] Scraping failed: $scrapeError');
       }
 
       // --- Last resort: any stale cache (Firestore or Hive) ---
       return _fallbackToAnyCache();
     } catch (e) {
-      print('Error fetching fresh prices: $e');
+      debugPrint('Error fetching fresh prices: $e');
       return _fallbackToAnyCache();
     }
   }
@@ -240,7 +241,7 @@ class MetalPriceApiService {
       
       return response.data;
     } catch (e) {
-      print('Error fetching historical prices: $e');
+      debugPrint('Error fetching historical prices: $e');
       throw Exception('Failed to fetch historical prices');
     }
   }
@@ -280,7 +281,7 @@ class MetalPriceApiService {
       
       return currencies;
     } catch (e) {
-      print('Error fetching currencies: $e');
+      debugPrint('Error fetching currencies: $e');
       
       // Return default currencies if API fails
       return _getDefaultCurrencies();

@@ -9,6 +9,12 @@ class AppTheme {
   static const Color successColor = Color(0xFF4CAF50);
   static const Color errorColor = Color(0xFFF44336);
   static const Color warningColor = Color(0xFFFF9800);
+
+  // Brand gold variants used across cards/gradients (previously scattered hex).
+  static const Color gold = Color(0xFFFFB800); // primary gold accent
+  static const Color goldBright = Color(0xFFFFD700);
+  static const Color goldDeep = Color(0xFFDEB059);
+  static const Color silver = Color(0xFF9E9E9E);
   
   // Light Theme
   static ThemeData lightTheme = ThemeData(

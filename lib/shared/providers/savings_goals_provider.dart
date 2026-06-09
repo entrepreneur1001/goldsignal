@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/analytics/analytics_service.dart';
 import '../../core/storage/savings_goals_service.dart';
 import '../models/savings_goal.dart';
 
@@ -31,6 +32,8 @@ class SavingsGoalsNotifier extends Notifier<List<SavingsGoal>> {
     );
     await _service.save(goal);
     state = _service.getAll();
+    await AnalyticsService.instance
+        .logEvent('savings_goal_created', parameters: {'metal': metal});
   }
 
   Future<void> deleteGoal(String id) async {

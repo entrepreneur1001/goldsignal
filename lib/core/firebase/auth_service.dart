@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import '../analytics/analytics_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -54,11 +56,12 @@ class AuthService {
       if (user != null) {
         // Create initial guest profile in Firestore
         await _createUserProfile(user.uid, isGuest: true);
+        await AnalyticsService.instance.setUser(user.uid);
       }
-      
+
       return user;
     } catch (e) {
-      print('Guest sign in failed: $e');
+      debugPrint('Guest sign in failed: $e');
       return null;
     }
   }
@@ -70,9 +73,12 @@ class AuthService {
         email: email,
         password: password,
       );
+      if (credential.user != null) {
+        await AnalyticsService.instance.setUser(credential.user!.uid);
+      }
       return credential.user;
     } catch (e) {
-      print('Email sign in failed: $e');
+      debugPrint('Email sign in failed: $e');
       throw Exception(_handleAuthError(e));
     }
   }
@@ -92,11 +98,12 @@ class AuthService {
           email: email,
           isGuest: false,
         );
+        await AnalyticsService.instance.setUser(credential.user!.uid);
       }
 
       return credential.user;
     } catch (e) {
-      print('Email sign up failed: $e');
+      debugPrint('Email sign up failed: $e');
       throw Exception(_handleAuthError(e));
     }
   }
@@ -124,7 +131,7 @@ class AuthService {
 
       return null;
     } catch (e) {
-      print('Account conversion failed: $e');
+      debugPrint('Account conversion failed: $e');
       throw Exception(_handleAuthError(e));
     }
   }
@@ -133,8 +140,9 @@ class AuthService {
   Future<void> signOut() async {
     try {
       await _auth.signOut();
+      await AnalyticsService.instance.setUser(null);
     } catch (e) {
-      print('Sign out failed: $e');
+      debugPrint('Sign out failed: $e');
       rethrow;
     }
   }
@@ -144,7 +152,7 @@ class AuthService {
     try {
       await _auth.sendPasswordResetEmail(email: email);
     } catch (e) {
-      print('Password reset failed: $e');
+      debugPrint('Password reset failed: $e');
       throw Exception(_handleAuthError(e));
     }
   }
@@ -189,7 +197,7 @@ class AuthService {
         },
       });
     } catch (e) {
-      print('Failed to create user profile: $e');
+      debugPrint('Failed to create user profile: $e');
       rethrow;
     }
   }
@@ -203,7 +211,7 @@ class AuthService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Failed to update user profile: $e');
+      debugPrint('Failed to update user profile: $e');
       rethrow;
     }
   }

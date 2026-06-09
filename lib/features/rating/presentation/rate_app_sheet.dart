@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/app_remote_config.dart';
@@ -55,9 +56,16 @@ class _RateAppSheetState extends ConsumerState<RateAppSheet> {
 
   Future<void> _submit() async {
     if (_stars == 0 || _submitting) return;
-    setState(() => _submitting = true);
 
     final messenger = ScaffoldMessenger.of(context);
+    if (FirebaseAuth.instance.currentUser == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Please sign in to rate the app.')),
+      );
+      return;
+    }
+    setState(() => _submitting = true);
+
     final appVersion = ref.read(packageInfoProvider).version;
     final iosAppStoreId = ref.read(appRemoteConfigProvider)?.iosAppStoreId ?? '';
     final stars = _stars;

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:in_app_review/in_app_review.dart';
+import '../../core/analytics/analytics_service.dart';
 
 /// Records app ratings and, for 5-star ratings, requests the native store review.
 class RatingService {
@@ -43,6 +44,8 @@ class RatingService {
       final ratingRef = _firestore.collection('ratings').doc(uid);
       await ratingRef.set(data); // current rating
       await ratingRef.collection('versions').add(data); // history entry
+      await AnalyticsService.instance
+          .logEvent('rating_submitted', parameters: {'stars': stars});
     }
 
     if (stars >= 5) {

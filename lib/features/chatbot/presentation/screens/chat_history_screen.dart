@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../shared/models/chat_conversation.dart';
 import '../../../../shared/providers/chat_history_provider.dart';
+import '../../../../shared/widgets/empty_state.dart';
 
 class ChatHistoryScreen extends ConsumerWidget {
   const ChatHistoryScreen({super.key});
@@ -74,26 +75,11 @@ class ChatHistoryScreen extends ConsumerWidget {
   }
 
   Widget _buildEmpty(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.forum_outlined, size: 56, color: Colors.grey.shade400),
-            const SizedBox(height: 16),
-            Text('No saved chats yet',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Text(
-              'Your conversations with the AI assistant are saved here '
-              'automatically, so you can revisit them anytime.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-      ),
+    return const EmptyState(
+      icon: Icons.forum_outlined,
+      title: 'No saved chats yet',
+      message: 'Your conversations with the AI assistant are saved here '
+          'automatically, so you can revisit them anytime.',
     );
   }
 }
