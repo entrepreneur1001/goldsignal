@@ -6,11 +6,13 @@ import '../../core/api/isagha_price_scraper.dart';
 import '../../core/firebase/firestore_price_history_service.dart';
 import '../../core/storage/price_history_service.dart';
 import '../../core/api/metalpriceapi_service.dart';
+import '../../core/widget/home_widget_service.dart';
 import '../models/local_market_prices.dart';
 import '../models/metal_price.dart';
 import 'currency_provider.dart';
 import 'metal_price_provider.dart';
 import 'price_alerts_provider.dart';
+import 'widget_preferences_provider.dart';
 
 const _ounceToGram = 31.1034768;
 
@@ -112,10 +114,16 @@ class MarketPricesController extends Notifier<MarketPricesState> {
   @override
   MarketPricesState build() {
     ref.listen<String>(selectedCurrencyProvider, (prev, next) {
-      if (prev != next) refresh();
+      if (prev != next) {
+        ref.read(widgetPreferencesProvider.notifier).normalizeForCurrency(next);
+        refresh();
+      }
     });
     ref.listen<PriceSide>(priceSideProvider, (prev, next) {
       if (prev != next) applyCurrentPrices();
+    });
+    ref.listen<WidgetPreferences>(widgetPreferencesProvider, (prev, next) {
+      if (prev != next) _updateHomeWidget();
     });
 
     _hourlyTimer?.cancel();
@@ -208,6 +216,7 @@ class MarketPricesController extends Notifier<MarketPricesState> {
       if (global != null) {
         _pushGlobalToMetalProviders(global, currency);
       }
+      _updateHomeWidget();
       return;
     }
 
@@ -215,6 +224,20 @@ class MarketPricesController extends Notifier<MarketPricesState> {
     if (local != null) {
       _pushLocalToMetalProviders(local, ref.read(priceSideProvider));
     }
+    _updateHomeWidget();
+  }
+
+  void _updateHomeWidget() {
+    final display = resolveWidgetDisplayForUpdate(ref);
+    if (display == null) return;
+
+    HomeWidgetService.instance.updateDisplay(
+      label: display.label,
+      pricePerGram: display.pricePerGram.toStringAsFixed(2),
+      currency: display.currency,
+      changePercent: display.formattedChangePercent,
+      isPositive: display.isPositive,
+    );
   }
 
   void _pushGlobalToMetalProviders(MetalPricesResponse response, String currency) {

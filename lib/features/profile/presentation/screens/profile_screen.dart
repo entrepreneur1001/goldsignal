@@ -11,6 +11,7 @@ import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../features/auth/presentation/screens/auth_screen.dart';
 import '../../../alerts/presentation/screens/alerts_screen.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
+import '../widgets/widget_settings_sheet.dart';
 
 /// TermsFeed-hosted privacy policy for Gold Signal.
 final Uri _privacyPolicyUri = Uri.https(
@@ -323,6 +324,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     },
                   ),
                 ),
+
+              ListTile(
+                leading: const Icon(Icons.widgets_outlined),
+                title: const Text('Home Screen Widget'),
+                subtitle: Text(
+                  'Metal & karat · currency follows $selectedCurrency',
+                ),
+                onTap: () => WidgetSettingsSheet.show(context),
+              ),
 
               const Divider(),
 

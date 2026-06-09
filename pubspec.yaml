@@ -66,6 +66,7 @@ dependencies:
   fl_chart: ^1.2.0
   firebase_messaging: ^16.3.0
   flutter_local_notifications: ^22.0.0
+  home_widget: ^0.7.0
 
 dev_dependencies:
   flutter_test:
