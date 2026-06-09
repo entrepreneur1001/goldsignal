@@ -6,6 +6,8 @@ import '../../../chatbot/presentation/screens/chatbot_screen.dart';
 import '../../../portfolio/presentation/screens/portfolio_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
+import '../../../../shared/providers/price_alerts_provider.dart';
+import '../../../../shared/widgets/alerts_nav_button.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -52,6 +54,21 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget build(BuildContext context) {
     // Bootstrap central price orchestrator for all tabs
     ref.watch(marketPricesControllerProvider);
+
+    ref.listen<PriceAlertsState>(priceAlertsProvider, (prev, next) {
+      final msg = next.snackbarMessage;
+      if (msg == null || msg == prev?.snackbarMessage) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(msg),
+          action: SnackBarAction(
+            label: 'View',
+            onPressed: () => AlertsNavButton.open(context),
+          ),
+        ),
+      );
+      ref.read(priceAlertsProvider.notifier).clearSnackbar();
+    });
 
     return Scaffold(
       body: IndexedStack(

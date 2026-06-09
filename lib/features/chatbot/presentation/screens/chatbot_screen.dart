@@ -7,6 +7,7 @@ import '../../../../core/utils/currency_conversion.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
+import '../../../../shared/widgets/alerts_nav_button.dart';
 import '../../../../shared/models/metal_price.dart';
 import '../../../portfolio/presentation/screens/portfolio_screen.dart';
 
@@ -260,6 +261,7 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
         elevation: 0,
         backgroundColor: Colors.transparent,
         actions: [
+          const AlertsNavButton(),
           IconButton(
             icon: const Icon(Icons.clear_all),
             onPressed: () {

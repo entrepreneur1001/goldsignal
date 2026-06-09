@@ -9,6 +9,8 @@ import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../features/auth/presentation/screens/auth_screen.dart';
+import '../../../alerts/presentation/screens/alerts_screen.dart';
+import '../../../../shared/providers/price_alerts_provider.dart';
 
 /// TermsFeed-hosted privacy policy for Gold Signal.
 final Uri _privacyPolicyUri = Uri.https(
@@ -258,6 +260,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const SizedBox(height: 8),
 
               _buildSectionHeader('Preferences'),
+
+              ListTile(
+                leading: const Icon(Icons.notifications_active_outlined),
+                title: const Text('Price Alerts'),
+                subtitle: Consumer(
+                  builder: (context, ref, _) {
+                    final count = ref.watch(priceAlertsProvider).activeCount;
+                    return Text(count == 0
+                        ? 'No active alerts'
+                        : '$count active alert${count == 1 ? '' : 's'}');
+                  },
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AlertsScreen()),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.notifications_outlined),
+                title: const Text('Notification Permission'),
+                subtitle: const Text('Required for price alert pop-ups'),
+                onTap: () async {
+                  await ref
+                      .read(priceAlertsProvider.notifier)
+                      .requestNotificationPermission();
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Notification permission updated')),
+                    );
+                  }
+                },
+              ),
 
               // Currency — synced with Prices screen via selectedCurrencyProvider
               ListTile(

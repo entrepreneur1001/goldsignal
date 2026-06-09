@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../shared/models/local_market_prices.dart';
 
 class FirestorePriceService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -36,6 +37,42 @@ class FirestorePriceService {
       return data['rates'] != null ? Map<String, dynamic>.from(data) : null;
     } catch (e) {
       return null;
+    }
+  }
+
+  /// Latest Egypt local prices for Cloud Functions alert checks.
+  Future<void> cacheLocalPrices(LocalMarketPrices local) async {
+    try {
+      final gold = <String, dynamic>{};
+      for (final row in local.gold) {
+        if (row.isPerUnit) continue;
+        gold[row.karat] = {
+          'sellPerGram': row.sellPerGram,
+          'buyPerGram': row.buyPerGram,
+        };
+      }
+
+      final silver = <String, dynamic>{};
+      for (final row in local.silver) {
+        if (row.isPerUnit || row.karat == 'silver_ounce') continue;
+        silver[row.karat] = {
+          'sellPerGram': row.sellPerGram,
+          'buyPerGram': row.buyPerGram,
+        };
+      }
+
+      if (gold.isEmpty && silver.isEmpty) return;
+
+      await _firestore.collection('prices').doc('local_EGP').set({
+        'marketType': 'local',
+        'currency': 'EGP',
+        'source': 'isagha',
+        'gold': gold,
+        'silver': silver,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('FirestorePriceService.cacheLocalPrices error: $e');
     }
   }
 

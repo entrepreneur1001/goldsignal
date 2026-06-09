@@ -6,6 +6,7 @@ import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/models/price_snapshot.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/providers/price_history_provider.dart';
+import '../../../../shared/widgets/alerts_nav_button.dart';
 
 class PriceChartScreen extends ConsumerWidget {
   const PriceChartScreen({super.key});
@@ -21,6 +22,7 @@ class PriceChartScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Price History'),
         actions: [
+          const AlertsNavButton(),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: chartState.isLoading

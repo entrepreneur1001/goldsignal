@@ -5,6 +5,7 @@ import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/widgets/currency_selector.dart';
+import '../../../../shared/widgets/alerts_nav_button.dart';
 
 class CalculatorScreen extends ConsumerStatefulWidget {
   const CalculatorScreen({super.key});
@@ -90,14 +91,17 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
               children: [
                 // Header
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'Gold Calculator',
-                      style: theme.textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Text(
+                        'Gold Calculator',
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
+                    const AlertsNavButton(),
+                    const SizedBox(width: 4),
                     Consumer(
                       builder: (context, ref, child) {
                         final currency = ref.watch(selectedCurrencyProvider);

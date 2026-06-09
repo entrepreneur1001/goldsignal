@@ -10,7 +10,8 @@ class PriceCard extends StatelessWidget {
   final String currency;
   final double change24h;
   final double changePercent;
-  
+  final VoidCallback? onSetAlert;
+
   const PriceCard({
     super.key,
     required this.metal,
@@ -21,6 +22,7 @@ class PriceCard extends StatelessWidget {
     required this.currency,
     required this.change24h,
     required this.changePercent,
+    this.onSetAlert,
   });
   
   bool get isPositive =>
@@ -161,7 +163,17 @@ class PriceCard extends StatelessWidget {
               ),
               
               const SizedBox(height: 16),
-              
+
+              if (onSetAlert != null)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: onSetAlert,
+                    icon: const Icon(Icons.add_alert, size: 18),
+                    label: const Text('Set alert'),
+                  ),
+                ),
+
               // 24h Change
               Container(
                 padding: const EdgeInsets.all(8),

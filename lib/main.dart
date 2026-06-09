@@ -5,6 +5,7 @@ import 'package:goldsignal/firebase_options.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'core/notifications/alert_notification_service.dart';
 import 'core/utils/app_config.dart';
 import 'shared/themes/app_theme.dart';
 import 'shared/providers/app_info_provider.dart';
@@ -21,6 +22,7 @@ void main() async {
 
   // Initialize other configurations
   await AppConfig.initialize();
+  await AlertNotificationService.instance.initialize();
 
   final packageInfo = await PackageInfo.fromPlatform();
 

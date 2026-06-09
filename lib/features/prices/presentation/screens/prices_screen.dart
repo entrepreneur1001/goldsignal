@@ -9,12 +9,35 @@ import '../../../../shared/models/metal_price.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
+import '../../../../shared/providers/price_alerts_provider.dart';
 import '../../../../shared/widgets/price_card.dart';
 import '../../../../shared/widgets/currency_selector.dart';
+import '../../../alerts/presentation/widgets/create_alert_sheet.dart';
 import '../../../charts/presentation/screens/price_chart_screen.dart';
+import '../../../../shared/widgets/alerts_nav_button.dart';
 
 class PricesScreen extends ConsumerWidget {
   const PricesScreen({super.key});
+
+  void _openAlertSheet(
+    BuildContext context, {
+    required String metal,
+    required String karat,
+    required String currency,
+    required double pricePerGram,
+    PriceSide? side,
+  }) {
+    CreateAlertSheet.show(
+      context,
+      draft: AlertDraft(
+        metal: metal,
+        karat: karat,
+        currency: currency,
+        side: side,
+        pricePerGram: pricePerGram,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -30,6 +53,7 @@ class PricesScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Gold & Silver Prices'),
         actions: [
+          const AlertsNavButton(),
           IconButton(
             icon: const Icon(Icons.show_chart),
             tooltip: "Price history",
@@ -81,7 +105,12 @@ class PricesScreen extends ConsumerWidget {
                       selectedCurrency,
                     )
                   else if (goldPrice != null)
-                    ..._buildFromProviders(context, goldPrice, silverPrice),
+                    ..._buildFromProviders(
+                      context,
+                      goldPrice,
+                      silverPrice,
+                      side: isLocal ? priceSide : null,
+                    ),
                   if (marketState.error != null) ...[
                     const SizedBox(height: 12),
                     Text(
@@ -184,6 +213,14 @@ class PricesScreen extends ConsumerWidget {
           currency: 'EGP',
           change24h: headline.change,
           changePercent: headline.changePercent,
+          onSetAlert: () => _openAlertSheet(
+            context,
+            metal: 'gold',
+            karat: '21',
+            currency: 'EGP',
+            pricePerGram: headline.priceFor(side),
+            side: side,
+          ),
         ).animate().slideX(begin: -1, duration: 600.ms),
       const SizedBox(height: 16),
       if (silverHeadline != null)
@@ -196,6 +233,14 @@ class PricesScreen extends ConsumerWidget {
           currency: 'EGP',
           change24h: silverHeadline.change,
           changePercent: silverHeadline.changePercent,
+          onSetAlert: () => _openAlertSheet(
+            context,
+            metal: 'silver',
+            karat: '999',
+            currency: 'EGP',
+            pricePerGram: silverHeadline.priceFor(side),
+            side: side,
+          ),
         ).animate().slideX(begin: 1, duration: 600.ms),
       const SizedBox(height: 24),
       _buildLocalKaratCard(context, 'Gold Prices (per gram)', local.gold, side),
@@ -338,6 +383,13 @@ class PricesScreen extends ConsumerWidget {
         currency: currency,
         change24h: goldDelta.change,
         changePercent: goldDelta.changePercent,
+        onSetAlert: () => _openAlertSheet(
+          context,
+          metal: 'gold',
+          karat: '24',
+          currency: currency,
+          pricePerGram: goldPrice / 31.1034768,
+        ),
       ).animate().slideX(begin: -1, duration: 600.ms),
       const SizedBox(height: 16),
       PriceCard(
@@ -349,6 +401,13 @@ class PricesScreen extends ConsumerWidget {
         currency: currency,
         change24h: silverDelta.change,
         changePercent: silverDelta.changePercent,
+        onSetAlert: () => _openAlertSheet(
+          context,
+          metal: 'silver',
+          karat: '999',
+          currency: currency,
+          pricePerGram: silverPrice / 31.1034768,
+        ),
       ).animate().slideX(begin: 1, duration: 600.ms),
       const SizedBox(height: 24),
       Card(
@@ -385,8 +444,9 @@ class PricesScreen extends ConsumerWidget {
   List<Widget> _buildFromProviders(
     BuildContext context,
     MetalPrice gold,
-    MetalPrice? silver,
-  ) {
+    MetalPrice? silver, {
+    PriceSide? side,
+  }) {
     return [
       PriceCard(
         metal: gold.metal,
@@ -397,6 +457,14 @@ class PricesScreen extends ConsumerWidget {
         currency: gold.currency,
         change24h: gold.change24h,
         changePercent: gold.changePercent24h,
+        onSetAlert: () => _openAlertSheet(
+          context,
+          metal: 'gold',
+          karat: gold.currency == 'EGP' ? '21' : '24',
+          currency: gold.currency,
+          pricePerGram: gold.pricePerGram,
+          side: side,
+        ),
       ),
       if (silver != null) ...[
         const SizedBox(height: 16),
@@ -409,6 +477,14 @@ class PricesScreen extends ConsumerWidget {
           currency: silver.currency,
           change24h: silver.change24h,
           changePercent: silver.changePercent24h,
+          onSetAlert: () => _openAlertSheet(
+            context,
+            metal: 'silver',
+            karat: '999',
+            currency: silver.currency,
+            pricePerGram: silver.pricePerGram,
+            side: side,
+          ),
         ),
       ],
     ];

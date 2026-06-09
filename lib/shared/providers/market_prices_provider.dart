@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/api/isagha_price_scraper.dart';
+import '../../core/firebase/firestore_price_service.dart';
 import '../../core/firebase/firestore_price_history_service.dart';
 import '../../core/storage/price_history_service.dart';
 import '../../core/api/metalpriceapi_service.dart';
@@ -10,6 +11,7 @@ import '../models/local_market_prices.dart';
 import '../models/metal_price.dart';
 import 'currency_provider.dart';
 import 'metal_price_provider.dart';
+import 'price_alerts_provider.dart';
 
 const _ounceToGram = 31.1034768;
 
@@ -140,6 +142,9 @@ class MarketPricesController extends Notifier<MarketPricesState> {
         lastUpdated: DateTime.now(),
         clearError: true,
       );
+      try {
+        await ref.read(priceAlertsProvider.notifier).checkAgainstLatestPrices();
+      } catch (_) {}
     } catch (e) {
       state = state.copyWith(
         isRefreshing: false,
@@ -168,6 +173,9 @@ class MarketPricesController extends Notifier<MarketPricesState> {
       await ref
           .read(firestorePriceHistoryServiceProvider)
           .tryRecordHourlyLocal(local);
+    } catch (_) {}
+    try {
+      await FirestorePriceService().cacheLocalPrices(local);
     } catch (_) {}
   }
 
