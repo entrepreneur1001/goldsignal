@@ -149,26 +149,35 @@ flutterfire configure
 
 ## 🔑 API Configuration
 
-### 1. MetalpriceAPI (Required)
-1. Visit [MetalpriceAPI](https://metalpriceapi.com)
-2. Sign up for free account
-3. Get API key
-4. Add to `lib/core/utils/api_config.dart`:
-```dart
-static const String metalPriceApiKey = 'YOUR_API_KEY_HERE';
+API keys are injected at **build/run time** via `--dart-define-from-file` (never commit real keys).
+
+### Setup (local development)
+
+```bash
+cp secrets.json.example secrets.json
+# Edit secrets.json — add your keys
+flutter run --dart-define-from-file=secrets.json
 ```
 
-### 2. ExchangeRate-API (Optional)
-1. Visit [ExchangeRate-API](https://www.exchangerate-api.com)
-2. Sign up for free account
-3. Get API key
-4. Add to config file
+Cursor / VS Code: use the included `.vscode/launch.json` configuration (already passes `--dart-define-from-file=secrets.json`).
 
-### 3. OpenAI API (For AI Features)
-1. Visit [OpenAI Platform](https://platform.openai.com)
-2. Create account
-3. Generate API key
-4. Users add in app settings
+Release builds:
+
+```bash
+flutter build apk --dart-define-from-file=secrets.json
+flutter build ios --dart-define-from-file=secrets.json
+```
+
+After changing `secrets.json`, **rebuild** the app — keys are compile-time constants.
+
+### Keys in `secrets.json`
+
+| Key | Used for | Where to get it |
+|-----|----------|-----------------|
+| `METAL_PRICE_API_KEY` | Optional metalpriceapi.com fallback | [metalpriceapi.com](https://metalpriceapi.com) |
+| `GROQ_API_KEY` | AI chat (Groq `gsk_...`) | [console.groq.com/keys](https://console.groq.com/keys) |
+
+See [`lib/core/utils/api_config.dart`](lib/core/utils/api_config.dart) and [`secrets.json.example`](secrets.json.example).
 
 ## 📁 Project Structure
 
@@ -320,21 +329,24 @@ flutter pub get
 flutter pub upgrade
 ```
 
-## 📝 Environment Variables
+## 📝 Secrets file
 
-Create `.env` file (not tracked in git):
-```
-METAL_PRICE_API_KEY=your_key_here
-EXCHANGE_RATE_API_KEY=your_key_here
-OPENAI_API_KEY=user_will_add_in_app
+Create `secrets.json` from the example (already in `.gitignore`):
+
+```bash
+cp secrets.json.example secrets.json
 ```
 
-Add to `.gitignore`:
+```json
+{
+  "METAL_PRICE_API_KEY": "your-metalpriceapi-key",
+  "GROQ_API_KEY": "gsk_your-groq-key"
+}
 ```
-.env
-google-services.json
-GoogleService-Info.plist
-```
+
+Run and build with `--dart-define-from-file=secrets.json` (see API Configuration above).
+
+Do not commit `secrets.json`, `google-services.json`, or `GoogleService-Info.plist`.
 
 ## 🤝 Contributing
 

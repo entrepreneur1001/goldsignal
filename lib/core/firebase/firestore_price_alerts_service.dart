@@ -43,4 +43,12 @@ class FirestorePriceAlertsService {
       'fcmUpdatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
+
+  /// Persist the user's daily-digest preferences for the scheduled Cloud
+  /// Function to read. Merges so the function's `lastSentYmd` is preserved.
+  Future<void> saveDigestPrefs(String uid, Map<String, dynamic> prefs) async {
+    await _firestore.collection('users').doc(uid).set({
+      'digest': prefs,
+    }, SetOptions(merge: true));
+  }
 }

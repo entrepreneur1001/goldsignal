@@ -349,3 +349,178 @@ exports.refreshPricesScheduled = onSchedule(
     });
   },
 );
+
+// ---------------------------------------------------------------------------
+// Daily price digest
+// ---------------------------------------------------------------------------
+
+function formatDigestNum(n) {
+  return Number(n).toLocaleString('en-US', { maximumFractionDigits: 2 });
+}
+
+/// Per-gram gold & silver + 24h gold change for the user's currency.
+function digestNumbers(ctx, currency) {
+  if (currency === 'EGP' && ctx.localEgp) {
+    const g = ctx.localEgp.gold && ctx.localEgp.gold['21'];
+    const s = ctx.localEgp.silver && ctx.localEgp.silver['999'];
+    return {
+      goldPerGram: g ? g.sellPerGram : null,
+      silverPerGram: s ? s.sellPerGram : null,
+      goldPct: g && g.changePercent != null ? g.changePercent : null,
+    };
+  }
+  const goldPerGram = globalPricePerGram(ctx.globalRates, 'gold', '24', currency);
+  const silverPerGram = globalPricePerGram(ctx.globalRates, 'silver', '999', currency);
+  const prevGold = globalPricePerGram(ctx.prevRates, 'gold', '24', currency);
+  return {
+    goldPerGram,
+    silverPerGram,
+    goldPct: changePercentFrom(goldPerGram, prevGold),
+  };
+}
+
+function digestBody(nums, currency) {
+  const parts = [];
+  if (nums.goldPerGram != null) {
+    let g = `Gold ${formatDigestNum(nums.goldPerGram)} ${currency}/g`;
+    if (nums.goldPct != null) {
+      const sign = nums.goldPct >= 0 ? '+' : '';
+      g += ` (${sign}${nums.goldPct.toFixed(2)}% 24h)`;
+    }
+    parts.push(g);
+  }
+  if (nums.silverPerGram != null) {
+    parts.push(`Silver ${formatDigestNum(nums.silverPerGram)} ${currency}/g`);
+  }
+  return parts.join(' · ');
+}
+
+/// Optional one-line AI summary. Returns null unless GROQ_API_KEY is configured
+/// (set via `firebase functions:secrets` or env); failures fall back to null.
+async function aiDigestLine(nums, currency) {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) return null;
+  try {
+    const pct = nums.goldPct != null ? nums.goldPct.toFixed(2) : 'n/a';
+    const prompt =
+      `In one short, friendly sentence (max 20 words), summarize today's gold move ` +
+      `for an investor. Gold ${nums.goldPerGram?.toFixed(2)} ${currency}/g, ` +
+      `24h change ${pct}%. No disclaimers, no preamble.`;
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        max_completion_tokens: 60,
+        temperature: 0.7,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const text = data?.choices?.[0]?.message?.content?.trim();
+    return text || null;
+  } catch (err) {
+    logger.warn('AI digest line failed', err);
+    return null;
+  }
+}
+
+async function sendDigestPush(token, title, body) {
+  try {
+    await messaging.send({
+      token,
+      notification: { title, body },
+      data: { type: 'daily_digest' },
+      android: { priority: 'high' },
+      apns: { payload: { aps: { sound: 'default' } } },
+    });
+    return true;
+  } catch (err) {
+    if (
+      err.code === 'messaging/registration-token-not-registered' ||
+      err.code === 'messaging/invalid-registration-token'
+    ) {
+      return false;
+    }
+    throw err;
+  }
+}
+
+// Sends each subscribed user a daily digest at their chosen local time. Runs
+// every 30 minutes and fires for users whose local time falls in the current
+// slot, de-duplicated per local calendar day via `digest.lastSentYmd`.
+exports.sendDailyDigest = onSchedule(
+  {
+    schedule: 'every 30 minutes',
+    timeZone: 'UTC',
+    retryCount: 0,
+    memory: '256MiB',
+    timeoutSeconds: 120,
+    maxInstances: 1,
+  },
+  async () => {
+    const ctx = await loadPriceContextFromFirestore(db);
+    if (!ctx.globalRates && !ctx.localEgp) {
+      logger.warn('Digest: no price data available');
+      return;
+    }
+
+    const usersSnap = await db
+      .collection('users')
+      .where('digest.enabled', '==', true)
+      .get();
+
+    if (usersSnap.empty) {
+      logger.info('Digest: no subscribers');
+      return;
+    }
+
+    const now = Date.now();
+    const pad = (n) => String(n).padStart(2, '0');
+    let sent = 0;
+
+    for (const userDoc of usersSnap.docs) {
+      const data = userDoc.data();
+      const d = data.digest || {};
+      const token = data.fcmToken;
+      if (!token) continue;
+
+      // Shift "now" into the user's local time using their stored offset.
+      const offset = Number(d.utcOffsetMinutes) || 0;
+      const local = new Date(now + offset * 60000);
+      const localMinutes = local.getUTCHours() * 60 + local.getUTCMinutes();
+      const target = (Number(d.hour) || 0) * 60 + (Number(d.minute) || 0);
+      const diff = localMinutes - target;
+      if (diff < 0 || diff >= 30) continue; // not in this 30-min slot
+
+      const ymd =
+        `${local.getUTCFullYear()}-${pad(local.getUTCMonth() + 1)}-` +
+        `${pad(local.getUTCDate())}`;
+      if (d.lastSentYmd === ymd) continue; // already sent today
+
+      const currency = d.currency || 'USD';
+      const nums = digestNumbers(ctx, currency);
+      if (nums.goldPerGram == null) continue;
+
+      let body = digestBody(nums, currency);
+      const ai = await aiDigestLine(nums, currency);
+      if (ai) body = `${ai}\n${body}`;
+
+      const ok = await sendDigestPush(token, 'GoldSignal daily digest', body);
+      if (ok) {
+        await userDoc.ref.update({ 'digest.lastSentYmd': ymd });
+        sent += 1;
+      } else {
+        await userDoc.ref.update({
+          fcmToken: admin.firestore.FieldValue.delete(),
+        });
+      }
+    }
+
+    logger.info(`Digest sent to ${sent} user(s)`);
+  },
+);

@@ -12,6 +12,8 @@ import '../../../../features/auth/presentation/screens/auth_screen.dart';
 import '../../../alerts/presentation/screens/alerts_screen.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
 import '../widgets/widget_settings_sheet.dart';
+import '../widgets/digest_settings_sheet.dart';
+import '../../../../shared/providers/digest_provider.dart';
 
 /// TermsFeed-hosted privacy policy for Gold Signal.
 final Uri _privacyPolicyUri = Uri.https(
@@ -332,6 +334,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   'Metal & karat · currency follows $selectedCurrency',
                 ),
                 onTap: () => WidgetSettingsSheet.show(context),
+              ),
+
+              ListTile(
+                leading: const Icon(Icons.summarize_outlined),
+                title: const Text('Daily Price Digest'),
+                subtitle: Consumer(
+                  builder: (context, ref, _) {
+                    final digest = ref.watch(digestProvider);
+                    return Text(digest.enabled
+                        ? 'On · daily at ${digest.formattedTime}'
+                        : 'Off');
+                  },
+                ),
+                onTap: () => DigestSettingsSheet.show(context),
               ),
 
               const Divider(),

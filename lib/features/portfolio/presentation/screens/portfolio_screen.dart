@@ -9,6 +9,8 @@ import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/widgets/alerts_nav_button.dart';
+import '../../../zakat/zakat.dart';
+import '../../../zakat/presentation/screens/zakat_calculator_screen.dart';
 
 class PortfolioScreen extends ConsumerStatefulWidget {
   const PortfolioScreen({super.key});
@@ -185,6 +187,89 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     return price.getPricePerGram() * (item.karat / 24) * item.weight;
   }
 
+  /// Current 24K gold price per gram in the selected currency (local-aware).
+  double? _gold24PerGram() {
+    final isLocal = ref.read(isLocalMarketProvider);
+    final local = ref.read(localMarketPricesProvider);
+    if (isLocal && local != null) return localGoldPortfolioPrice(local, 24);
+    return ref.read(metalPriceProvider)?.getPricePerGram();
+  }
+
+  /// Current silver price per gram in the selected currency (local-aware).
+  double? _silverPerGram() {
+    final isLocal = ref.read(isLocalMarketProvider);
+    final local = ref.read(localMarketPricesProvider);
+    if (isLocal && local != null) return localSilverPortfolioPrice(local, 999);
+    return ref.read(silverPriceProvider)?.getPricePerGram();
+  }
+
+  /// Compact zakat indicator for the portfolio's current value (silver nisab
+  /// basis). Returns null when prices aren't ready or there are no holdings.
+  /// Tapping opens the full [ZakatCalculatorScreen].
+  Widget? _buildZakatIndicator(BuildContext context, ThemeData theme) {
+    final gold24 = _gold24PerGram();
+    final silver = _silverPerGram();
+    if (gold24 == null || silver == null) return null;
+
+    final total = _calculateTotalValue();
+    if (total <= 0) return null;
+
+    final currency = ref.watch(selectedCurrencyProvider);
+    final nisab = Zakat.nisabValue(
+      basis: NisabBasis.silver,
+      gold24PerGram: gold24,
+      silverPerGram: silver,
+    );
+    final result = Zakat.compute(totalWealth: total, nisabValue: nisab);
+    const accent = Color(0xFF2E9E83);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const ZakatCalculatorScreen()),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: accent.withValues(alpha: 0.30)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.volunteer_activism, color: accent),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Zakat due (2.5%)', style: theme.textTheme.bodySmall),
+                  const SizedBox(height: 2),
+                  Text(
+                    result.isDue
+                        ? _formatCurrency(result.amount, currency)
+                        : 'Below nisab',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: accent,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              result.isDue
+                  ? 'on ${_formatCurrency(total, currency)}'
+                  : 'No zakat',
+              style: theme.textTheme.bodySmall,
+            ),
+            const Icon(Icons.chevron_right, color: accent),
+          ],
+        ),
+      ),
+    );
+  }
+
   Map<String, double>? _fxRates() {
     return ref.read(metalPriceApiProvider).getCachedPrices()?.rates;
   }
@@ -274,6 +359,15 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                             ),
                           ),
                         ),
+                        IconButton(
+                          tooltip: 'Zakat calculator',
+                          icon: const Icon(Icons.volunteer_activism_outlined),
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const ZakatCalculatorScreen(),
+                            ),
+                          ),
+                        ),
                         const AlertsNavButton(),
                       ],
                     ),
@@ -297,6 +391,8 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                     // Summary Cards
                     Builder(builder: (_) {
                       final totalProfitLoss = _calculateTotalProfitLoss();
+                      final zakatIndicator =
+                          _buildZakatIndicator(context, theme);
                       return Column(children: [
                         _buildSummaryCard(
                           'Total Value',
@@ -312,6 +408,10 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                           totalProfitLoss >= 0 ? Icons.trending_up : Icons.trending_down,
                           showSign: true,
                         ),
+                        if (zakatIndicator != null) ...[
+                          const SizedBox(height: 12),
+                          zakatIndicator,
+                        ],
                       ]);
                     }),
                     const SizedBox(height: 24),

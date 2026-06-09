@@ -79,6 +79,29 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     super.dispose();
   }
 
+  static const _groqSetupMessage =
+      'AI chat is not configured. To enable it:\n\n'
+      '1. Copy secrets.json.example to secrets.json\n'
+      '2. Add your Groq API key (gsk_...) from console.groq.com/keys\n'
+      '3. Run or build with:\n'
+      '   flutter run --dart-define-from-file=secrets.json\n\n'
+      'Rebuild after changing the key.';
+
+  String _groqErrorMessage(GroqException e) {
+    final lower = e.message.toLowerCase();
+    if (e is AuthenticationError ||
+        (lower.contains('invalid') && lower.contains('api key')) ||
+        lower.contains('unauthorized') ||
+        lower.contains('authentication')) {
+      return 'Groq API key is missing or invalid.\n\n'
+          '• Check your key at console.groq.com/keys\n'
+          '• Update GROQ_API_KEY in secrets.json\n'
+          '• Rebuild with: flutter run --dart-define-from-file=secrets.json\n\n'
+          'Details: ${e.message}';
+    }
+    return 'I apologize, but I encountered an error: ${e.message}';
+  }
+
   Future<void> _sendMessage() async {
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
@@ -96,6 +119,17 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
 
     // Scroll to bottom
     _scrollToBottom();
+
+    if (ApiConfig.groqApiKey.isEmpty) {
+      await history.appendMessage(ChatMessage(
+        text: _groqSetupMessage,
+        isUser: false,
+        timestamp: DateTime.now(),
+      ));
+      if (mounted) setState(() => _isTyping = false);
+      _scrollToBottom();
+      return;
+    }
 
     try {
       // Get current prices and portfolio for context
@@ -121,7 +155,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       _scrollToBottom();
     } on GroqException catch (e) {
       await history.appendMessage(ChatMessage(
-        text: "I apologize, but I encountered an error: ${e.message}",
+        text: _groqErrorMessage(e),
         isUser: false,
         timestamp: DateTime.now(),
       ));
@@ -298,6 +332,22 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
       body: SafeArea(
         child: Column(
           children: [
+            if (ApiConfig.groqApiKey.isEmpty)
+              Material(
+                color: theme.colorScheme.errorContainer,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  child: Text(
+                    'Groq API key not set. Run with --dart-define-from-file=secrets.json',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onErrorContainer,
+                    ),
+                  ),
+                ),
+              ),
             // Quick Actions
             SizedBox(
               height: 40,
