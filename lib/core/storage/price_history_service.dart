@@ -243,17 +243,6 @@ class PriceHistoryService {
       points.add(ChartDataPoint(date: current.timestamp, value: currentValue));
     }
 
-    if (points.length == 1) {
-      final only = points.first;
-      points.insert(
-        0,
-        ChartDataPoint(
-          date: only.date.subtract(const Duration(hours: 24)),
-          value: only.value,
-        ),
-      );
-    }
-
     return points;
   }
 
@@ -270,6 +259,9 @@ class PriceHistoryService {
 
     final current = row.priceFor(side);
     final previous = current - row.change;
+    if (row.change.abs() < 0.001 || (previous - current).abs() < 0.001) {
+      return [];
+    }
     final now = local.updatedAt;
 
     return [

@@ -1,6 +1,15 @@
 {
   "indexes": [
     {
+      "collectionGroup": "priceHistory",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "marketType", "order": "ASCENDING" },
+        { "fieldPath": "currency", "order": "ASCENDING" },
+        { "fieldPath": "hourBucket", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "alerts",
       "queryScope": "COLLECTION_GROUP",
       "fields": [

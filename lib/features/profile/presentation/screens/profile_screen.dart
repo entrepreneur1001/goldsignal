@@ -13,6 +13,8 @@ import '../../../alerts/presentation/screens/alerts_screen.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
 import '../widgets/widget_settings_sheet.dart';
 import '../widgets/digest_settings_sheet.dart';
+import '../../../rating/presentation/rate_app_sheet.dart';
+import 'edit_profile_screen.dart';
 import '../../../../shared/providers/digest_provider.dart';
 
 /// TermsFeed-hosted privacy policy for Gold Signal.
@@ -36,6 +38,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void initState() {
     super.initState();
     _currentUser = FirebaseAuth.instance.currentUser;
+  }
+
+  Future<void> _openEditProfile() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+    );
+    await FirebaseAuth.instance.currentUser?.reload();
+    if (mounted) {
+      setState(() => _currentUser = FirebaseAuth.instance.currentUser);
+    }
   }
 
   Future<void> _deleteAccount() async {
@@ -171,91 +184,114 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const SizedBox(height: 24),
 
                     // User Info Card
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            const Color(0xFFFFB800),
-                            const Color(0xFFFFB800).withValues(alpha: 0.8),
+                    Builder(builder: (context) {
+                      final isAnon = _currentUser?.isAnonymous ?? true;
+                      final name = _currentUser?.displayName;
+                      final hasName = name != null && name.isNotEmpty;
+                      final title = isAnon
+                          ? 'Guest User'
+                          : (hasName ? name : (_currentUser?.email ?? 'User'));
+                      final subtitle = isAnon
+                          ? 'Sign in to save your data'
+                          : (hasName
+                              ? 'Tap to edit your profile'
+                              : 'Tap to complete your profile');
+
+                      final card = Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              const Color(0xFFFFB800),
+                              const Color(0xFFFFB800).withValues(alpha: 0.8),
+                            ],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  const Color(0xFFFFB800).withValues(alpha: 0.3),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
                           ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
                         ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFFFB800).withValues(alpha: 0.3),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 30,
-                            backgroundColor: Colors.white.withValues(alpha: 0.2),
-                            child: Icon(
-                              _currentUser?.isAnonymous ?? true
-                                  ? Icons.person_outline
-                                  : Icons.person,
-                              size: 30,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _currentUser?.isAnonymous ?? true
-                                      ? 'Guest User'
-                                      : _currentUser?.email ?? 'User',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _currentUser?.isAnonymous ?? true
-                                      ? 'Sign in to save your data'
-                                      : 'Premium Member',
-                                  style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.9),
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (_currentUser?.isAnonymous ?? true)
-                            ElevatedButton(
-                              onPressed: () async {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const AuthScreen(isLinkingGuest: true),
-                                  ),
-                                );
-                                if (mounted) {
-                                  setState(() {
-                                    _currentUser = FirebaseAuth.instance.currentUser;
-                                  });
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: const Color(0xFFFFB800),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 30,
+                              backgroundColor:
+                                  Colors.white.withValues(alpha: 0.2),
+                              child: Icon(
+                                isAnon ? Icons.person_outline : Icons.person,
+                                size: 30,
+                                color: Colors.white,
                               ),
-                              child: const Text('Sign In'),
                             ),
-                        ],
-                      ),
-                    ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    subtitle,
+                                    style: TextStyle(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.9),
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (isAnon)
+                              ElevatedButton(
+                                onPressed: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const AuthScreen(
+                                          isLinkingGuest: true),
+                                    ),
+                                  );
+                                  if (mounted) {
+                                    setState(() {
+                                      _currentUser =
+                                          FirebaseAuth.instance.currentUser;
+                                    });
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: const Color(0xFFFFB800),
+                                ),
+                                child: const Text('Sign In'),
+                              )
+                            else
+                              const Icon(Icons.chevron_right,
+                                  color: Colors.white),
+                          ],
+                        ),
+                      );
+
+                      if (isAnon) return card;
+                      return InkWell(
+                        onTap: _openEditProfile,
+                        borderRadius: BorderRadius.circular(16),
+                        child: card,
+                      );
+                    }),
                   ],
                 ),
               ),
@@ -380,7 +416,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 leading: const Icon(Icons.star_rate),
                 title: const Text('Rate App'),
                 subtitle: const Text('Help us improve'),
-                onTap: () {},
+                onTap: () => RateAppSheet.show(context),
               ),
 
               // Share App

@@ -2,32 +2,108 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function validHourBucket(bucket) {
+      return bucket is string
+        && bucket.matches('^\\d{4}-\\d{2}-\\d{2}T\\d{2}$');
+    }
+
+    // Clients may sync digest prefs but must not forge send-day bookkeeping
+    // (written only by the sendDailyDigest Cloud Function).
+    function clientDigestOk() {
+      let next = request.resource.data.get('digest', null);
+      return next == null
+        || !('lastSentYmd' in next)
+        || (resource != null
+            && 'digest' in resource.data
+            && next.lastSentYmd == resource.data.digest.lastSentYmd);
+    }
+
+    function validPriceHistoryCreate() {
+      let data = request.resource.data;
+      return data.marketType in ['local', 'global']
+        && data.currency is string
+        && data.currency.size() > 0
+        && data.currency.size() <= 8
+        && validHourBucket(data.hourBucket)
+        && data.source in ['isagha', 'livepriceofgold']
+        && data.keys().hasAll([
+          'marketType', 'currency', 'hourBucket', 'source',
+          'gold', 'silver', 'recordedAt',
+        ])
+        && data.gold is map
+        && data.silver is map
+        && (data.gold.size() > 0 || data.silver.size() > 0)
+        && data.recordedAt == request.time;
+    }
+
+    function validRating() {
+      let data = request.resource.data;
+      return data.uid == request.auth.uid
+        && data.stars is int
+        && data.stars >= 1
+        && data.stars <= 5
+        && (!('feedback' in data) || (data.feedback is string && data.feedback.size() <= 2000));
+    }
+
+    // Community hourly snapshots for charts (create-once per hour; no edits).
     match /priceHistory/{docId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null
-        && request.resource.data.marketType in ['local', 'global']
-        && request.resource.data.keys().hasAll(['currency', 'hourBucket', 'source']);
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && validPriceHistoryCreate()
+        && docId == request.resource.data.marketType + '_'
+            + request.resource.data.currency + '_'
+            + request.resource.data.hourBucket;
       allow update, delete: if false;
     }
 
     // Shared global/local price cache. Read-only to clients; written
     // exclusively by Cloud Functions (admin SDK bypasses these rules).
     match /prices/{docId} {
-      allow read: if request.auth != null;
+      allow read: if isSignedIn();
       allow write: if false;
     }
 
     // API usage / quota metadata. Maintained server-side only.
     match /metadata/{docId} {
-      allow read: if request.auth != null;
+      allow read: if isSignedIn();
       allow write: if false;
     }
 
+    // Public app config (maintenance flag, min/latest version, store URLs).
+    // Readable by everyone (even pre-login) so the launch gate works; never
+    // client-writable — edit it in the Firebase console.
+    match /config/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // User ratings/feedback. Owner may submit/update their own; not readable by
+    // clients (review submissions in the console / via admin).
+    match /ratings/{userId} {
+      allow read: if false;
+      allow create, update: if isOwner(userId) && validRating();
+      allow delete: if false;
+    }
+
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && clientDigestOk();
+      allow update: if isOwner(userId) && clientDigestOk();
+      allow delete: if isOwner(userId);
 
       match /{document=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read, write: if isOwner(userId);
       }
     }
   }

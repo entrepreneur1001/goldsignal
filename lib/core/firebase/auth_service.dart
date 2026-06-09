@@ -10,7 +10,41 @@ class AuthService {
   
   // Auth state changes stream
   Stream<User?> get authStateChanges => _auth.authStateChanges();
-  
+
+  /// Load the current user's Firestore profile document (or null).
+  Future<Map<String, dynamic>?> loadProfile() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return null;
+    final doc = await _firestore.collection('users').doc(uid).get();
+    return doc.data();
+  }
+
+  /// Save profile details: updates FirebaseAuth displayName and merges the
+  /// extra fields into the user's Firestore document.
+  Future<void> updateProfile({
+    required String name,
+    String? country,
+    String? city,
+    DateTime? dob,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final trimmedName = name.trim();
+    if (trimmedName.isNotEmpty) {
+      await user.updateDisplayName(trimmedName);
+    }
+
+    await _firestore.collection('users').doc(user.uid).set({
+      'displayName': trimmedName,
+      'country': country,
+      'city': city,
+      'dob': dob?.toIso8601String(),
+      'profileCompleted': true,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   // Sign in as guest (anonymous)
   Future<User?> signInAsGuest() async {
     try {

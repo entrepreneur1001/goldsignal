@@ -283,26 +283,61 @@ class PriceChartScreen extends ConsumerWidget {
     List<ChartDataPoint> points,
     String currency,
   ) {
-    final first = points.first.value;
-    final last = points.last.value;
+    final firstPoint = points.first;
+    final lastPoint = points.last;
+    final first = firstPoint.value;
+    final last = lastPoint.value;
     final change = last - first;
     final changePct = first != 0 ? (change / first) * 100 : 0.0;
     final isUp = change >= 0;
+    final firstDay = DateTime(
+      firstPoint.date.year,
+      firstPoint.date.month,
+      firstPoint.date.day,
+    );
+    final lastDay = DateTime(
+      lastPoint.date.year,
+      lastPoint.date.month,
+      lastPoint.date.day,
+    );
+    final isFlatSameDay = change.abs() < 0.001 && firstDay == lastDay;
 
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
+        child: Column(
           children: [
-            _summaryItem(context, 'Start', '$currency ${first.toStringAsFixed(2)}'),
-            _summaryItem(
-              context,
-              'Change',
-              '${isUp ? '+' : ''}${change.toStringAsFixed(2)} (${changePct.toStringAsFixed(2)}%)',
-              color: isUp ? Colors.green : Colors.red,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _summaryItem(
+                  context,
+                  'Start',
+                  '$currency ${first.toStringAsFixed(2)}',
+                  subtitle: DateFormat('MMM d').format(firstPoint.date),
+                ),
+                _summaryItem(
+                  context,
+                  'Change',
+                  '${isUp ? '+' : ''}${change.toStringAsFixed(2)} (${changePct.toStringAsFixed(2)}%)',
+                  color: isUp ? Colors.green : Colors.red,
+                ),
+                _summaryItem(
+                  context,
+                  'Latest',
+                  '$currency ${last.toStringAsFixed(2)}',
+                  subtitle: DateFormat('MMM d').format(lastPoint.date),
+                ),
+              ],
             ),
-            _summaryItem(context, 'Latest', '$currency ${last.toStringAsFixed(2)}'),
+            if (isFlatSameDay) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Flat over selected range',
+                style: Theme.of(context).textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
           ],
         ),
       ),
@@ -313,6 +348,7 @@ class PriceChartScreen extends ConsumerWidget {
     BuildContext context,
     String label,
     String value, {
+    String? subtitle,
     Color? color,
   }) {
     return Column(
@@ -326,6 +362,10 @@ class PriceChartScreen extends ConsumerWidget {
                 color: color,
               ),
         ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 2),
+          Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+        ],
       ],
     );
   }

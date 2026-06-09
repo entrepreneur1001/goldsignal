@@ -11,6 +11,7 @@ import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/widgets/alerts_nav_button.dart';
 import '../../../zakat/zakat.dart';
 import '../../../zakat/presentation/screens/zakat_calculator_screen.dart';
+import '../../../savings/presentation/screens/savings_goals_screen.dart';
 
 class PortfolioScreen extends ConsumerStatefulWidget {
   const PortfolioScreen({super.key});
@@ -356,6 +357,15 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                             'My Portfolio',
                             style: theme.textTheme.headlineMedium?.copyWith(
                               fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Savings goals',
+                          icon: const Icon(Icons.savings_outlined),
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const SavingsGoalsScreen(),
                             ),
                           ),
                         ),

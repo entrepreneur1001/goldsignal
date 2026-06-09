@@ -26,6 +26,7 @@ class AppConfig {
     await Hive.openBox('chatHistory');
     await Hive.openBox('localMarketPrices');
     await Hive.openBox('priceHistory');
+    await Hive.openBox('savingsGoals');
   }
   
   static Future<void> _setDefaults() async {

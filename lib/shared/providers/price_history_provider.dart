@@ -177,7 +177,7 @@ class ChartDataNotifier extends Notifier<ChartState> {
         }
       }
 
-      if (points.length >= 2) {
+      if (_hasMeaningfulChart(points)) {
         state = ChartState(
           points: points,
           source: usedCommunity && hivePoints.length < 2
@@ -247,13 +247,31 @@ class ChartDataNotifier extends Notifier<ChartState> {
       }
       state = ChartState(
         points: partial,
-        source: firestorePartial.isNotEmpty && partial.length >= 2
+        source: firestorePartial.isNotEmpty && _hasMeaningfulChart(partial)
             ? ChartDataSource.community
             : ChartDataSource.snapshots,
         isLoading: false,
-        error: partial.length < 2 ? e.toString() : null,
+        error: !_hasMeaningfulChart(partial) ? e.toString() : null,
       );
     }
+  }
+
+  bool _hasMeaningfulChart(List<ChartDataPoint> points) {
+    if (points.length < 2) return false;
+    final first = points.first.value;
+    final last = points.last.value;
+    if ((last - first).abs() > 0.001) return true;
+    final firstDay = DateTime(
+      points.first.date.year,
+      points.first.date.month,
+      points.first.date.day,
+    );
+    final lastDay = DateTime(
+      points.last.date.year,
+      points.last.date.month,
+      points.last.date.day,
+    );
+    return firstDay != lastDay;
   }
 
   List<ChartDataPoint> _mergeChartPoints(

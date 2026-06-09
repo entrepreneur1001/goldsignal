@@ -1,18 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/config/app_remote_config.dart';
 import '../../../../core/firebase/auth_service.dart';
+import '../../../../shared/providers/app_config_provider.dart';
+import '../../../../shared/providers/app_info_provider.dart';
 import '../../../dashboard/presentation/screens/dashboard_screen.dart';
+import '../../../system/presentation/screens/force_update_screen.dart';
+import '../../../system/presentation/screens/maintenance_screen.dart';
 import 'auth_screen.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends ConsumerState<SplashScreen> {
   final AuthService _authService = AuthService();
 
   @override
@@ -25,21 +31,39 @@ class _SplashScreenState extends State<SplashScreen> {
     // Let the splash animation play (package info is loaded synchronously in main()).
     await Future.delayed(const Duration(seconds: 2));
 
-    final User? currentUser = _authService.currentUser;
+    // Fetch remote config (fails open) and gate the launch on it.
+    final config = await ref.read(remoteConfigServiceProvider).fetch();
+    ref.read(appRemoteConfigProvider.notifier).set(config);
+    if (!mounted) return;
 
-    if (mounted) {
-      if (currentUser != null) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const AuthScreen()),
-        );
-      }
+    if (config.maintenanceEnabled) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              MaintenanceScreen(message: config.maintenanceMessage),
+        ),
+      );
+      return;
     }
+
+    final currentVersion = ref.read(packageInfoProvider).version;
+    if (isVersionLower(currentVersion, config.minimumVersion)) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => ForceUpdateScreen(config: config)),
+      );
+      return;
+    }
+
+    final User? currentUser = _authService.currentUser;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            currentUser != null ? const DashboardScreen() : const AuthScreen(),
+      ),
+    );
   }
 
   @override
