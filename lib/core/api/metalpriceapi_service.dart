@@ -46,9 +46,12 @@ class MetalPriceApiService {
     return parts.join(' ');
   }
   
-  // All supported currencies fetched in a single API call
-  static const _allCurrencies = 'XAU,XAG,SAR,AED,EGP,KWD,BHD,OMR,QAR,JOD,EUR,GBP,JPY,CNY,INR,PKR,TRY';
   static const _cacheKey = 'latest_prices';
+
+  /// How fresh the server-maintained shared cache must be for the client to
+  /// use it directly instead of scraping. Slightly above the Cloud Function's
+  /// 15-minute refresh cadence to tolerate run-time jitter.
+  static const _sharedCacheMaxAge = Duration(seconds: 20);
 
   /// Return cached prices from Hive instantly (any age). Returns null if empty.
   MetalPricesResponse? getCachedPrices() {
@@ -60,20 +63,27 @@ class MetalPriceApiService {
     return null;
   }
 
-  /// Fetch fresh prices: Scraper → Firestore (race guard) → API fallback.
-  /// Always goes to the network. Updates Hive + Firestore caches.
+  /// Fetch fresh prices for display.
+  ///
+  /// Prefers the server-maintained shared cache (kept current by the
+  /// `refreshPricesScheduled` Cloud Function), falls back to a direct scrape,
+  /// then to any stale cache. This client never writes to Firestore — the
+  /// Cloud Function is the sole writer of the shared price documents.
   Future<MetalPricesResponse> fetchFreshPrices() async {
     try {
-      // Race guard: check if another user just refreshed Firestore
-      final freshCheck = await _firestoreService.checkAndLock('latest');
-      if (freshCheck != null) {
-        print('[Cache] Race guard HIT - another user just refreshed');
-        final apiData = _firestoreToApiFormat(freshCheck);
+      // --- Primary: server-maintained shared cache (~15 min refresh) ---
+      final shared = await _firestoreService.getCachedPrices(
+        'latest',
+        maxAge: _sharedCacheMaxAge,
+      );
+      if (shared != null) {
+        print('[Cache] Using shared Firestore price cache');
+        final apiData = _firestoreToApiFormat(shared);
         await _savePreviousAndCache(apiData);
         return MetalPricesResponse.fromJson(apiData);
       }
 
-      // --- Primary: Web Scraper ---
+      // --- Fallback: direct scrape for an immediate fresh reading ---
       try {
         print('[Scraper] Scraping livepriceofgold.com');
         final scrapedData = await _scraper.scrapeLatestPrices();
@@ -83,25 +93,8 @@ class MetalPriceApiService {
         print('[Scraper] Scraping failed: $scrapeError');
       }
 
-      // --- Fallback: MetalpriceAPI ---
-      final allowed = await _firestoreService.tryIncrementApiCallCount();
-      if (!allowed) {
-        print('[API] Daily quota (100) exhausted.');
-        return _fallbackToAnyCache();
-      }
-
-      print('[API] Falling back to MetalpriceAPI');
-      final response = await _dio.get(
-        '/latest',
-        queryParameters: {
-          'api_key': ApiConfig.metalPriceApiKey,
-          'base': 'USD',
-          'currencies': _allCurrencies,
-        },
-      );
-
-      await _savePreviousAndCache(response.data);
-      return MetalPricesResponse.fromJson(response.data);
+      // --- Last resort: any stale cache (Firestore or Hive) ---
+      return _fallbackToAnyCache();
     } catch (e) {
       print('Error fetching fresh prices: $e');
       return _fallbackToAnyCache();
@@ -132,7 +125,6 @@ class MetalPriceApiService {
         await _cacheBox.put(prevKey, oldCached);
       }
     }
-    await _firestoreService.cachePrices('latest', data);
     await _saveToHive(data);
   }
 

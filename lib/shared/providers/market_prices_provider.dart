@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/api/isagha_price_scraper.dart';
-import '../../core/firebase/firestore_price_service.dart';
 import '../../core/firebase/firestore_price_history_service.dart';
 import '../../core/storage/price_history_service.dart';
 import '../../core/api/metalpriceapi_service.dart';
@@ -137,6 +136,7 @@ class MarketPricesController extends Notifier<MarketPricesState> {
       } else {
         await _refreshGlobal(currency);
       }
+      applyCurrentPrices();
       state = state.copyWith(
         isRefreshing: false,
         lastUpdated: DateTime.now(),
@@ -165,7 +165,6 @@ class MarketPricesController extends Notifier<MarketPricesState> {
     }
 
     ref.read(localMarketPricesProvider.notifier).update(local);
-    applyCurrentPrices();
     try {
       await ref.read(priceHistoryServiceProvider).recordLocalSnapshot(local);
     } catch (_) {}
@@ -174,9 +173,8 @@ class MarketPricesController extends Notifier<MarketPricesState> {
           .read(firestorePriceHistoryServiceProvider)
           .tryRecordHourlyLocal(local);
     } catch (_) {}
-    try {
-      await FirestorePriceService().cacheLocalPrices(local);
-    } catch (_) {}
+    // Note: the shared `prices/local_EGP` cache is written server-side by the
+    // Cloud Function (refreshPricesScheduled); clients no longer write it.
   }
 
   Future<void> _refreshGlobal(String currency) async {

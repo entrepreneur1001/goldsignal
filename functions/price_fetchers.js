@@ -43,6 +43,25 @@ function cleanPrice(raw) {
   return Number.isFinite(value) ? value : null;
 }
 
+function parsePercentCell(raw) {
+  const cleaned = String(raw)
+    .replaceAll('\u200E', '')
+    .replaceAll('\u200F', '')
+    .replaceAll('%', '')
+    .replaceAll(',', '')
+    .trim();
+  if (!cleaned) return null;
+  const value = Number.parseFloat(cleaned);
+  return Number.isFinite(value) ? value : null;
+}
+
+function signedChange($cell, value) {
+  if (value == null) return null;
+  const classes = ($cell.attr('class') || '').split(/\s+/);
+  if (classes.includes('change-down') && value > 0) return -value;
+  return value;
+}
+
 function parsePriceCell(raw) {
   const cleaned = String(raw)
     .replaceAll('\u200E', '')
@@ -104,10 +123,17 @@ function parseMetalRows($, metalClass) {
     const buy = parsePriceCell($(cells[3]).text());
     if (sell == null || buy == null) return;
 
+    const changePercentCell = $(cells[6]);
+    const changePercent = signedChange(
+      changePercentCell,
+      parsePercentCell(changePercentCell.text()),
+    );
+
     rows.push({
       karat,
       sellPerGram: sell,
       buyPerGram: buy,
+      changePercent: changePercent ?? 0,
       isPerUnit: karat === 'gold_pound' || karat === 'silver_pound',
     });
   });
@@ -122,6 +148,7 @@ function toFirestoreLocalMaps(goldRows, silverRows) {
     gold[row.karat] = {
       sellPerGram: row.sellPerGram,
       buyPerGram: row.buyPerGram,
+      changePercent: row.changePercent ?? 0,
     };
   }
 
@@ -131,6 +158,7 @@ function toFirestoreLocalMaps(goldRows, silverRows) {
     silver[row.karat] = {
       sellPerGram: row.sellPerGram,
       buyPerGram: row.buyPerGram,
+      changePercent: row.changePercent ?? 0,
     };
   }
 
@@ -178,8 +206,24 @@ async function scrapeLivePriceOfGold() {
 }
 
 async function writeGlobalPrices(db, apiResponse) {
-  await db.collection('prices').doc('latest').set({
+  const docRef = db.collection('prices').doc('latest');
+  const existing = await docRef.get();
+  const existingData = existing.exists ? existing.data() : null;
+
+  let prevRates = existingData?.prevRates ?? null;
+  if (existingData?.rates && existingData.updatedAt) {
+    const updatedAt = existingData.updatedAt.toDate();
+    const hours = (Date.now() - updatedAt.getTime()) / (1000 * 60 * 60);
+    if (hours >= 20 || !prevRates) {
+      prevRates = existingData.rates;
+    }
+  } else if (existingData?.rates && !prevRates) {
+    prevRates = existingData.rates;
+  }
+
+  await docRef.set({
     rates: apiResponse.rates,
+    prevRates,
     base: apiResponse.base ?? 'USD',
     success: apiResponse.success ?? true,
     apiTimestamp: apiResponse.timestamp,
@@ -238,8 +282,10 @@ async function loadPriceContextFromFirestore(db) {
     db.collection('prices').doc('local_EGP').get(),
   ]);
 
+  const latest = latestSnap.exists ? latestSnap.data() : null;
   return {
-    globalRates: latestSnap.exists ? latestSnap.data()?.rates ?? null : null,
+    globalRates: latest?.rates ?? null,
+    prevRates: latest?.prevRates ?? null,
     localEgp: localSnap.exists ? localSnap.data() : null,
   };
 }

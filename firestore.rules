@@ -10,13 +10,17 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Shared global/local price cache. Read-only to clients; written
+    // exclusively by Cloud Functions (admin SDK bypasses these rules).
     match /prices/{docId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null;
+      allow write: if false;
     }
 
+    // API usage / quota metadata. Maintained server-side only.
     match /metadata/{docId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow write: if false;
     }
 
     match /users/{userId} {

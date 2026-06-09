@@ -49,8 +49,41 @@ function changePercentFrom(current, baseline) {
   return ((current - baseline) / baseline) * 100;
 }
 
-function isTriggered(alert, current) {
-  if (current == null || alert.targetValue == null) return false;
+function resolveRolling24hPercent(alert, ctx) {
+  if (alert.currency === 'EGP') {
+    const map =
+      alert.metal === 'gold' ? ctx.localEgp?.gold : ctx.localEgp?.silver;
+    const row = map?.[alert.karat];
+    return row?.changePercent ?? null;
+  }
+
+  if (!ctx.globalRates || !ctx.prevRates) return null;
+  const current = globalPricePerGram(
+    ctx.globalRates,
+    alert.metal,
+    alert.karat,
+    alert.currency,
+  );
+  const previous = globalPricePerGram(
+    ctx.prevRates,
+    alert.metal,
+    alert.karat,
+    alert.currency,
+  );
+  return changePercentFrom(current, previous);
+}
+
+function isTriggered(alert, current, ctx) {
+  if (alert.targetValue == null) return false;
+
+  if (alert.type === 'percentChange24h') {
+    const change = resolveRolling24hPercent(alert, ctx);
+    if (change == null) return false;
+    if (alert.condition === 'below') return change <= -alert.targetValue;
+    return change >= alert.targetValue;
+  }
+
+  if (current == null) return false;
 
   if (alert.type === 'percentChange') {
     const change = changePercentFrom(current, alert.baselinePrice);
@@ -69,16 +102,26 @@ function alertLabel(alert) {
   const side =
     alert.currency === 'EGP' && alert.side ? ` (${alert.side})` : '';
 
-  if (alert.type === 'percentChange') {
+  if (alert.type === 'percentChange' || alert.type === 'percentChange24h') {
     const dir = alert.condition === 'below' ? 'down' : 'up';
-    return `${metal} ${karat}${side} ${dir} ${alert.targetValue}%`;
+    const window = alert.type === 'percentChange24h' ? ' (24h)' : '';
+    return `${metal} ${karat}${side} ${dir} ${alert.targetValue}%${window}`;
   }
 
   const cond = alert.condition === 'below' ? 'below' : 'above';
   return `${metal} ${karat}${side} ${cond} ${alert.targetValue} ${alert.currency}/g`;
 }
 
-function triggerMessage(alert, current) {
+function triggerMessage(alert, current, ctx) {
+  if (alert.type === 'percentChange24h') {
+    const change = resolveRolling24hPercent(alert, ctx) ?? 0;
+    const sign = change >= 0 ? '+' : '';
+    const price =
+      current != null
+        ? ` (${current.toFixed(2)} ${alert.currency}/g)`
+        : '';
+    return `${alertLabel(alert)} — now ${sign}${change.toFixed(2)}%${price}`;
+  }
   if (alert.type === 'percentChange') {
     const change = changePercentFrom(current, alert.baselinePrice) ?? 0;
     const sign = change >= 0 ? '+' : '';
@@ -148,10 +191,13 @@ async function refreshPrices() {
 
   const ctx = await loadPriceContextFromFirestore(db);
   return {
-    globalRates: globalResult.status === 'fulfilled' ? globalResult.value : ctx.globalRates,
-    localEgp: localResult.status === 'fulfilled' && localResult.value
-      ? localResult.value
-      : ctx.localEgp,
+    globalRates:
+      globalResult.status === 'fulfilled' ? globalResult.value : ctx.globalRates,
+    prevRates: ctx.prevRates,
+    localEgp:
+      localResult.status === 'fulfilled' && localResult.value
+        ? localResult.value
+        : ctx.localEgp,
   };
 }
 
@@ -227,11 +273,11 @@ exports.checkPriceAlerts = onSchedule(
       if (!uid) continue;
 
       const current = resolvePrice(alert, ctx);
-      if (!isTriggered(alert, current)) {
+      if (!isTriggered(alert, current, ctx)) {
         continue;
       }
 
-      const message = triggerMessage(alert, current);
+      const message = triggerMessage(alert, current, ctx);
 
       const triggeredAt = new Date();
       const updates = {
@@ -275,5 +321,31 @@ exports.checkPriceAlerts = onSchedule(
     }
 
     logger.info(`Alert check complete: ${triggered} triggered`);
+  },
+);
+
+// Keeps the shared price cache fresh. This is now the ONLY writer of the
+// `prices/*` documents — clients read them but no longer write (Firestore
+// rules deny client writes). Runs more often than the hourly alert check so
+// the in-app data stays current.
+exports.refreshPricesScheduled = onSchedule(
+  {
+    schedule: 'every 15 minutes',
+    timeZone: 'UTC',
+    retryCount: 0,
+    memory: '256MiB',
+    timeoutSeconds: 120,
+    maxInstances: 1,
+  },
+  async () => {
+    const ctx = await refreshPrices();
+    if (!ctx.globalRates && !ctx.localEgp) {
+      logger.warn('Scheduled price refresh produced no data');
+      return;
+    }
+    logger.info('Scheduled price refresh complete', {
+      global: !!ctx.globalRates,
+      local: !!ctx.localEgp,
+    });
   },
 );
