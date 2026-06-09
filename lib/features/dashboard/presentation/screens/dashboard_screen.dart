@@ -12,6 +12,7 @@ import '../../../../shared/providers/app_info_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
 import '../../../../shared/widgets/alerts_nav_button.dart';
+import '../../../../shared/widgets/floating_nav_bar.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -72,25 +73,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     const ProfileScreen(),
   ];
   
-  final List<BottomNavigationBarItem> _bottomNavItems = const [
-    BottomNavigationBarItem(
-      icon: Icon(Icons.show_chart),
-      label: 'Prices',
+  static const List<NavItem> _navItems = [
+    NavItem(
+      icon: Icons.show_chart_rounded,
+      activeIcon: Icons.show_chart_rounded,
+      label: 'Markets',
     ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.calculate),
-      label: 'Calculator',
+    NavItem(
+      icon: Icons.calculate_outlined,
+      activeIcon: Icons.calculate_rounded,
+      label: 'Calc',
     ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.chat),
-      label: 'AI Chat',
+    NavItem(
+      icon: Icons.auto_awesome_outlined,
+      activeIcon: Icons.auto_awesome,
+      label: 'AI',
     ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.account_balance_wallet),
-      label: 'Portfolio',
+    NavItem(
+      icon: Icons.account_balance_wallet_outlined,
+      activeIcon: Icons.account_balance_wallet_rounded,
+      label: 'Wallet',
     ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.person),
+    NavItem(
+      icon: Icons.person_outline_rounded,
+      activeIcon: Icons.person_rounded,
       label: 'Profile',
     ),
   ];
@@ -116,18 +122,17 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     });
 
     return Scaffold(
+      // Note: extendBody is intentionally false so each tab's own Scaffold
+      // (and its FloatingActionButton, e.g. Portfolio) sits above the floating
+      // nav rather than behind it.
       body: IndexedStack(
         index: _selectedIndex,
         children: _screens,
       ),
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: FloatingNavBar(
+        items: _navItems,
         currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
-        items: _bottomNavItems,
+        onTap: (index) => setState(() => _selectedIndex = index),
       ),
     );
   }

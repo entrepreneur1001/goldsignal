@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import '../../core/utils/currency_format.dart';
+import '../design/app_colors.dart';
+import '../design/app_typography.dart';
+import 'delta_pill.dart';
+import 'vault_buttons.dart';
+import 'vault_card.dart';
 
+/// Vault-styled metal price card. API unchanged so existing call sites
+/// (Markets screen) keep working.
 class PriceCard extends StatelessWidget {
   final String metal;
   final IconData icon;
@@ -24,184 +31,110 @@ class PriceCard extends StatelessWidget {
     required this.changePercent,
     this.onSetAlert,
   });
-  
+
   bool get isPositive =>
       changePercent != 0 ? changePercent >= 0 : change24h >= 0;
-  
+
   @override
   Widget build(BuildContext context) {
-    final numberFormat = NumberFormat('#,##0.00');
-    
-    return Card(
-      elevation: 4,
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              color.withValues(alpha:0.1),
-              color.withValues(alpha:0.05),
-            ],
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    final c = VaultColors.of(Theme.of(context).brightness);
+    final theme = Theme.of(context);
+    final isGold = metal.toLowerCase().contains('gold');
+    final accent = isGold ? VaultColors.gold : VaultColors.silver;
+
+    return VaultCard(
+      glow: isGold,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              // Header
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha:0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(icon, color: color, size: 28),
-                  ),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        metal,
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      Text(
-                        'Live Price',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isPositive 
-                          ? Colors.green.withValues(alpha:0.1)
-                          : Colors.red.withValues(alpha:0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          isPositive 
-                              ? Icons.arrow_upward
-                              : Icons.arrow_downward,
-                          color: isPositive ? Colors.green : Colors.red,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${changePercent.toStringAsFixed(2)}%',
-                          style: TextStyle(
-                            color: isPositive ? Colors.green : Colors.red,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Prices
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  // Per Ounce
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Per Ounce',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '$currency ${numberFormat.format(pricePerOunce)}',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).primaryColor,
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  Container(
-                    height: 40,
-                    width: 1,
-                    color: Colors.grey.withValues(alpha:0.3),
-                  ),
-                  
-                  // Per Gram
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Per Gram',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '$currency ${numberFormat.format(pricePerGram)}',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              
-              const SizedBox(height: 16),
-
-              if (onSetAlert != null)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: onSetAlert,
-                    icon: const Icon(Icons.add_alert, size: 18),
-                    label: const Text('Set alert'),
-                  ),
-                ),
-
-              // 24h Change
               Container(
-                padding: const EdgeInsets.all(8),
+                width: 38,
+                height: 38,
                 decoration: BoxDecoration(
-                  color: Colors.grey.withValues(alpha:0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: accent.withValues(alpha: 0.14),
+                  shape: BoxShape.circle,
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                child: Icon(icon, color: accent, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '24h Change: ',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                    Text(
-                      '${isPositive ? '+' : ''}$currency ${numberFormat.format(change24h)}',
-                      style: TextStyle(
-                        color: isPositive ? Colors.green : Colors.red,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    Text(metal, style: theme.textTheme.titleMedium),
+                    Text('LIVE PRICE', style: AppTypography.microLabel(c)),
                   ],
                 ),
               ),
+              DeltaPill(percent: changePercent),
             ],
           ),
-        ),
+          const SizedBox(height: 16),
+          Text(
+            formatCurrency(pricePerGram, currency),
+            style: AppTypography.hero(c, size: 34),
+          ),
+          const SizedBox(height: 2),
+          Text('per gram', style: theme.textTheme.bodySmall),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _miniStat(context, c, 'Per ounce',
+                    formatCurrency(pricePerOunce, currency)),
+              ),
+              Container(width: 1, height: 32, color: c.hairline),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _miniStat(
+                  context,
+                  c,
+                  '24h change',
+                  '${isPositive ? '+' : ''}${formatCurrency(change24h, currency)}',
+                  valueColor: isPositive ? VaultColors.up : VaultColors.down,
+                ),
+              ),
+            ],
+          ),
+          if (onSetAlert != null) ...[
+            const SizedBox(height: 16),
+            GhostButton(
+              label: 'Set alert',
+              icon: Icons.notifications_none_rounded,
+              onPressed: onSetAlert,
+            ),
+          ],
+        ],
       ),
+    );
+  }
+
+  Widget _miniStat(
+    BuildContext context,
+    VaultColors c,
+    String label,
+    String value, {
+    Color? valueColor,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label.toUpperCase(), style: AppTypography.microLabel(c)),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                color: valueColor ?? c.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
     );
   }
 }

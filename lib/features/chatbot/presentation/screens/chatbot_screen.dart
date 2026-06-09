@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:groq/groq.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../../core/analytics/analytics_service.dart';
+import '../../../../shared/design/app_colors.dart';
 import '../../../../core/utils/api_config.dart';
 import '../../../../core/utils/currency_conversion.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
@@ -418,11 +419,16 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
                     ),
                   ),
                   const SizedBox(width: 8),
-                  CircleAvatar(
-                    backgroundColor: const Color(0xFFFFB800),
-                    radius: 24,
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: const BoxDecoration(
+                      gradient: VaultColors.goldGradient,
+                      shape: BoxShape.circle,
+                    ),
                     child: IconButton(
-                      icon: const Icon(Icons.send, color: Colors.white),
+                      icon: const Icon(Icons.arrow_upward_rounded,
+                          color: Color(0xFF1A1410)),
                       onPressed: _isTyping ? null : _sendMessage,
                     ),
                   ),
@@ -449,7 +455,7 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
   }
 
   Widget _buildMessage(ChatMessage message) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final c = VaultColors.of(Theme.of(context).brightness);
     final isUser = message.isUser;
 
     return Padding(
@@ -459,7 +465,7 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
         children: [
           if (!isUser) ...[
             CircleAvatar(
-              backgroundColor: const Color(0xFFFFB800),
+              backgroundColor: VaultColors.gold,
               radius: 16,
               child: const Icon(
                 Icons.auto_awesome,
@@ -471,28 +477,23 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
           ],
           Flexible(
             child: Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: isUser
-                    ? const Color(0xFFFFB800)
-                    : isDark
-                        ? Colors.grey[800]
-                        : Colors.grey[100],
+                gradient: isUser ? VaultColors.goldGradient : null,
+                color: isUser ? null : c.bgSurface,
+                border: isUser ? null : Border.all(color: c.hairline),
                 borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(16),
-                  topRight: const Radius.circular(16),
-                  bottomLeft: Radius.circular(isUser ? 16 : 4),
-                  bottomRight: Radius.circular(isUser ? 4 : 16),
+                  topLeft: const Radius.circular(18),
+                  topRight: const Radius.circular(18),
+                  bottomLeft: Radius.circular(isUser ? 18 : 4),
+                  bottomRight: Radius.circular(isUser ? 4 : 18),
                 ),
               ),
               child: Text(
                 message.text,
                 style: TextStyle(
-                  color: isUser
-                      ? Colors.white
-                      : isDark
-                          ? Colors.white
-                          : Colors.black87,
+                  height: 1.4,
+                  color: isUser ? const Color(0xFF1A1410) : c.textPrimary,
                 ),
               ),
             ),
@@ -500,12 +501,12 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
           if (isUser) ...[
             const SizedBox(width: 8),
             CircleAvatar(
-              backgroundColor: Colors.blue,
+              backgroundColor: c.bgElevated,
               radius: 16,
-              child: const Icon(
+              child: Icon(
                 Icons.person,
                 size: 16,
-                color: Colors.white,
+                color: c.textSecondary,
               ),
             ),
           ],
@@ -520,7 +521,7 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: const Color(0xFFFFB800),
+            backgroundColor: VaultColors.gold,
             radius: 16,
             child: const Icon(
               Icons.auto_awesome,

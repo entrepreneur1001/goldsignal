@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/firebase/auth_service.dart';
+import '../../../../shared/design/app_colors.dart';
+import '../../../../shared/design/app_typography.dart';
 import '../../../../shared/providers/app_info_provider.dart';
 import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/providers/currency_provider.dart';
@@ -216,23 +218,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       final card = Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              const Color(0xFFFFB800),
-                              const Color(0xFFFFB800).withValues(alpha: 0.8),
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color:
-                                  const Color(0xFFFFB800).withValues(alpha: 0.3),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
+                          gradient: VaultColors.goldGradient,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: VaultColors.goldGlow(opacity: 0.28, blur: 26),
                         ),
                         child: Row(
                           children: [
@@ -505,15 +493,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Widget _buildSectionHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
       child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: Theme.of(context).brightness == Brightness.dark
-              ? Colors.white60
-              : Colors.black54,
+        title.toUpperCase(),
+        style: AppTypography.microLabel(
+          VaultColors.of(Theme.of(context).brightness),
         ),
       ),
     );
