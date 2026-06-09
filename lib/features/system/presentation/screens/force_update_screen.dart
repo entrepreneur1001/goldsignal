@@ -3,7 +3,7 @@ import '../../../../core/config/app_remote_config.dart';
 import '../../store_launcher.dart';
 
 /// Full-screen, non-dismissible "update required" gate shown at launch when the
-/// installed version is below `config/app.minimumVersion`.
+/// installed version is below `metadata/app.minimumVersion`.
 class ForceUpdateScreen extends StatelessWidget {
   final AppRemoteConfig config;
 

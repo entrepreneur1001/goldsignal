@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Remote app configuration, read from the public Firestore `config/app` doc.
+/// Remote app configuration, read from the public Firestore `metadata/app` doc.
 /// Used to gate the app at launch (maintenance + force/soft update).
 class AppRemoteConfig {
   final bool maintenanceEnabled;
@@ -46,12 +46,12 @@ class RemoteConfigService {
 
   static const Duration _timeout = Duration(seconds: 4);
 
-  /// Read `config/app`. Fails open: returns [AppRemoteConfig.permissive] on any
+  /// Read `metadata/app`. Fails open: returns [AppRemoteConfig.permissive] on any
   /// error or timeout so launch is never blocked by config problems.
   Future<AppRemoteConfig> fetch() async {
     try {
       final doc = await _firestore
-          .collection('config')
+          .collection('metadata')
           .doc('app')
           .get()
           .timeout(_timeout);

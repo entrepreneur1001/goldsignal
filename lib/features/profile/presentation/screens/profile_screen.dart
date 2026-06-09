@@ -14,6 +14,7 @@ import '../../../../shared/providers/price_alerts_provider.dart';
 import '../widgets/widget_settings_sheet.dart';
 import '../widgets/digest_settings_sheet.dart';
 import '../../../rating/presentation/rate_app_sheet.dart';
+import '../../../feedback/presentation/submit_idea_sheet.dart';
 import 'edit_profile_screen.dart';
 import '../../../../shared/providers/digest_provider.dart';
 
@@ -417,6 +418,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 title: const Text('Rate App'),
                 subtitle: const Text('Help us improve'),
                 onTap: () => RateAppSheet.show(context),
+              ),
+
+              // Share your idea
+              ListTile(
+                leading: const Icon(Icons.lightbulb_outline),
+                title: const Text('Share Your Idea'),
+                subtitle: const Text('Suggest a feature'),
+                onTap: () => SubmitIdeaSheet.show(context),
               ),
 
               // Share App

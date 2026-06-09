@@ -54,6 +54,14 @@ service cloud.firestore {
         && (!('feedback' in data) || (data.feedback is string && data.feedback.size() <= 2000));
     }
 
+    function validIdea() {
+      let data = request.resource.data;
+      return data.uid == request.auth.uid
+        && data.idea is string
+        && data.idea.size() > 0
+        && data.idea.size() <= 2000;
+    }
+
     // Community hourly snapshots for charts (create-once per hour; no edits).
     match /priceHistory/{docId} {
       allow read: if isSignedIn();
@@ -72,26 +80,37 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // API usage / quota metadata. Maintained server-side only.
-    match /metadata/{docId} {
-      allow read: if isSignedIn();
-      allow write: if false;
-    }
-
-    // Public app config (maintenance flag, min/latest version, store URLs).
-    // Readable by everyone (even pre-login) so the launch gate works; never
-    // client-writable — edit it in the Firebase console.
-    match /config/{docId} {
+    // Server metadata. `metadata/app` is public (launch gate); other docs are
+    // auth-only. All metadata is server-writable only (admin SDK / console).
+    match /metadata/app {
       allow read: if true;
       allow write: if false;
     }
 
-    // User ratings/feedback. Owner may submit/update their own; not readable by
-    // clients (review submissions in the console / via admin).
+    match /metadata/{docId} {
+      allow read: if isSignedIn() && docId != 'app';
+      allow write: if false;
+    }
+
+    // User ratings/feedback. Owner may read/submit/update their own current
+    // rating; every submission is also appended to an immutable version history.
     match /ratings/{userId} {
-      allow read: if false;
+      allow read: if isOwner(userId);
       allow create, update: if isOwner(userId) && validRating();
       allow delete: if false;
+
+      match /versions/{versionId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && validRating();
+        allow update, delete: if false;
+      }
+    }
+
+    // User-submitted feature ideas (admin-reviewed; not client-readable).
+    match /ideas/{ideaId} {
+      allow read: if false;
+      allow create: if isSignedIn() && validIdea();
+      allow update, delete: if false;
     }
 
     match /users/{userId} {

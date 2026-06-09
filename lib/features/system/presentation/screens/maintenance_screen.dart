@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../auth/presentation/screens/splash_screen.dart';
 
 /// Full-screen, non-dismissible maintenance notice shown at launch when
-/// `config/app.maintenanceEnabled` is true. "Retry" re-runs the launch gate.
+/// `metadata/app.maintenanceEnabled` is true. "Retry" re-runs the launch gate.
 class MaintenanceScreen extends StatelessWidget {
   final String message;
 

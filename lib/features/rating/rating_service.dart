@@ -8,8 +8,22 @@ class RatingService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final InAppReview _inAppReview = InAppReview.instance;
 
-  /// Saves the rating to `ratings/{uid}` and, when [stars] == 5, opens the
-  /// store review flow. Ratings below 5 are kept in Firebase only.
+  /// The user's current/latest rating (or null if they haven't rated yet).
+  Future<Map<String, dynamic>?> loadMyRating() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return null;
+    try {
+      final doc = await _firestore.collection('ratings').doc(uid).get();
+      return doc.data();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Saves the rating as the user's current rating (`ratings/{uid}`) and also
+  /// appends an immutable history entry (`ratings/{uid}/versions/{autoId}`), so
+  /// every version the user submits is kept. When [stars] == 5, also opens the
+  /// store review flow.
   Future<void> submit({
     required int stars,
     String? feedback,
@@ -18,14 +32,17 @@ class RatingService {
   }) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid != null) {
-      await _firestore.collection('ratings').doc(uid).set({
+      final data = {
         'uid': uid,
         'stars': stars,
         'feedback': feedback ?? '',
         'appVersion': appVersion,
         'platform': Platform.operatingSystem,
         'createdAt': FieldValue.serverTimestamp(),
-      });
+      };
+      final ratingRef = _firestore.collection('ratings').doc(uid);
+      await ratingRef.set(data); // current rating
+      await ratingRef.collection('versions').add(data); // history entry
     }
 
     if (stars >= 5) {
