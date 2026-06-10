@@ -2,13 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/utils/currency_format.dart';
-import '../../../../core/firebase/firestore_portfolio_service.dart';
 import '../../../../shared/design/app_colors.dart';
 import '../../../../shared/design/app_typography.dart';
+import '../../../../shared/models/portfolio_item.dart';
 import '../../../../shared/widgets/animated_value.dart';
 import '../../../../shared/widgets/delta_pill.dart';
 import '../../../../shared/widgets/shimmer.dart';
@@ -17,132 +14,89 @@ import '../../../../core/utils/currency_conversion.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
+import '../../../../shared/providers/portfolio_provider.dart';
 import '../../../../shared/widgets/alerts_nav_button.dart';
+import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
 import '../../../zakat/zakat.dart';
 import '../../../zakat/presentation/screens/zakat_calculator_screen.dart';
 import '../../../savings/presentation/screens/savings_goals_screen.dart';
 
-class PortfolioScreen extends ConsumerStatefulWidget {
+// Re-export so existing importers of this file keep getting PortfolioItem.
+export '../../../../shared/models/portfolio_item.dart';
+
+class PortfolioScreen extends ConsumerWidget {
   const PortfolioScreen({super.key});
 
   @override
-  ConsumerState<PortfolioScreen> createState() => _PortfolioScreenState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final portfolioAsync = ref.watch(portfolioProvider);
+    return portfolioAsync.when(
+      loading: () => const _PortfolioLoading(),
+      error: (_, _) => const _PortfolioView(items: []),
+      data: (items) => _PortfolioView(items: items),
+    );
+  }
 }
 
-class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
-  late Box<PortfolioItem> _portfolioBox;
-  final FirestorePortfolioService _firestoreService = FirestorePortfolioService();
-  bool _isInitialized = false;
-
-  /// Same order as [_portfolioBox]; updated synchronously on swipe-delete so
-  /// [Dismissible] is removed from the tree before Hive [deleteAt] completes.
-  List<PortfolioItem> _listOrder = [];
-
-  static String _stablePortfolioItemKey(PortfolioItem item) {
-    return '${item.firestoreId ?? 'local'}_${item.purchaseDate.millisecondsSinceEpoch}_'
-        '${item.weight}_${item.purchasePrice}_${item.metal}_${item.karat}_'
-        '${item.purchaseCurrency}_${item.notes ?? ''}';
-  }
-
-  void _syncListOrderFromBox() {
-    _listOrder = _portfolioBox.values.toList();
-  }
-
-  int _hiveIndexForItem(PortfolioItem item) {
-    final k = _stablePortfolioItemKey(item);
-    for (var i = 0; i < _portfolioBox.length; i++) {
-      final it = _portfolioBox.getAt(i);
-      if (it != null && _stablePortfolioItemKey(it) == k) return i;
-    }
-    return -1;
-  }
-
-  String? get _uid => FirebaseAuth.instance.currentUser?.uid;
-  bool get _isLoggedIn {
-    final user = FirebaseAuth.instance.currentUser;
-    return user != null && !user.isAnonymous;
-  }
+class _PortfolioLoading extends StatelessWidget {
+  const _PortfolioLoading();
 
   @override
-  void initState() {
-    super.initState();
-    _initializePortfolio();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              SizedBox(height: 8),
+              ShimmerBox(width: 140, height: 26),
+              SizedBox(height: 24),
+              ShimmerBox(
+                height: 150,
+                borderRadius: BorderRadius.all(Radius.circular(20)),
+              ),
+              SizedBox(height: 24),
+              ShimmerBox(
+                height: 88,
+                borderRadius: BorderRadius.all(Radius.circular(20)),
+              ),
+              SizedBox(height: 12),
+              ShimmerBox(
+                height: 88,
+                borderRadius: BorderRadius.all(Radius.circular(20)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
+}
 
-  Future<void> _initializePortfolio() async {
-    if (!Hive.isAdapterRegistered(0)) {
-      Hive.registerAdapter(PortfolioItemAdapter());
-    }
-    _portfolioBox = Hive.isBoxOpen('portfolio')
-        ? Hive.box<PortfolioItem>('portfolio')
-        : await Hive.openBox<PortfolioItem>('portfolio');
+class _PortfolioView extends ConsumerStatefulWidget {
+  const _PortfolioView({required this.items});
 
-    // If logged in, sync from Firestore
-    if (_isLoggedIn) {
-      await _loadFromFirestore();
-    }
+  final List<PortfolioItem> items;
 
-    await _migratePortfolioPurchaseCurrency();
+  @override
+  ConsumerState<_PortfolioView> createState() => _PortfolioViewState();
+}
 
-    _syncListOrderFromBox();
-    setState(() {
-      _isInitialized = true;
-    });
-  }
+class _PortfolioViewState extends ConsumerState<_PortfolioView> {
+  List<PortfolioItem> get _items => widget.items;
 
-  /// Rewrite Hive entries so [purchaseCurrency] is persisted (adapter append).
-  Future<void> _migratePortfolioPurchaseCurrency() async {
-    if (_portfolioBox.isEmpty) return;
-    for (var i = 0; i < _portfolioBox.length; i++) {
-      final item = _portfolioBox.getAt(i);
-      if (item == null) continue;
-      await _portfolioBox.putAt(i, item);
-    }
-  }
-
-  Future<void> _loadFromFirestore() async {
-    try {
-      final items = await _firestoreService.loadAll(_uid!);
-      // Replace local Hive data with Firestore data
-      await _portfolioBox.clear();
-      for (final data in items) {
-        _portfolioBox.add(PortfolioItem.fromFirestoreMap(data));
-      }
-    } catch (e) {
-      debugPrint('Failed to load portfolio from Firestore: $e');
-    }
-  }
-
-  void _showAddItemDialog() {
+  Future<void> _showAddItemDialog() async {
+    // Gate behind a real account: guests are prompted to sign in / upgrade.
+    if (!await requireAccount(context, 'portfolio')) return;
+    if (!mounted) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => AddPortfolioItemDialog(
-        onSave: (item) async {
-          _portfolioBox.add(item);
-          // Sync to Firestore if logged in
-          if (_isLoggedIn) {
-            try {
-              final docId = await _firestoreService.saveItem(
-                _uid!,
-                item.toFirestoreMap(),
-              );
-              item.firestoreId = docId;
-              // Update the last item in Hive with the firestoreId
-              await _portfolioBox.putAt(_portfolioBox.length - 1, item);
-            } catch (e) {
-              debugPrint('Failed to sync new item to Firestore: $e');
-            }
-          }
-          await AnalyticsService.instance.logEvent(
-            'portfolio_item_added',
-            parameters: {'metal': item.metal},
-          );
-          setState(() {
-            _syncListOrderFromBox();
-          });
-        },
+        onSave: (item) => ref.read(portfolioControllerProvider).add(item),
       ),
     );
   }
@@ -154,31 +108,13 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) => AddPortfolioItemDialog(
         existingItem: item,
-        onSave: (updatedItem) async {
+        onSave: (updatedItem) {
           updatedItem.firestoreId = item.firestoreId;
-          final hi = _hiveIndexForItem(item);
-          if (hi < 0) return;
-          await _portfolioBox.putAt(hi, updatedItem);
-          // Sync to Firestore if logged in
-          if (_isLoggedIn && updatedItem.firestoreId != null) {
-            try {
-              await _firestoreService.saveItem(
-                _uid!,
-                updatedItem.toFirestoreMap(),
-                docId: updatedItem.firestoreId,
-              );
-            } catch (e) {
-              debugPrint('Failed to sync edit to Firestore: $e');
-            }
-          }
-          setState(() {
-            _syncListOrderFromBox();
-          });
+          ref.read(portfolioControllerProvider).update(updatedItem);
         },
       ),
     );
   }
-
 
   double _itemMarketValue(PortfolioItem item) {
     final isLocal = ref.read(isLocalMarketProvider);
@@ -219,7 +155,6 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
 
   /// Compact zakat indicator for the portfolio's current value (silver nisab
   /// basis). Returns null when prices aren't ready or there are no holdings.
-  /// Tapping opens the full [ZakatCalculatorScreen].
   Widget? _buildZakatIndicator(BuildContext context, ThemeData theme) {
     final gold24 = _gold24PerGram();
     final silver = _silverPerGram();
@@ -312,7 +247,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     ref.watch(silverPriceProvider);
 
     double total = 0.0;
-    for (var item in _listOrder) {
+    for (var item in _items) {
       total += _itemMarketValue(item);
     }
     return total;
@@ -330,7 +265,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     double totalCost = 0.0;
     double totalValue = 0.0;
 
-    for (var item in _listOrder) {
+    for (var item in _items) {
       totalCost += _purchaseTotalInDisplay(item, displayCurrency, rates);
       totalValue += _itemMarketValue(item);
     }
@@ -342,38 +277,6 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-
-    if (!_isInitialized) {
-      return Scaffold(
-        body: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                SizedBox(height: 8),
-                ShimmerBox(width: 140, height: 26),
-                SizedBox(height: 24),
-                ShimmerBox(
-                  height: 150,
-                  borderRadius: BorderRadius.all(Radius.circular(20)),
-                ),
-                SizedBox(height: 24),
-                ShimmerBox(
-                  height: 88,
-                  borderRadius: BorderRadius.all(Radius.circular(20)),
-                ),
-                SizedBox(height: 12),
-                ShimmerBox(
-                  height: 88,
-                  borderRadius: BorderRadius.all(Radius.circular(20)),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -434,7 +337,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                       ),
                     ],
                     const SizedBox(height: 24),
-                    
+
                     // Net-worth hero + zakat indicator
                     Builder(builder: (_) {
                       final zakatIndicator =
@@ -455,7 +358,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                       ]);
                     }),
                     const SizedBox(height: 24),
-                    
+
                     // Holdings Header
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -467,7 +370,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                           ),
                         ),
                         Text(
-                          '${_listOrder.length} items',
+                          '${_items.length} items',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: isDark ? Colors.white60 : Colors.black54,
                           ),
@@ -479,9 +382,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                 ),
               ),
             ),
-            
+
             // Portfolio Items
-            if (_listOrder.isEmpty)
+            if (_items.isEmpty)
               SliverFillRemaining(
                 child: Center(
                   child: Column(
@@ -514,10 +417,10 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
               SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    final item = _listOrder[index];
+                    final item = _items[index];
                     return _buildPortfolioItem(item);
                   },
-                  childCount: _listOrder.length,
+                  childCount: _items.length,
                   addAutomaticKeepAlives: false,
                 ),
               ),
@@ -539,7 +442,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
   /// Sum of current market value split by metal.
   ({double gold, double silver}) _metalSplit() {
     double g = 0, s = 0;
-    for (final item in _listOrder) {
+    for (final item in _items) {
       final v = _itemMarketValue(item);
       if (item.metal == 'Gold') {
         g += v;
@@ -670,9 +573,9 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
           ? (profitLoss / totalCostDisplay) * 100
           : 0.0;
     }
-    
+
     return Dismissible(
-      key: ValueKey(_stablePortfolioItemKey(item)),
+      key: ValueKey(item.firestoreId ?? identityHashCode(item)),
       direction: DismissDirection.endToStart,
       confirmDismiss: (direction) async {
         final confirmed = await showDialog<bool>(
@@ -701,166 +604,161 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
       },
       onDismissed: (direction) {
         final firestoreId = item.firestoreId;
-        final hiveIdx = _hiveIndexForItem(item);
-        final k = _stablePortfolioItemKey(item);
-        setState(() {
-          _listOrder.removeWhere((e) => _stablePortfolioItemKey(e) == k);
-        });
-        if (hiveIdx >= 0) {
-          _portfolioBox.deleteAt(hiveIdx).then((_) async {
-            if (_isLoggedIn && firestoreId != null) {
-              await _firestoreService.deleteItem(_uid!, firestoreId);
-            }
-          });
+        if (firestoreId != null) {
+          ref.read(portfolioControllerProvider).delete(firestoreId);
         }
       },
       child: GestureDetector(
         onTap: () => _showEditItemDialog(item),
         child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? Colors.grey[800] : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: item.metal == 'Gold'
-                              ? VaultColors.gold.withValues(alpha: 0.2)
-                              : Colors.grey.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          item.metal == 'Gold' ? Icons.star : Icons.circle,
-                          color: item.metal == 'Gold'
-                              ? VaultColors.gold
-                              : Colors.grey,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${item.metal} ${item.karat}K',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              '${item.weight}g • ${_formatDate(item.purchaseDate)}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: isDark ? Colors.white60 : Colors.black54,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: profitLoss >= 0
-                        ? Colors.green.withValues(alpha: 0.1)
-                        : Colors.red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        profitLoss >= 0 ? Icons.arrow_upward : Icons.arrow_downward,
-                        color: profitLoss >= 0 ? Colors.green : Colors.red,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${profitLoss > 0 ? '+' : ''}${profitLossPercent.toStringAsFixed(1)}%',
-                        style: TextStyle(
-                          color: profitLoss >= 0 ? Colors.green : Colors.red,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _buildItemDetail(
-                    'Purchase',
-                    formatCurrency(
-                      _purchaseTotalInDisplay(item, currency, rates),
-                      currency,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: _buildItemDetail(
-                    'Current',
-                    formatCurrency(currentValue, currency),
-                  ),
-                ),
-                Expanded(
-                  child: _buildItemDetail(
-                    'P/L',
-                    formatCurrency(profitLoss, currency, showSign: true),
-                    valueColor: profitLoss >= 0 ? Colors.green : Colors.red,
-                  ),
-                ),
-              ],
-            ),
-            if (item.notes != null && item.notes!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                item.notes!,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontStyle: FontStyle.italic,
-                  color: isDark ? Colors.white60 : Colors.black54,
-                ),
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey[800] : Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
-          ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: item.metal == 'Gold'
+                                ? VaultColors.gold.withValues(alpha: 0.2)
+                                : Colors.grey.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            item.metal == 'Gold' ? Icons.star : Icons.circle,
+                            color: item.metal == 'Gold'
+                                ? VaultColors.gold
+                                : Colors.grey,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${item.metal} ${item.karat}K',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                '${item.weight}g • ${_formatDate(item.purchaseDate)}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color:
+                                      isDark ? Colors.white60 : Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: profitLoss >= 0
+                          ? Colors.green.withValues(alpha: 0.1)
+                          : Colors.red.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          profitLoss >= 0
+                              ? Icons.arrow_upward
+                              : Icons.arrow_downward,
+                          color: profitLoss >= 0 ? Colors.green : Colors.red,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${profitLoss > 0 ? '+' : ''}${profitLossPercent.toStringAsFixed(1)}%',
+                          style: TextStyle(
+                            color: profitLoss >= 0 ? Colors.green : Colors.red,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _buildItemDetail(
+                      'Purchase',
+                      formatCurrency(
+                        _purchaseTotalInDisplay(item, currency, rates),
+                        currency,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildItemDetail(
+                      'Current',
+                      formatCurrency(currentValue, currency),
+                    ),
+                  ),
+                  Expanded(
+                    child: _buildItemDetail(
+                      'P/L',
+                      formatCurrency(profitLoss, currency, showSign: true),
+                      valueColor: profitLoss >= 0 ? Colors.green : Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+              if (item.notes != null && item.notes!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  item.notes!,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontStyle: FontStyle.italic,
+                    color: isDark ? Colors.white60 : Colors.black54,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
 
   Widget _buildItemDetail(String label, String value, {Color? valueColor}) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -888,105 +786,6 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}';
-  }
-}
-
-// Portfolio Item Model
-class PortfolioItem {
-  String? firestoreId;
-  final String metal;
-  final int karat;
-  final double weight;
-  final double purchasePrice;
-  /// ISO currency code for [purchasePrice] (per gram), as when the holding was saved.
-  final String purchaseCurrency;
-  final DateTime purchaseDate;
-  final String? notes;
-
-  PortfolioItem({
-    this.firestoreId,
-    required this.metal,
-    required this.karat,
-    required this.weight,
-    required this.purchasePrice,
-    required this.purchaseCurrency,
-    required this.purchaseDate,
-    this.notes,
-  });
-
-  Map<String, dynamic> toFirestoreMap() => {
-    'metal': metal,
-    'karat': karat,
-    'weight': weight,
-    'purchasePrice': purchasePrice,
-    'purchaseCurrency': purchaseCurrency,
-    'purchaseDate': purchaseDate.millisecondsSinceEpoch,
-    'notes': notes ?? '',
-  };
-
-  factory PortfolioItem.fromFirestoreMap(Map<String, dynamic> data) {
-    return PortfolioItem(
-      firestoreId: data['firestoreId'],
-      metal: data['metal'] ?? 'Gold',
-      karat: data['karat'] ?? 24,
-      weight: (data['weight'] as num).toDouble(),
-      purchasePrice: (data['purchasePrice'] as num).toDouble(),
-      purchaseCurrency: data['purchaseCurrency'] as String? ?? 'SAR',
-      purchaseDate: DateTime.fromMillisecondsSinceEpoch(data['purchaseDate'] as int),
-      notes: data['notes'] == '' ? null : data['notes'],
-    );
-  }
-}
-
-// Hive Adapter for PortfolioItem
-class PortfolioItemAdapter extends TypeAdapter<PortfolioItem> {
-  @override
-  final int typeId = 0;
-
-  @override
-  PortfolioItem read(BinaryReader reader) {
-    final metal = reader.readString();
-    final karat = reader.readInt();
-    final weight = reader.readDouble();
-    final purchasePrice = reader.readDouble();
-    final purchaseDate = DateTime.fromMillisecondsSinceEpoch(reader.readInt());
-    final notes = reader.readString();
-    String? firestoreId;
-    try {
-      final id = reader.readString();
-      if (id.isNotEmpty) firestoreId = id;
-    } catch (_) {}
-
-    String purchaseCurrency;
-    try {
-      purchaseCurrency = reader.readString();
-      if (purchaseCurrency.isEmpty) purchaseCurrency = 'SAR';
-    } catch (_) {
-      purchaseCurrency = 'SAR';
-    }
-
-    return PortfolioItem(
-      firestoreId: firestoreId,
-      metal: metal,
-      karat: karat,
-      weight: weight,
-      purchasePrice: purchasePrice,
-      purchaseCurrency: purchaseCurrency,
-      purchaseDate: purchaseDate,
-      notes: notes.isEmpty ? null : notes,
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, PortfolioItem obj) {
-    writer.writeString(obj.metal);
-    writer.writeInt(obj.karat);
-    writer.writeDouble(obj.weight);
-    writer.writeDouble(obj.purchasePrice);
-    writer.writeInt(obj.purchaseDate.millisecondsSinceEpoch);
-    writer.writeString(obj.notes ?? '');
-    writer.writeString(obj.firestoreId ?? '');
-    writer.writeString(obj.purchaseCurrency);
   }
 }
 
@@ -1086,7 +885,7 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
                 ),
               ),
               const SizedBox(height: 20),
-              
+
               // Metal Selection
               RadioGroup<String>(
                 groupValue: _selectedMetal,
@@ -1116,7 +915,7 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
                   ],
                 ),
               ),
-              
+
               // Karat Selection (only for gold)
               if (_selectedMetal == 'Gold') ...[
                 const SizedBox(height: 16),
@@ -1146,13 +945,14 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
                   }).toList(),
                 ),
               ],
-              
+
               const SizedBox(height: 16),
-              
+
               // Weight Input
               TextFormField(
                 controller: _weightController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                 ],
@@ -1170,13 +970,14 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
                   return null;
                 },
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Purchase Price Input
               TextFormField(
                 controller: _priceController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                 ],
@@ -1194,9 +995,9 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
                   return null;
                 },
               ),
-              
+
               const SizedBox(height: 16),
-              
+
               // Date Selection
               ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -1216,7 +1017,7 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
                   }
                 },
               ),
-              
+
               // Notes Input
               TextFormField(
                 controller: _notesController,
@@ -1226,9 +1027,9 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
                 ),
                 maxLines: 2,
               ),
-              
+
               const SizedBox(height: 24),
-              
+
               // Action Buttons
               Row(
                 children: [
@@ -1253,7 +1054,9 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
                             purchasePrice: double.parse(_priceController.text),
                             purchaseCurrency: purchaseCurrency,
                             purchaseDate: _selectedDate,
-                            notes: _notesController.text.isEmpty ? null : _notesController.text,
+                            notes: _notesController.text.isEmpty
+                                ? null
+                                : _notesController.text,
                           );
                           widget.onSave(item);
                           Navigator.pop(context);

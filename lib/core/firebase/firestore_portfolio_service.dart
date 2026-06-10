@@ -30,7 +30,7 @@ class FirestorePortfolioService {
     await _portfolioRef(uid).doc(docId).delete();
   }
 
-  /// Load all portfolio items for a user.
+  /// Load all portfolio items for a user (one-shot).
   Future<List<Map<String, dynamic>>> loadAll(String uid) async {
     final snapshot = await _portfolioRef(uid).orderBy('createdAt').get();
     return snapshot.docs.map((doc) {
@@ -38,6 +38,18 @@ class FirestorePortfolioService {
       data['firestoreId'] = doc.id;
       return data;
     }).toList();
+  }
+
+  /// Live stream of portfolio items (Firestore is the source of truth; the SDK
+  /// serves this from its offline cache when offline).
+  Stream<List<Map<String, dynamic>>> streamAll(String uid) {
+    return _portfolioRef(uid).orderBy('createdAt').snapshots().map((snap) {
+      return snap.docs.map((doc) {
+        final data = Map<String, dynamic>.from(doc.data() as Map);
+        data['firestoreId'] = doc.id;
+        return data;
+      }).toList();
+    });
   }
 
   /// Sync local items to Firestore (used after guest→registered conversion).

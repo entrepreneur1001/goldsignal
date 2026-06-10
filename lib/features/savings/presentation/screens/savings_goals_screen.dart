@@ -2,21 +2,20 @@ import 'package:flutter/material.dart';
 import '../../../../shared/design/app_colors.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import '../../../../shared/models/portfolio_item.dart';
 import '../../../../shared/models/savings_goal.dart';
+import '../../../../shared/providers/portfolio_provider.dart';
 import '../../../../shared/providers/savings_goals_provider.dart';
 import '../../../../shared/widgets/empty_state.dart';
-import '../../../portfolio/presentation/screens/portfolio_screen.dart';
+import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
 
 class SavingsGoalsScreen extends ConsumerWidget {
   const SavingsGoalsScreen({super.key});
 
-  /// Total grams of [metal] currently held in the portfolio (all karats).
-  static double heldGrams(String metal) {
-    if (!Hive.isBoxOpen('portfolio')) return 0;
-    final box = Hive.box<PortfolioItem>('portfolio');
+  /// Total grams of [metal] held across [items] (all karats).
+  static double heldGrams(List<PortfolioItem> items, String metal) {
     double grams = 0;
-    for (final item in box.values) {
+    for (final item in items) {
       if (item.metal == metal) grams += item.weight;
     }
     return grams;
@@ -29,7 +28,10 @@ class SavingsGoalsScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Savings Goals')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _AddGoalSheet.show(context),
+        onPressed: () async {
+          if (!await requireAccount(context, 'savings goals')) return;
+          if (context.mounted) _AddGoalSheet.show(context);
+        },
         icon: const Icon(Icons.add),
         label: const Text('New goal'),
       ),
@@ -63,7 +65,8 @@ class _GoalCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final held = SavingsGoalsScreen.heldGrams(goal.metal);
+    final items = ref.watch(portfolioProvider).asData?.value ?? const [];
+    final held = SavingsGoalsScreen.heldGrams(items, goal.metal);
     final ratio =
         goal.targetGrams > 0 ? (held / goal.targetGrams).clamp(0.0, 1.0) : 0.0;
     final percent = (ratio * 100).round();

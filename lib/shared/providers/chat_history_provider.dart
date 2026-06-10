@@ -1,9 +1,13 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/storage/chat_history_service.dart';
+import '../../core/firebase/firestore_chat_history_service.dart';
 import '../models/chat_conversation.dart';
 
-final chatHistoryServiceProvider = Provider<ChatHistoryService>((ref) {
-  return ChatHistoryService();
+final firestoreChatHistoryServiceProvider =
+    Provider<FirestoreChatHistoryService>((ref) {
+  return FirestoreChatHistoryService();
 });
 
 class ChatHistoryState {
@@ -45,19 +49,49 @@ final chatHistoryProvider =
   return ChatHistoryNotifier();
 });
 
+/// Stream-backed: conversations live in Firestore (offline cache included).
+/// Mutations write to Firestore; the live subscription updates the list. The
+/// active conversation id is ephemeral UI state kept locally.
 class ChatHistoryNotifier extends Notifier<ChatHistoryState> {
-  ChatHistoryService get _service => ref.read(chatHistoryServiceProvider);
+  StreamSubscription<List<ChatConversation>>? _sub;
+
+  FirestoreChatHistoryService get _cloud =>
+      ref.read(firestoreChatHistoryServiceProvider);
+  String? get _uid => FirebaseAuth.instance.currentUser?.uid;
 
   @override
   ChatHistoryState build() {
-    return ChatHistoryState(conversations: _service.getAll());
+    ref.onDispose(() => _sub?.cancel());
+    _subscribe();
+    return const ChatHistoryState();
   }
 
-  void _reload({String? activeId, bool clearActive = false}) {
-    state = ChatHistoryState(
-      conversations: _service.getAll(),
-      activeId: clearActive ? null : (activeId ?? state.activeId),
-    );
+  void _subscribe() {
+    _sub?.cancel();
+    final uid = _uid;
+    if (uid == null) {
+      state = const ChatHistoryState();
+      return;
+    }
+    _sub = _cloud.streamAll(uid).listen((conversations) {
+      state = state.copyWith(conversations: conversations);
+    });
+  }
+
+  Future<void> _save(ChatConversation conversation) async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      await _cloud.saveConversation(uid, conversation);
+    } catch (_) {}
+  }
+
+  Future<void> _delete(String id) async {
+    final uid = _uid;
+    if (uid == null) return;
+    try {
+      await _cloud.deleteConversation(uid, id);
+    } catch (_) {}
   }
 
   /// Start a fresh chat. The conversation is created lazily once the first
@@ -85,8 +119,10 @@ class ChatHistoryNotifier extends Notifier<ChatHistoryState> {
         updatedAt: now,
         messages: messages,
       );
-      await _service.save(conversation);
-      _reload(activeId: id);
+      // Set active immediately so the UI tracks the new chat; the stream will
+      // deliver the persisted conversation (served from cache near-instantly).
+      state = state.copyWith(activeId: id);
+      await _save(conversation);
       return;
     }
 
@@ -99,30 +135,36 @@ class ChatHistoryNotifier extends Notifier<ChatHistoryState> {
       messages: messages,
       updatedAt: now,
     );
-    await _service.save(updated);
-    _reload();
+    await _save(updated);
   }
 
   Future<void> rename(String id, String title) async {
     final trimmed = title.trim();
     if (trimmed.isEmpty) return;
-    final conversation = _service.getById(id);
+    final conversation = _byId(id);
     if (conversation == null) return;
-    await _service.save(conversation.copyWith(title: trimmed));
-    _reload();
+    await _save(conversation.copyWith(title: trimmed));
   }
 
   Future<void> deleteConversation(String id) async {
-    await _service.delete(id);
+    await _delete(id);
     if (state.activeId == id) {
-      _reload(clearActive: true);
-    } else {
-      _reload();
+      state = state.copyWith(clearActive: true);
     }
   }
 
   Future<void> clearAll() async {
-    await _service.clearAll();
-    _reload(clearActive: true);
+    final ids = state.conversations.map((c) => c.id).toList();
+    for (final id in ids) {
+      await _delete(id);
+    }
+    state = state.copyWith(clearActive: true);
+  }
+
+  ChatConversation? _byId(String id) {
+    for (final c in state.conversations) {
+      if (c.id == id) return c;
+    }
+    return null;
   }
 }

@@ -13,6 +13,35 @@ class AuthService {
   // Auth state changes stream
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
+  /// Whether the signed-in user has verified their email address.
+  /// Anonymous (guest) users are treated as not requiring verification.
+  bool get isEmailVerified {
+    final user = _auth.currentUser;
+    if (user == null || user.isAnonymous) return false;
+    return user.emailVerified;
+  }
+
+  /// Send (or resend) the email-verification link to the current user.
+  Future<void> sendEmailVerification() async {
+    final user = _auth.currentUser;
+    if (user == null || user.isAnonymous || user.emailVerified) return;
+    try {
+      await user.sendEmailVerification();
+    } catch (e) {
+      debugPrint('Send email verification failed: $e');
+      throw Exception(_handleAuthError(e));
+    }
+  }
+
+  /// Refresh the user from the server and report the latest verified state.
+  /// Used by the "I've verified" action to pick up a link the user just clicked.
+  Future<bool> reloadAndCheckVerified() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    await user.reload();
+    return _auth.currentUser?.emailVerified ?? false;
+  }
+
   /// Load the current user's Firestore profile document (or null).
   Future<Map<String, dynamic>?> loadProfile() async {
     final uid = _auth.currentUser?.uid;
@@ -98,6 +127,9 @@ class AuthService {
           email: email,
           isGuest: false,
         );
+        // Fire off the email-verification link (soft verification: the user is
+        // let into the app immediately and nudged to verify from Profile).
+        await _trySendEmailVerification(credential.user!);
         await AnalyticsService.instance.setUser(credential.user!.uid);
       }
 
@@ -125,6 +157,11 @@ class AuthService {
 
         // Update user profile in Firestore
         await _updateUserProfileToRegistered(user.uid, email);
+
+        // Send the verification link now that the guest has a real email.
+        if (userCredential.user != null) {
+          await _trySendEmailVerification(userCredential.user!);
+        }
 
         return userCredential.user;
       }
@@ -157,6 +194,16 @@ class AuthService {
     }
   }
   
+  // Best-effort verification email — never block account creation if it fails.
+  Future<void> _trySendEmailVerification(User user) async {
+    if (user.isAnonymous || user.emailVerified) return;
+    try {
+      await user.sendEmailVerification();
+    } catch (e) {
+      debugPrint('Auto send email verification failed: $e');
+    }
+  }
+
   // Create user profile in Firestore
   Future<void> _createUserProfile(
     String uid, {

@@ -3,14 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/firebase/auth_service.dart';
+import '../../../../shared/providers/auth_provider.dart';
 import '../../../../shared/design/app_colors.dart';
 import '../../../../shared/design/app_typography.dart';
 import '../../../../shared/providers/app_info_provider.dart';
 import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
-import '../../../../features/auth/presentation/screens/auth_screen.dart';
+import '../../../../features/auth/presentation/screens/welcome_screen.dart';
+import '../../../../features/auth/presentation/screens/sign_in_screen.dart';
+import '../widgets/verify_email_banner.dart';
 import '../../../alerts/presentation/screens/alerts_screen.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
 import '../widgets/widget_settings_sheet.dart';
@@ -38,7 +40,6 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
-  final AuthService _authService = AuthService();
   User? _currentUser;
 
   @override
@@ -105,9 +106,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             .delete();
         await user.delete();
       }
+      // Wipe local per-user data + reset in-memory providers post-deletion.
+      await ref.read(authControllerProvider.notifier).wipeLocalUserData();
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const AuthScreen()),
+          MaterialPageRoute(builder: (_) => const WelcomeScreen()),
           (route) => false,
         );
       }
@@ -134,9 +137,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           TextButton(
             onPressed: () async {
               final navigator = Navigator.of(context);
-              await _authService.signOut();
+              // Clears Firebase session + wipes local per-user data and resets
+              // the in-memory providers so nothing leaks to the next session.
+              await ref.read(authControllerProvider.notifier).signOut();
               navigator.pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const AuthScreen()),
+                MaterialPageRoute(builder: (_) => const WelcomeScreen()),
                 (route) => false,
               );
             },
@@ -265,8 +270,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   await Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) => const AuthScreen(
-                                          isLinkingGuest: true),
+                                      builder: (_) =>
+                                          const SignInScreen(linkGuest: true),
                                     ),
                                   );
                                   if (mounted) {
@@ -299,6 +304,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ],
                 ),
               ),
+
+              // Soft email-verification nudge (hidden for guests / verified users)
+              const VerifyEmailBanner(),
 
               const SizedBox(height: 8),
 

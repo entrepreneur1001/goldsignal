@@ -1,7 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:groq/groq.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/analytics/analytics_service.dart';
 import '../../../../shared/design/app_colors.dart';
 import '../../../../core/utils/api_config.dart';
@@ -9,11 +10,13 @@ import '../../../../core/utils/currency_conversion.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
+import '../../../../shared/providers/portfolio_provider.dart';
 import '../../../../shared/widgets/alerts_nav_button.dart';
 import '../../../../shared/models/metal_price.dart';
+import '../../../../shared/models/portfolio_item.dart';
 import '../../../../shared/models/chat_conversation.dart';
 import '../../../../shared/providers/chat_history_provider.dart';
-import '../../../portfolio/presentation/screens/portfolio_screen.dart';
+import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
 import 'chat_history_screen.dart';
 
 class ChatbotScreen extends ConsumerStatefulWidget {
@@ -104,9 +107,31 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     return 'I apologize, but I encountered an error: ${e.message}';
   }
 
+  /// Free messages a guest (anonymous user) may send before the sign-in wall.
+  static const _guestFreeMessages = 3;
+
+  /// Returns true if the message may be sent. Registered users are unlimited;
+  /// anonymous guests get [_guestFreeMessages] then must create an account.
+  Future<bool> _ensureCanChat() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || !user.isAnonymous) return true;
+
+    final prefs = await SharedPreferences.getInstance();
+    final used = prefs.getInt('ai_guest_used') ?? 0;
+    if (used < _guestFreeMessages) {
+      await prefs.setInt('ai_guest_used', used + 1);
+      return true;
+    }
+    if (!mounted) return false;
+    return requireAccount(context, 'AI chat history');
+  }
+
   Future<void> _sendMessage() async {
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
+
+    // Guests get a short free trial, then must create an account to continue.
+    if (!await _ensureCanChat()) return;
 
     final history = ref.read(chatHistoryProvider.notifier);
 
@@ -225,9 +250,8 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     final isLocal = currency == 'EGP';
     final local = ref.read(localMarketPricesProvider);
     try {
-      if (!Hive.isBoxOpen('portfolio')) return "";
-      final box = Hive.box<PortfolioItem>('portfolio');
-      if (box.isEmpty) return "User has no portfolio holdings yet.";
+      final items = ref.read(portfolioProvider).asData?.value ?? const [];
+      if (items.isEmpty) return "User has no portfolio holdings yet.";
 
       double purchaseInDisplay(PortfolioItem item) {
         final raw = item.purchasePrice * item.weight;
@@ -241,7 +265,6 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
             raw;
       }
 
-      final items = box.values.toList();
       double totalCurrentValue = 0;
       double totalPurchaseCost = 0;
       final holdings = <String>[];

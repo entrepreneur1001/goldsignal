@@ -9,7 +9,7 @@ import '../../../../shared/providers/app_info_provider.dart';
 import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 import '../../../system/presentation/screens/force_update_screen.dart';
 import '../../../system/presentation/screens/maintenance_screen.dart';
-import 'auth_screen.dart';
+import 'welcome_screen.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -60,8 +60,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            currentUser != null ? const DashboardScreen() : const AuthScreen(),
+        builder: (_) => currentUser != null
+            ? const DashboardScreen()
+            : const WelcomeScreen(),
       ),
     );
   }

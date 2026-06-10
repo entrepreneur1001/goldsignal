@@ -17,16 +17,13 @@ class AppConfig {
   }
   
   static Future<void> _initHiveBoxes() async {
-    // Open Hive boxes for caching
+    // Hive now caches ONLY non-user market data. All user data (portfolio,
+    // alerts, savings goals, chat) lives in Firestore (offline cache included).
     await Hive.openBox('goldPrices');
     await Hive.openBox('silverPrices');
     await Hive.openBox('currencyRates');
-    await Hive.openBox('userAlerts');
-    // 'portfolio' box is opened in PortfolioScreen with its typed adapter
-    await Hive.openBox('chatHistory');
     await Hive.openBox('localMarketPrices');
     await Hive.openBox('priceHistory');
-    await Hive.openBox('savingsGoals');
   }
   
   static Future<void> _setDefaults() async {

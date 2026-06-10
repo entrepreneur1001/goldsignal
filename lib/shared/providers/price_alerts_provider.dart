@@ -1,10 +1,11 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/analytics/analytics_service.dart';
 import '../../core/firebase/firestore_price_alerts_service.dart';
 import '../../core/notifications/alert_notification_service.dart';
 import '../../core/notifications/push_messaging_service.dart';
-import '../../core/storage/price_alerts_service.dart';
 import '../models/local_market_prices.dart';
 import '../models/price_alert.dart';
 import 'currency_provider.dart';
@@ -12,10 +13,6 @@ import 'market_prices_provider.dart';
 import 'metal_price_provider.dart';
 
 const _ounceToGram = 31.1034768;
-
-final priceAlertsServiceProvider = Provider<PriceAlertsService>((ref) {
-  return PriceAlertsService();
-});
 
 final firestorePriceAlertsServiceProvider =
     Provider<FirestorePriceAlertsService>((ref) {
@@ -73,77 +70,57 @@ final priceAlertsProvider =
 });
 
 class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
+  StreamSubscription<List<PriceAlert>>? _sub;
+
+  FirestorePriceAlertsService get _cloud =>
+      ref.read(firestorePriceAlertsServiceProvider);
+  String? get _uid => FirebaseAuth.instance.currentUser?.uid;
+
   @override
   PriceAlertsState build() {
+    ref.onDispose(() => _sub?.cancel());
     Future.microtask(_bootstrap);
-    final service = ref.read(priceAlertsServiceProvider);
-    return PriceAlertsState(alerts: service.getAll());
+    return const PriceAlertsState();
   }
 
   Future<void> _bootstrap() async {
     await AlertNotificationService.instance.initialize();
-    PushMessagingService.instance.onPriceAlertReceived = () {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid != null) refreshFromCloud(uid);
-    };
     await PushMessagingService.instance.initialize();
-
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      state = state.copyWith(isSyncing: true);
-      try {
-        await _mergeFromFirestore(uid);
-      } catch (_) {}
-      state = state.copyWith(isSyncing: false);
-    }
-    _reload();
-    await _processDueReactivations();
+    // Firestore is the source of truth: subscribe to the live stream (served
+    // from the offline cache when offline). No local Hive merge needed.
+    _subscribe();
   }
 
-  Future<void> refreshFromCloud(String uid) async {
-    state = state.copyWith(isSyncing: true);
-    try {
-      await _mergeFromFirestore(uid);
-    } catch (_) {}
-    state = state.copyWith(isSyncing: false);
-    _reload();
-  }
-
-  Future<void> _mergeFromFirestore(String uid) async {
-    final localService = ref.read(priceAlertsServiceProvider);
-    final firestore = ref.read(firestorePriceAlertsServiceProvider);
-    final local = localService.getAll();
-    final cloud = await firestore.loadAll(uid);
-
-    if (cloud.isEmpty && local.isNotEmpty) {
-      await firestore.syncLocalToCloud(uid, local);
+  void _subscribe() {
+    _sub?.cancel();
+    final uid = _uid;
+    if (uid == null) {
+      state = const PriceAlertsState();
       return;
     }
-
-    if (cloud.isNotEmpty) {
-      await localService.replaceAll(cloud);
-    }
+    state = state.copyWith(isSyncing: true);
+    _sub = _cloud.streamAll(uid).listen(
+      (alerts) {
+        state = state.copyWith(alerts: alerts, isSyncing: false);
+      },
+      onError: (_) => state = state.copyWith(isSyncing: false),
+    );
   }
 
-  Future<void> _syncAlertToCloud(PriceAlert alert) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+  Future<void> _save(PriceAlert alert) async {
+    final uid = _uid;
     if (uid == null) return;
     try {
-      await ref.read(firestorePriceAlertsServiceProvider).saveAlert(uid, alert);
+      await _cloud.saveAlert(uid, alert);
     } catch (_) {}
   }
 
   Future<void> _deleteFromCloud(String id) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = _uid;
     if (uid == null) return;
     try {
-      await ref.read(firestorePriceAlertsServiceProvider).deleteAlert(uid, id);
+      await _cloud.deleteAlert(uid, id);
     } catch (_) {}
-  }
-
-  void _reload() {
-    final service = ref.read(priceAlertsServiceProvider);
-    state = state.copyWith(alerts: service.getAll(), clearSnackbar: true);
   }
 
   void clearSnackbar() {
@@ -196,9 +173,7 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
       repeatAfterHours: repeatAfterHours,
       createdAt: DateTime.now(),
     );
-    await ref.read(priceAlertsServiceProvider).save(alert);
-    await _syncAlertToCloud(alert);
-    _reload();
+    await _save(alert);
     await AnalyticsService.instance.logEvent(
       'alert_created',
       parameters: {'type': type.name, 'metal': metal},
@@ -206,24 +181,15 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
   }
 
   Future<void> deleteAlert(String id) async {
-    await ref.read(priceAlertsServiceProvider).delete(id);
     await _deleteFromCloud(id);
-    _reload();
   }
 
   Future<void> clearHistory() async {
-    final service = ref.read(priceAlertsServiceProvider);
-    final toClear = service
-        .getAll()
-        .where((a) => a.triggeredAt != null && !a.isSnoozed)
-        .toList();
+    final toClear = state.historyAlerts;
     if (toClear.isEmpty) return;
-
     for (final alert in toClear) {
-      await service.delete(alert.id);
       await _deleteFromCloud(alert.id);
     }
-    _reload();
   }
 
   Future<void> toggleAlert(String id, bool active) async {
@@ -231,9 +197,7 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
     final updated = active
         ? alert.copyWith(isActive: true, clearReactivate: true)
         : alert.copyWith(isActive: false, clearReactivate: true);
-    await ref.read(priceAlertsServiceProvider).update(updated);
-    await _syncAlertToCloud(updated);
-    _reload();
+    await _save(updated);
   }
 
   Future<void> reactivateAlert(String id) async {
@@ -247,17 +211,12 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
       clearReactivate: true,
       baselinePrice: baseline ?? alert.baselinePrice,
     );
-    await ref.read(priceAlertsServiceProvider).update(updated);
-    await _syncAlertToCloud(updated);
-    _reload();
+    await _save(updated);
   }
 
   Future<void> _processDueReactivations() async {
-    final service = ref.read(priceAlertsServiceProvider);
     final now = DateTime.now();
-    var changed = false;
-
-    for (final alert in service.getAll()) {
+    for (final alert in state.alerts) {
       if (alert.isActive) continue;
       final reactivateAt = alert.reactivateAt;
       if (reactivateAt == null || reactivateAt.isAfter(now)) continue;
@@ -271,12 +230,8 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
         clearReactivate: true,
         baselinePrice: baseline ?? alert.baselinePrice,
       );
-      await service.update(updated);
-      await _syncAlertToCloud(updated);
-      changed = true;
+      await _save(updated);
     }
-
-    if (changed) _reload();
   }
 
   double? resolveCurrentPrice(PriceAlert alert) {
@@ -382,8 +337,7 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
   Future<void> checkAgainstLatestPrices() async {
     await _processDueReactivations();
 
-    final service = ref.read(priceAlertsServiceProvider);
-    final active = service.getActive();
+    final active = state.activeAlerts;
     if (active.isEmpty) return;
 
     final triggered = <String>[];
@@ -402,8 +356,7 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
             ? now.add(Duration(hours: alert.repeatAfterHours!))
             : null,
       );
-      await service.update(updated);
-      await _syncAlertToCloud(updated);
+      await _save(updated);
 
       final message = _triggerMessage(alert, current);
       triggered.add(message);
@@ -416,7 +369,6 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
 
     if (triggered.isEmpty) return;
 
-    _reload();
     state = state.copyWith(
       snackbarMessage: triggered.length == 1
           ? 'Price alert: ${triggered.first}'

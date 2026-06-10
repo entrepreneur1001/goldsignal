@@ -26,6 +26,17 @@ class FirestorePriceAlertsService {
     }).toList();
   }
 
+  /// Live stream of the user's alerts (Firestore is the source of truth; served
+  /// from the offline cache when offline).
+  Stream<List<PriceAlert>> streamAll(String uid) {
+    return _alertsRef(uid)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snap) => snap.docs
+            .map((doc) => PriceAlert.fromJson(Map<String, dynamic>.from(doc.data())))
+            .toList());
+  }
+
   Future<void> syncLocalToCloud(String uid, List<PriceAlert> local) async {
     final batch = _firestore.batch();
     for (final alert in local) {

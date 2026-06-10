@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import '../../../../shared/design/app_colors.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
-import '../../../portfolio/presentation/screens/portfolio_screen.dart';
+import '../../../../shared/providers/portfolio_provider.dart';
 import '../../zakat.dart';
 import '../../../../core/utils/currency_format.dart';
 
@@ -63,16 +62,16 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
     double? gold24,
     double? silver,
   ) {
-    if (!_includePortfolio || !Hive.isBoxOpen('portfolio')) {
+    if (!_includePortfolio) {
       return (gold: 0.0, silver: 0.0);
     }
     final isLocal = ref.read(isLocalMarketProvider);
     final local = ref.read(localMarketPricesProvider);
-    final box = Hive.box<PortfolioItem>('portfolio');
+    final items = ref.read(portfolioProvider).asData?.value ?? const [];
 
     double goldValue = 0;
     double silverValue = 0;
-    for (final item in box.values) {
+    for (final item in items) {
       if (item.metal == 'Gold') {
         double? perGram;
         if (isLocal && local != null) {

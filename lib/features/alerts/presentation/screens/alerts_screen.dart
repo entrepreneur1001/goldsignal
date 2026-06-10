@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../shared/models/price_alert.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
+import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
 import '../widgets/create_alert_sheet.dart';
 
 class AlertsScreen extends ConsumerWidget {
@@ -42,7 +43,10 @@ class AlertsScreen extends ConsumerWidget {
           ],
         ),
         floatingActionButton: FloatingActionButton.extended(
-          onPressed: () => CreateAlertSheet.show(context),
+          onPressed: () async {
+            if (!await requireAccount(context, 'price alerts')) return;
+            if (context.mounted) CreateAlertSheet.show(context);
+          },
           icon: const Icon(Icons.add_alert),
           label: const Text('New alert'),
         ),

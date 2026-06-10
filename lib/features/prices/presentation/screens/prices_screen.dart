@@ -14,20 +14,24 @@ import '../../../../shared/widgets/shimmer.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/currency_selector.dart';
 import '../../../alerts/presentation/widgets/create_alert_sheet.dart';
+import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
 import '../../../charts/presentation/screens/price_chart_screen.dart';
 import '../../../../shared/widgets/alerts_nav_button.dart';
 
 class PricesScreen extends ConsumerWidget {
   const PricesScreen({super.key});
 
-  void _openAlertSheet(
+  Future<void> _openAlertSheet(
     BuildContext context, {
     required String metal,
     required String karat,
     required String currency,
     required double pricePerGram,
     PriceSide? side,
-  }) {
+  }) async {
+    // Price alerts are a saved/data feature — require a real account.
+    if (!await requireAccount(context, 'price alerts')) return;
+    if (!context.mounted) return;
     CreateAlertSheet.show(
       context,
       draft: AlertDraft(
