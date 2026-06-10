@@ -32,9 +32,16 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   bool _isTyping = false;
   late Groq _groq;
 
+  /// Whether the input has sendable (non-whitespace) content.
+  bool get _canSend => _messageController.text.trim().isNotEmpty;
+
   @override
   void initState() {
     super.initState();
+    // Rebuild so the send button reflects whether there's text to send.
+    _messageController.addListener(() {
+      if (mounted) setState(() {});
+    });
     _groq = Groq(
       apiKey: ApiConfig.groqApiKey,
       configuration: Configuration(
@@ -438,23 +445,45 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
                           vertical: 10,
                         ),
                       ),
-                      onSubmitted: (_) => _sendMessage(),
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) =>
+                          (_canSend && !_isTyping) ? _sendMessage() : null,
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: const BoxDecoration(
-                      gradient: VaultColors.goldGradient,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.arrow_upward_rounded,
-                          color: Color(0xFF1A1410)),
-                      onPressed: _isTyping ? null : _sendMessage,
-                    ),
-                  ),
+                  Builder(builder: (context) {
+                    final enabled = _canSend && !_isTyping;
+                    return Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        gradient: enabled ? VaultColors.goldGradient : null,
+                        color: enabled
+                            ? null
+                            : (isDark ? Colors.grey[800] : Colors.grey[300]),
+                        shape: BoxShape.circle,
+                      ),
+                      child: _isTyping
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFF1A1410),
+                              ),
+                            )
+                          : IconButton(
+                              icon: Icon(
+                                Icons.arrow_upward_rounded,
+                                color: enabled
+                                    ? const Color(0xFF1A1410)
+                                    : (isDark
+                                        ? Colors.grey[600]
+                                        : Colors.grey[500]),
+                              ),
+                              onPressed: enabled ? _sendMessage : null,
+                            ),
+                    );
+                  }),
                 ],
               ),
             ),

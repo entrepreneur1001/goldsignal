@@ -201,6 +201,17 @@ class _AddGoalSheetState extends ConsumerState<_AddGoalSheet> {
   String _metal = 'Gold';
   final _targetController = TextEditingController();
   final _noteController = TextEditingController();
+  bool _saving = false;
+
+  bool get _canSave => (double.tryParse(_targetController.text.trim()) ?? 0) > 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _targetController.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
 
   @override
   void dispose() {
@@ -210,21 +221,26 @@ class _AddGoalSheetState extends ConsumerState<_AddGoalSheet> {
   }
 
   Future<void> _save() async {
+    if (_saving || !_canSave) return;
     final target = double.tryParse(_targetController.text.trim()) ?? 0;
-    if (target <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a target weight greater than 0')),
-      );
-      return;
-    }
-    await ref.read(savingsGoalsProvider.notifier).addGoal(
-          metal: _metal,
-          targetGrams: target,
-          note: _noteController.text.trim().isEmpty
-              ? null
-              : _noteController.text.trim(),
+    setState(() => _saving = true);
+    try {
+      await ref.read(savingsGoalsProvider.notifier).addGoal(
+            metal: _metal,
+            targetGrams: target,
+            note: _noteController.text.trim().isEmpty
+                ? null
+                : _noteController.text.trim(),
+          );
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save goal. Please try again.')),
         );
-    if (mounted) Navigator.pop(context);
+      }
+    }
   }
 
   @override
@@ -275,8 +291,14 @@ class _AddGoalSheetState extends ConsumerState<_AddGoalSheet> {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: _save,
-                child: const Text('Save goal'),
+                onPressed: (_canSave && !_saving) ? _save : null,
+                child: _saving
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Save goal'),
               ),
             ),
           ],

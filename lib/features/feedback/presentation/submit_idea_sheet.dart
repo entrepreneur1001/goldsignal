@@ -23,6 +23,16 @@ class _SubmitIdeaSheetState extends ConsumerState<SubmitIdeaSheet> {
   final _controller = TextEditingController();
   bool _submitting = false;
 
+  bool get _canSubmit => _controller.text.trim().isNotEmpty;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -95,7 +105,7 @@ class _SubmitIdeaSheetState extends ConsumerState<SubmitIdeaSheet> {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: _submitting ? null : _submit,
+                onPressed: (_submitting || !_canSubmit) ? null : _submit,
                 child: _submitting
                     ? const SizedBox(
                         height: 20,

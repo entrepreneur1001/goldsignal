@@ -110,7 +110,7 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
         existingItem: item,
         onSave: (updatedItem) {
           updatedItem.firestoreId = item.firestoreId;
-          ref.read(portfolioControllerProvider).update(updatedItem);
+          return ref.read(portfolioControllerProvider).update(updatedItem);
         },
       ),
     );
@@ -791,7 +791,7 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
 
 // Add/Edit Portfolio Item Dialog
 class AddPortfolioItemDialog extends ConsumerStatefulWidget {
-  final Function(PortfolioItem) onSave;
+  final Future<void> Function(PortfolioItem) onSave;
   final PortfolioItem? existingItem;
 
   const AddPortfolioItemDialog({
@@ -816,6 +816,7 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
   String _selectedMetal = 'Gold';
   int _selectedKarat = 24;
   DateTime _selectedDate = DateTime.now();
+  bool _saving = false;
 
   @override
   void initState() {
@@ -837,6 +838,35 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
     _priceController.dispose();
     _notesController.dispose();
     super.dispose();
+  }
+
+  Future<void> _onSavePressed() async {
+    if (_saving) return;
+    if (!_formKey.currentState!.validate()) return;
+    final purchaseCurrency = widget.isEditing
+        ? widget.existingItem!.purchaseCurrency
+        : ref.read(selectedCurrencyProvider);
+    final item = PortfolioItem(
+      metal: _selectedMetal,
+      karat: _selectedKarat,
+      weight: double.parse(_weightController.text),
+      purchasePrice: double.parse(_priceController.text),
+      purchaseCurrency: purchaseCurrency,
+      purchaseDate: _selectedDate,
+      notes: _notesController.text.isEmpty ? null : _notesController.text,
+    );
+    setState(() => _saving = true);
+    try {
+      await widget.onSave(item);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save. Please try again.')),
+        );
+      }
+    }
   }
 
   @override
@@ -1042,33 +1072,23 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
                   const SizedBox(width: 16),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          final purchaseCurrency = widget.isEditing
-                              ? widget.existingItem!.purchaseCurrency
-                              : ref.read(selectedCurrencyProvider);
-                          final item = PortfolioItem(
-                            metal: _selectedMetal,
-                            karat: _selectedKarat,
-                            weight: double.parse(_weightController.text),
-                            purchasePrice: double.parse(_priceController.text),
-                            purchaseCurrency: purchaseCurrency,
-                            purchaseDate: _selectedDate,
-                            notes: _notesController.text.isEmpty
-                                ? null
-                                : _notesController.text,
-                          );
-                          widget.onSave(item);
-                          Navigator.pop(context);
-                        }
-                      },
+                      onPressed: _saving ? null : _onSavePressed,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: VaultColors.gold,
                       ),
-                      child: Text(
-                        widget.isEditing ? 'Save' : 'Add',
-                        style: const TextStyle(color: Colors.white),
-                      ),
+                      child: _saving
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : Text(
+                              widget.isEditing ? 'Save' : 'Add',
+                              style: const TextStyle(color: Colors.white),
+                            ),
                     ),
                   ),
                 ],

@@ -33,6 +33,7 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
   bool _use24hPercent = false;
   AlertCondition _condition = AlertCondition.above;
   final _targetController = TextEditingController();
+  bool _saving = false;
   bool _autoRepeat = false;
   int _repeatAfterHours = 24;
   bool _initialized = false;
@@ -94,6 +95,7 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
       );
 
   Future<void> _submit() async {
+    if (_saving) return;
     final target = double.tryParse(_targetController.text.trim());
     if (target == null || target <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -113,27 +115,36 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
       return;
     }
 
-    await ref.read(priceAlertsProvider.notifier).requestNotificationPermission();
+    setState(() => _saving = true);
     final alertType = _type == AlertType.percentChange && _use24hPercent
         ? AlertType.percentChange24h
         : _type;
 
-    await ref.read(priceAlertsProvider.notifier).createAlert(
-          metal: _metal,
-          karat: _karat,
-          currency: _currency,
-          side: _side,
-          type: alertType,
-          condition: _condition,
-          targetValue: target,
-          repeatAfterHours: _autoRepeat ? _repeatAfterHours : null,
+    try {
+      await ref.read(priceAlertsProvider.notifier).requestNotificationPermission();
+      await ref.read(priceAlertsProvider.notifier).createAlert(
+            metal: _metal,
+            karat: _karat,
+            currency: _currency,
+            side: _side,
+            type: alertType,
+            condition: _condition,
+            targetValue: target,
+            repeatAfterHours: _autoRepeat ? _repeatAfterHours : null,
+          );
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Alert saved')),
         );
-
-    if (mounted) {
-      Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Alert saved')),
-      );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not save alert. Please try again.')),
+        );
+      }
     }
   }
 
@@ -322,8 +333,14 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
           ],
           const SizedBox(height: 16),
           FilledButton(
-            onPressed: _submit,
-            child: const Text('Save alert'),
+            onPressed: _saving ? null : _submit,
+            child: _saving
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Save alert'),
           ),
           ],
         ),

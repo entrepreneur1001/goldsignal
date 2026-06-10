@@ -180,16 +180,23 @@ class _ConversationTile extends ConsumerWidget {
           autofocus: true,
           textInputAction: TextInputAction.done,
           decoration: const InputDecoration(hintText: 'Conversation name'),
-          onSubmitted: (v) => Navigator.pop(ctx, v),
+          onSubmitted: (v) =>
+              v.trim().isEmpty ? null : Navigator.pop(ctx, v),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('Save'),
+          // Rebuilds as the user types so Save is disabled while empty.
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (_, value, _) => FilledButton(
+              onPressed: value.text.trim().isEmpty
+                  ? null
+                  : () => Navigator.pop(ctx, controller.text),
+              child: const Text('Save'),
+            ),
           ),
         ],
       ),
