@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/design/app_colors.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -68,7 +69,7 @@ class _GoalCard extends ConsumerWidget {
     final percent = (ratio * 100).round();
     final remaining = (goal.targetGrams - held).clamp(0.0, double.infinity);
     final isGold = goal.metal == 'Gold';
-    final accent = isGold ? const Color(0xFFFFB800) : const Color(0xFF9E9E9E);
+    final accent = isGold ? VaultColors.gold : const Color(0xFF9E9E9E);
     final complete = held >= goal.targetGrams;
 
     return Dismissible(

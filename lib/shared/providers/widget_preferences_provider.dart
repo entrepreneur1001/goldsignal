@@ -169,8 +169,10 @@ WidgetDisplayData? _resolveWidgetDisplay(Ref ref) {
     );
   }
 
-  final global = ref.read(marketPricesControllerProvider).globalData ??
-      ref.read(metalPriceApiProvider).getCachedPrices();
+  // Use the Hive-cached prices (written by the controller on every refresh
+  // before this runs). Reading marketPricesControllerProvider here would be a
+  // self-dependency, since this is invoked with the controller's own `ref`.
+  final global = ref.read(metalPriceApiProvider).getCachedPrices();
   if (global == null) return null;
 
   final api = ref.read(metalPriceApiProvider);

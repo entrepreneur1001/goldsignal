@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/design/app_colors.dart';
 import '../../../../core/utils/currency_format.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,11 +20,19 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
   final TextEditingController _weightController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController(text: '1');
   
-  int _selectedKarat = 21;
+  int _selectedKarat = 24;
   double _totalValue = 0.0;
-  
+
   final List<int> _karatOptions = [24, 22, 21, 18];
-  
+
+  @override
+  void initState() {
+    super.initState();
+    // Default to 24K globally; Egypt's local market conventionally uses 21K.
+    _selectedKarat =
+        ref.read(selectedCurrencyProvider) == 'EGP' ? 21 : 24;
+  }
+
   @override
   void dispose() {
     _weightController.dispose();
@@ -73,7 +82,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
         setState(() => _selectedKarat = 21);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('24K isn\'t sold in the Egypt local market — switched to 21K.'),
+            content: Text('Showing 21K — the standard karat in Egypt\'s local market.'),
             duration: Duration(seconds: 3),
           ),
         );
@@ -129,7 +138,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFDEB059).withValues(alpha: 0.12),
+                      color: VaultColors.goldDeep.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -165,14 +174,14 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             decoration: BoxDecoration(
                               color: isSelected
-                                  ? const Color(0xFFFFB800)
+                                  ? VaultColors.gold
                                   : isDark
                                       ? Colors.grey[800]
                                       : Colors.grey[100],
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isSelected
-                                    ? const Color(0xFFFFB800)
+                                    ? VaultColors.gold
                                     : Colors.transparent,
                                 width: 2,
                               ),
@@ -264,8 +273,8 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        const Color(0xFFFFB800),
-                        const Color(0xFFFFB800).withValues(alpha: 0.8),
+                        VaultColors.gold,
+                        VaultColors.gold.withValues(alpha: 0.8),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -273,7 +282,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFFFB800).withValues(alpha: 0.3),
+                        color: VaultColors.gold.withValues(alpha: 0.3),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),

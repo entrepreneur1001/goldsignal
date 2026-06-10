@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/utils/currency_format.dart';
 import '../design/app_colors.dart';
 import '../design/app_typography.dart';
+import 'animated_value.dart';
 import 'delta_pill.dart';
 import 'vault_buttons.dart';
 import 'vault_card.dart';
@@ -73,8 +74,9 @@ class PriceCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          Text(
-            formatCurrency(pricePerGram, currency),
+          AnimatedValue(
+            value: pricePerGram,
+            formatter: (v) => formatCurrency(v, currency),
             style: AppTypography.hero(c, size: 34),
           ),
           const SizedBox(height: 2),

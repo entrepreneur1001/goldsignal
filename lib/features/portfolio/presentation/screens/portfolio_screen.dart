@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/utils/currency_format.dart';
 import '../../../../core/firebase/firestore_portfolio_service.dart';
+import '../../../../shared/design/app_colors.dart';
+import '../../../../shared/design/app_typography.dart';
+import '../../../../shared/widgets/animated_value.dart';
+import '../../../../shared/widgets/delta_pill.dart';
+import '../../../../shared/widgets/shimmer.dart';
+import '../../../../shared/widgets/vault_card.dart';
 import '../../../../core/utils/currency_conversion.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
@@ -337,9 +344,33 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     if (!_isInitialized) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
+      return Scaffold(
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                SizedBox(height: 8),
+                ShimmerBox(width: 140, height: 26),
+                SizedBox(height: 24),
+                ShimmerBox(
+                  height: 150,
+                  borderRadius: BorderRadius.all(Radius.circular(20)),
+                ),
+                SizedBox(height: 24),
+                ShimmerBox(
+                  height: 88,
+                  borderRadius: BorderRadius.all(Radius.circular(20)),
+                ),
+                SizedBox(height: 12),
+                ShimmerBox(
+                  height: 88,
+                  borderRadius: BorderRadius.all(Radius.circular(20)),
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }
@@ -404,26 +435,19 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                     ],
                     const SizedBox(height: 24),
                     
-                    // Summary Cards
+                    // Net-worth hero + zakat indicator
                     Builder(builder: (_) {
-                      final totalProfitLoss = _calculateTotalProfitLoss();
                       final zakatIndicator =
                           _buildZakatIndicator(context, theme);
                       return Column(children: [
-                        _buildSummaryCard(
-                          'Total Value',
-                          _calculateTotalValue(),
-                          const Color(0xFFFFB800),
-                          Icons.account_balance_wallet,
-                        ),
-                        const SizedBox(height: 12),
-                        _buildSummaryCard(
-                          'Total Profit/Loss',
-                          totalProfitLoss,
-                          totalProfitLoss >= 0 ? Colors.green : Colors.red,
-                          totalProfitLoss >= 0 ? Icons.trending_up : Icons.trending_down,
-                          showSign: true,
-                        ),
+                        _buildNetWorthHero()
+                            .animate()
+                            .fadeIn(duration: 400.ms)
+                            .slideY(
+                              begin: 0.06,
+                              end: 0,
+                              curve: Curves.easeOutCubic,
+                            ),
                         if (zakatIndicator != null) ...[
                           const SizedBox(height: 12),
                           zakatIndicator,
@@ -512,65 +536,119 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
     );
   }
 
-  Widget _buildSummaryCard(String title, double value, Color color, IconData icon, {bool showSign = false}) {
+  /// Sum of current market value split by metal.
+  ({double gold, double silver}) _metalSplit() {
+    double g = 0, s = 0;
+    for (final item in _listOrder) {
+      final v = _itemMarketValue(item);
+      if (item.metal == 'Gold') {
+        g += v;
+      } else {
+        s += v;
+      }
+    }
+    return (gold: g, silver: s);
+  }
+
+  Widget _buildNetWorthHero() {
+    final theme = Theme.of(context);
+    final c = VaultColors.of(theme.brightness);
     final currency = ref.watch(selectedCurrencyProvider);
 
-    return Container(
+    final total = _calculateTotalValue();
+    final pl = _calculateTotalProfitLoss();
+    final cost = total - pl;
+    final plPercent = cost > 0 ? (pl / cost) * 100 : 0.0;
+    final split = _metalSplit();
+    final hasHoldings = total > 0;
+
+    return VaultCard(
+      glow: true,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            color,
-            color.withValues(alpha: 0.8),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: Colors.white, size: 24),
+          Text('NET WORTH', style: AppTypography.microLabel(c)),
+          const SizedBox(height: 8),
+          AnimatedValue(
+            value: total,
+            formatter: (v) => formatCurrency(v, currency),
+            style: AppTypography.hero(c, size: 40),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 12),
+          if (hasHoldings)
+            Row(
               children: [
+                DeltaPill(percent: plPercent),
+                const SizedBox(width: 8),
                 Text(
-                  title,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  formatCurrency(value, currency, showSign: showSign),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  '${pl >= 0 ? '+' : ''}${formatCurrency(pl, currency)} all-time',
+                  style: theme.textTheme.bodySmall,
                 ),
               ],
-            ),
-          ),
+            )
+          else
+            Text('Add a holding to start tracking',
+                style: theme.textTheme.bodySmall),
+          if (hasHoldings && (split.gold > 0 || split.silver > 0)) ...[
+            const SizedBox(height: 18),
+            _allocationBar(c, split.gold, split.silver),
+          ],
         ],
       ),
+    );
+  }
+
+  Widget _allocationBar(VaultColors c, double goldVal, double silverVal) {
+    final total = goldVal + silverVal;
+    if (total <= 0) return const SizedBox.shrink();
+    final goldPct = (goldVal / total * 100).round();
+    final silverPct = 100 - goldPct;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: Row(
+            children: [
+              if (goldVal > 0)
+                Expanded(
+                  flex: (goldVal / total * 1000).round().clamp(1, 1000),
+                  child: Container(height: 8, color: VaultColors.gold),
+                ),
+              if (silverVal > 0)
+                Expanded(
+                  flex: (silverVal / total * 1000).round().clamp(1, 1000),
+                  child: Container(height: 8, color: VaultColors.silver),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            _legend(c, VaultColors.gold, 'Gold $goldPct%'),
+            const SizedBox(width: 16),
+            _legend(c, VaultColors.silver, 'Silver $silverPct%'),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _legend(VaultColors c, Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
+      ],
     );
   }
 

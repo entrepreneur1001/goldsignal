@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/design/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
@@ -11,6 +12,8 @@ import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
 import '../../../../shared/widgets/price_card.dart';
+import '../../../../shared/widgets/shimmer.dart';
+import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/currency_selector.dart';
 import '../../../alerts/presentation/widgets/create_alert_sheet.dart';
 import '../../../charts/presentation/screens/price_chart_screen.dart';
@@ -80,69 +83,84 @@ class PricesScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: marketState.isRefreshing && goldPrice == null && localPrices == null
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: () =>
-                  ref.read(marketPricesControllerProvider.notifier).refresh(),
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  if (isLocal) ...[
-                    _buildLocalBanner(context),
-                    const SizedBox(height: 12),
-                    _buildBuySellToggle(context, ref, priceSide),
-                    const SizedBox(height: 16),
-                  ],
-                  _buildUpdatedRow(context, marketState.lastUpdated, localPrices),
-                  const SizedBox(height: 16),
-                  if (isLocal && localPrices != null)
-                    ..._buildLocalContent(context, localPrices, priceSide)
-                  else if (marketState.globalData != null)
-                    ..._buildGlobalContent(
-                      context,
-                      ref,
-                      marketState.globalData!,
-                      selectedCurrency,
-                    )
-                  else if (goldPrice != null)
-                    ..._buildFromProviders(
-                      context,
-                      goldPrice,
-                      silverPrice,
-                      side: isLocal ? priceSide : null,
-                    ),
-                  if (marketState.error != null) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      'Using cached data. ${marketState.error}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.orange,
-                          ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+      body: _buildBody(
+        context,
+        ref,
+        marketState,
+        isLocal,
+        localPrices,
+        goldPrice,
+        silverPrice,
+        selectedCurrency,
+        priceSide,
+      ),
     );
   }
 
-  Widget _buildLocalBanner(BuildContext context) {
-    return Card(
-      color: const Color(0xFFDEB059).withValues(alpha: 0.15),
-      child: ListTile(
-        leading: const Icon(Icons.storefront, color: Color(0xFFDEB059)),
-        title: const Text('Egypt Local Market'),
-        subtitle: const Text('Prices from iSagha.com — jeweler buy/sell rates'),
-        trailing: IconButton(
-          icon: const Icon(Icons.open_in_new, size: 20),
-          onPressed: () => launchUrl(
-            Uri.parse('https://market.isagha.com/prices'),
-            mode: LaunchMode.externalApplication,
-          ),
+  Widget _buildBody(
+    BuildContext context,
+    WidgetRef ref,
+    MarketPricesState marketState,
+    bool isLocal,
+    LocalMarketPrices? localPrices,
+    MetalPrice? goldPrice,
+    MetalPrice? silverPrice,
+    String selectedCurrency,
+    PriceSide priceSide,
+  ) {
+    final hasData = (isLocal && localPrices != null) ||
+        marketState.globalData != null ||
+        goldPrice != null;
+
+    if (marketState.isRefreshing && !hasData) {
+      return const PriceListSkeleton();
+    }
+
+    if (marketState.error != null && !hasData) {
+      return EmptyState(
+        icon: Icons.cloud_off_rounded,
+        title: "Can't load prices",
+        message: 'Check your connection and try again.',
+        action: FilledButton.icon(
+          onPressed: () =>
+              ref.read(marketPricesControllerProvider.notifier).refresh(),
+          icon: const Icon(Icons.refresh),
+          label: const Text('Try again'),
         ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () =>
+          ref.read(marketPricesControllerProvider.notifier).refresh(),
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (isLocal) ...[
+            _buildBuySellToggle(context, ref, priceSide),
+            const SizedBox(height: 16),
+          ],
+          _buildUpdatedRow(context, marketState.lastUpdated, localPrices),
+          const SizedBox(height: 16),
+          if (isLocal && localPrices != null)
+            ..._buildLocalContent(context, localPrices, priceSide)
+          else if (marketState.globalData != null)
+            ..._buildGlobalContent(
+              context,
+              ref,
+              marketState.globalData!,
+              selectedCurrency,
+            )
+          else if (goldPrice != null)
+            ..._buildFromProviders(
+              context,
+              goldPrice,
+              silverPrice,
+              side: isLocal ? priceSide : null,
+            ),
+        ],
       ),
-    ).animate().fadeIn();
+    );
   }
 
   Widget _buildBuySellToggle(
