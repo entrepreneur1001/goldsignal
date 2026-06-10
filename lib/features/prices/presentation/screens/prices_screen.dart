@@ -379,15 +379,22 @@ class PricesScreen extends ConsumerWidget {
     String currency,
   ) {
     final api = ref.read(metalPriceApiProvider);
+    final history = ref.read(priceHistoryServiceProvider);
     final goldPrice = data.goldPriceIn(currency) ?? 0;
-    final goldDelta = api.computeChange(
-      current: goldPrice,
-      previousPrice: (prev) => prev.goldPriceIn(currency),
+    final goldDelta = api.change24hFor(
+      response: data,
+      metal: 'gold',
+      currency: currency,
+      historyPercent:
+          history.globalChange24hPercent(currency: currency, metal: 'gold'),
     );
     final silverPrice = data.silverPriceIn(currency) ?? 0;
-    final silverDelta = api.computeChange(
-      current: silverPrice,
-      previousPrice: (prev) => prev.silverPriceIn(currency),
+    final silverDelta = api.change24hFor(
+      response: data,
+      metal: 'silver',
+      currency: currency,
+      historyPercent:
+          history.globalChange24hPercent(currency: currency, metal: 'silver'),
     );
 
     return [

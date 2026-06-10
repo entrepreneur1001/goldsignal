@@ -43,6 +43,17 @@ class PriceCard extends StatelessWidget {
     final isGold = metal.toLowerCase().contains('gold');
     final accent = isGold ? VaultColors.gold : VaultColors.silver;
 
+    // Derive the absolute 24h change in both units from the (reliable) percent,
+    // so it's consistent with the displayed prices regardless of the caller's
+    // change24h unit.
+    double deltaOf(double price) =>
+        changePercent == 0 ? 0 : price - price / (1 + changePercent / 100);
+    final perGramChange = deltaOf(pricePerGram);
+    final perOunceChange = deltaOf(pricePerOunce);
+    final changeColor = isPositive ? VaultColors.up : VaultColors.down;
+    final sign = isPositive ? '+' : '-';
+    String chg(double v) => '$sign${formatCurrency(v.abs(), currency)}';
+
     return VaultCard(
       glow: isGold,
       padding: const EdgeInsets.all(20),
@@ -85,18 +96,24 @@ class PriceCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _miniStat(context, c, 'Per ounce',
-                    formatCurrency(pricePerOunce, currency)),
+                child: _miniStat(
+                  context,
+                  c,
+                  'Per ounce',
+                  formatCurrency(pricePerOunce, currency),
+                ),
               ),
-              Container(width: 1, height: 32, color: c.hairline),
+              Container(width: 1, height: 40, color: c.hairline),
               const SizedBox(width: 12),
               Expanded(
                 child: _miniStat(
                   context,
                   c,
                   '24h change',
-                  '${isPositive ? '+' : ''}${formatCurrency(change24h, currency)}',
-                  valueColor: isPositive ? VaultColors.up : VaultColors.down,
+                  '${chg(perGramChange)} /g',
+                  valueColor: changeColor,
+                  sub: '${chg(perOunceChange)} /oz',
+                  subColor: changeColor,
                 ),
               ),
             ],
@@ -120,6 +137,8 @@ class PriceCard extends StatelessWidget {
     String label,
     String value, {
     Color? valueColor,
+    String? sub,
+    Color? subColor,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,6 +155,17 @@ class PriceCard extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
+        if (sub != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            sub,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: subColor ?? c.textTertiary,
+                ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ],
     );
   }

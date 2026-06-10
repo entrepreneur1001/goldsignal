@@ -243,11 +243,15 @@ class MarketPricesController extends Notifier<MarketPricesState> {
   void _pushGlobalToMetalProviders(MetalPricesResponse response, String currency) {
     final api = ref.read(metalPriceApiProvider);
 
+    final history = ref.read(priceHistoryServiceProvider);
     final goldOunce = response.goldPriceIn(currency);
     if (goldOunce != null) {
-      final goldChange = api.computeChange(
-        current: goldOunce,
-        previousPrice: (prev) => prev.goldPriceIn(currency),
+      final goldChange = api.change24hFor(
+        response: response,
+        metal: 'gold',
+        currency: currency,
+        historyPercent:
+            history.globalChange24hPercent(currency: currency, metal: 'gold'),
       );
       ref.read(metalPriceProvider.notifier).updatePrice(MetalPrice(
         metal: 'Gold',
@@ -262,9 +266,12 @@ class MarketPricesController extends Notifier<MarketPricesState> {
 
     final silverOunce = response.silverPriceIn(currency);
     if (silverOunce != null) {
-      final silverChange = api.computeChange(
-        current: silverOunce,
-        previousPrice: (prev) => prev.silverPriceIn(currency),
+      final silverChange = api.change24hFor(
+        response: response,
+        metal: 'silver',
+        currency: currency,
+        historyPercent:
+            history.globalChange24hPercent(currency: currency, metal: 'silver'),
       );
       ref.read(silverPriceProvider.notifier).updatePrice(MetalPrice(
         metal: 'Silver',

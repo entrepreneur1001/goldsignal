@@ -189,11 +189,13 @@ WidgetDisplayData? _resolveWidgetDisplay(Ref ref) {
     perGram = ounce / _ounceToGram;
   }
 
-  final delta = api.computeChange(
-    current: ounce,
-    previousPrice: (prev) => prefs.metal == 'gold'
-        ? prev.goldPriceIn(currency)
-        : prev.silverPriceIn(currency),
+  final delta = api.change24hFor(
+    response: global,
+    metal: prefs.metal,
+    currency: currency,
+    historyPercent: ref
+        .read(priceHistoryServiceProvider)
+        .globalChange24hPercent(currency: currency, metal: prefs.metal),
   );
 
   return WidgetDisplayData(

@@ -170,7 +170,46 @@ class MetalPriceApiService {
       'base': firestoreData['base'] ?? 'USD',
       'timestamp': firestoreData['apiTimestamp'],
       'rates': firestoreData['rates'],
+      // Keep the server's 24h baseline so the change can be computed reliably.
+      'prevRates': firestoreData['prevRates'],
     };
+  }
+
+  /// Reliable 24h change for the global market, in priority order:
+  /// 1) server-maintained `prevRates` baseline carried on [response],
+  /// 2) [historyPercent] computed from the app's recorded price history,
+  /// 3) the local Hive `prev_v2` baseline (for scrape-sourced data).
+  ({double change, double changePercent}) change24hFor({
+    required MetalPricesResponse response,
+    required String metal, // 'gold' | 'silver'
+    required String currency,
+    double? historyPercent,
+  }) {
+    final isGold = metal == 'gold';
+    final current =
+        isGold ? response.goldPriceIn(currency) : response.silverPriceIn(currency);
+    if (current == null) return (change: 0.0, changePercent: 0.0);
+
+    // 1) Server baseline.
+    final serverPrev =
+        isGold ? response.goldPreviousIn(currency) : response.silverPreviousIn(currency);
+    if (serverPrev != null && serverPrev != 0) {
+      final delta = current - serverPrev;
+      return (change: delta, changePercent: (delta / serverPrev) * 100);
+    }
+
+    // 2) Recorded-history baseline (client-side, no backend needed).
+    if (historyPercent != null && historyPercent.abs() > 0.0001) {
+      final prev = current / (1 + historyPercent / 100);
+      return (change: current - prev, changePercent: historyPercent);
+    }
+
+    // 3) Local Hive baseline.
+    return computeChange(
+      current: current,
+      previousPrice: (prev) =>
+          isGold ? prev.goldPriceIn(currency) : prev.silverPriceIn(currency),
+    );
   }
 
   /// Fallback: try Hive first, then Firestore (even if stale), then throw.
@@ -378,20 +417,30 @@ class MetalPricesResponse {
   final String base;
   final DateTime timestamp;
   final Map<String, double> rates;
-  
+
+  /// Server-maintained snapshot of [rates] from ~24h ago (Cloud Function
+  /// `prevRates`). Used as the reliable 24h baseline when present.
+  final Map<String, double>? previousRates;
+
   MetalPricesResponse({
     required this.success,
     required this.base,
     required this.timestamp,
     required this.rates,
+    this.previousRates,
   });
-  
-  factory MetalPricesResponse.fromJson(Map json) {
-    final rawRates = json['rates'] ?? {};
-    final rates = <String, double>{};
-    rawRates.forEach((key, value) {
-      rates[key.toString()] = (value as num).toDouble();
+
+  static Map<String, double>? _parseRates(dynamic raw) {
+    if (raw == null) return null;
+    final out = <String, double>{};
+    (raw as Map).forEach((key, value) {
+      if (value is num) out[key.toString()] = value.toDouble();
     });
+    return out.isEmpty ? null : out;
+  }
+
+  factory MetalPricesResponse.fromJson(Map json) {
+    final rates = _parseRates(json['rates']) ?? <String, double>{};
 
     return MetalPricesResponse(
       success: json['success'] ?? true,
@@ -400,8 +449,25 @@ class MetalPricesResponse {
           ? DateTime.fromMillisecondsSinceEpoch((json['timestamp'] as num).toInt() * 1000)
           : DateTime.now(),
       rates: rates,
+      previousRates: _parseRates(json['prevRates']),
     );
   }
+
+  static double? _priceIn(Map<String, double>? r, String usdKey, String currency) {
+    if (r == null) return null;
+    final usd = r[usdKey];
+    if (usd == null) return null;
+    if (currency == 'USD') return usd;
+    final rate = r[currency];
+    if (rate == null) return null;
+    return usd * rate;
+  }
+
+  /// Gold/silver price ~24h ago in [currency], from the server baseline.
+  double? goldPreviousIn(String currency) =>
+      _priceIn(previousRates, 'USDXAU', currency);
+  double? silverPreviousIn(String currency) =>
+      _priceIn(previousRates, 'USDXAG', currency);
   
   // Gold/silver price in USD
   double? get goldPriceUsd => rates['USDXAU'];

@@ -172,6 +172,52 @@ class PriceHistoryService {
   String _defaultSource(String currency) =>
       currency == 'EGP' ? 'isagha' : 'livepriceofgold';
 
+  /// 24h change % for the global market computed from recorded snapshots.
+  /// Per-gram and karat-invariant, so '24'/'999' is fine. Returns null if there
+  /// is no snapshot ~24h old to compare against.
+  double? globalChange24hPercent({
+    required String currency,
+    required String metal,
+  }) {
+    if (!Hive.isBoxOpen(boxName)) return null;
+    final box = Hive.box(boxName);
+    final key = '$currency|$metal|${metal == 'gold' ? '24' : '999'}|livepriceofgold';
+    final raw = box.get(key);
+    if (raw == null) return null;
+
+    final snaps = (raw as List)
+        .map((e) => PriceSnapshot.fromJson(Map<String, dynamic>.from(e)))
+        .toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    if (snaps.length < 2) return null;
+
+    final current = snaps.last;
+    final target = current.timestamp.subtract(const Duration(hours: 24));
+
+    // Pick the snapshot closest to 24h before the latest, but only count one
+    // that is between ~12h and ~48h old so it's a meaningful "previous day".
+    PriceSnapshot? prev;
+    Duration? best;
+    for (final s in snaps) {
+      if (identical(s, current)) continue;
+      final age = current.timestamp.difference(s.timestamp);
+      if (age < const Duration(hours: 12) || age > const Duration(hours: 48)) {
+        continue;
+      }
+      final diff = (s.timestamp.difference(target)).abs();
+      if (best == null || diff < best) {
+        best = diff;
+        prev = s;
+      }
+    }
+    if (prev == null) return null;
+
+    final curVal = current.sellPerGram;
+    final prevVal = prev.sellPerGram;
+    if (curVal == null || prevVal == null || prevVal == 0) return null;
+    return (curVal - prevVal) / prevVal * 100;
+  }
+
   List<ChartDataPoint> _aggregateDaily(
     List<PriceSnapshot> snapshots,
     PriceSide side,

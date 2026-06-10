@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:goldsignal/core/api/metalpriceapi_service.dart';
 import 'package:goldsignal/core/config/app_remote_config.dart';
 import 'package:goldsignal/features/zakat/zakat.dart';
 
@@ -50,6 +51,36 @@ void main() {
         silverPerGram: 0.8,
       );
       expect(v, closeTo(85 * 60, 1e-9));
+    });
+  });
+
+  group('MetalPricesResponse 24h baseline (server prevRates)', () {
+    final resp = MetalPricesResponse.fromJson({
+      'rates': {'USDXAU': 2000.0, 'USDXAG': 25.0, 'SAR': 3.75},
+      'prevRates': {'USDXAU': 1980.0, 'USDXAG': 25.5, 'SAR': 3.75},
+      'base': 'USD',
+    });
+
+    test('goldPreviousIn USD reads the prev baseline', () {
+      expect(resp.goldPreviousIn('USD'), 1980.0);
+    });
+    test('goldPreviousIn converts to other currencies', () {
+      expect(resp.goldPreviousIn('SAR'), closeTo(1980.0 * 3.75, 1e-6));
+    });
+    test('silverPreviousIn USD reads the prev baseline', () {
+      expect(resp.silverPreviousIn('USD'), 25.5);
+    });
+    test('previous is null when prevRates absent (→ Hive fallback path)', () {
+      final r = MetalPricesResponse.fromJson({
+        'rates': {'USDXAU': 2000.0},
+      });
+      expect(r.previousRates, isNull);
+      expect(r.goldPreviousIn('USD'), isNull);
+    });
+    test('24h % is computed from current vs prev baseline', () {
+      final cur = resp.goldPriceIn('USD')!;
+      final prev = resp.goldPreviousIn('USD')!;
+      expect((cur - prev) / prev * 100, closeTo(1.0101, 0.001));
     });
   });
 }
