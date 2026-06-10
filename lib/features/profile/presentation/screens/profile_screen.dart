@@ -278,7 +278,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.white,
-                                  foregroundColor: const Color(0xFFFFB800),
+                                  foregroundColor: VaultColors.gold,
                                 ),
                                 child: const Text('Sign In'),
                               )
@@ -515,7 +515,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             return ListTile(
               title: Text(currency),
               trailing: ref.watch(selectedCurrencyProvider) == currency
-                  ? const Icon(Icons.check, color: Color(0xFFFFB800))
+                  ? const Icon(Icons.check, color: VaultColors.gold)
                   : null,
               onTap: () {
                 ref.read(selectedCurrencyProvider.notifier).setCurrency(currency);

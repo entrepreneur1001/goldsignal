@@ -424,7 +424,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFDEB059).withValues(alpha: 0.12),
+                          color: VaultColors.goldDeep.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Text(
@@ -526,7 +526,7 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showAddItemDialog,
-        backgroundColor: const Color(0xFFFFB800),
+        backgroundColor: VaultColors.gold,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text(
           'Add Holding',
@@ -743,14 +743,14 @@ class _PortfolioScreenState extends ConsumerState<PortfolioScreen> {
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: item.metal == 'Gold'
-                              ? const Color(0xFFFFB800).withValues(alpha: 0.2)
+                              ? VaultColors.gold.withValues(alpha: 0.2)
                               : Colors.grey.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(
                           item.metal == 'Gold' ? Icons.star : Icons.circle,
                           color: item.metal == 'Gold'
-                              ? const Color(0xFFFFB800)
+                              ? VaultColors.gold
                               : Colors.grey,
                           size: 20,
                         ),
@@ -1260,7 +1260,7 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
                         }
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFFB800),
+                        backgroundColor: VaultColors.gold,
                       ),
                       child: Text(
                         widget.isEditing ? 'Save' : 'Add',

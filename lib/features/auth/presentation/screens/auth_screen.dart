@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/design/app_colors.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -164,7 +165,7 @@ class _AuthScreenState extends State<AuthScreen> {
           ElevatedButton(
             onPressed: () => Navigator.pop(context, 'merge'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFFB800),
+              backgroundColor: VaultColors.gold,
             ),
             child: const Text('Merge', style: TextStyle(color: Colors.white)),
           ),

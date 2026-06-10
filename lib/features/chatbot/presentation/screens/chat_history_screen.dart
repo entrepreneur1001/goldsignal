@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/design/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../shared/models/chat_conversation.dart';
@@ -111,7 +112,7 @@ class _ConversationTile extends ConsumerWidget {
         margin: EdgeInsets.zero,
         child: ListTile(
           leading: CircleAvatar(
-            backgroundColor: const Color(0xFFFFB800),
+            backgroundColor: VaultColors.gold,
             child: const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
           ),
           title: Text(

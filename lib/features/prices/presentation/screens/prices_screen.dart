@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../../shared/design/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/api/metalpriceapi_service.dart';
 import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/models/metal_price.dart';

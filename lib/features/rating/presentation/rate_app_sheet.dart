@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../../shared/design/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/app_remote_config.dart';
@@ -139,7 +140,7 @@ class _RateAppSheetState extends ConsumerState<RateAppSheet> {
                           filled
                               ? Icons.star_rounded
                               : Icons.star_border_rounded,
-                          color: const Color(0xFFFFB800),
+                          color: VaultColors.gold,
                         ),
                       );
                     }),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/design/app_colors.dart';
 import '../../../../core/config/app_remote_config.dart';
 import '../../store_launcher.dart';
 
@@ -23,7 +24,7 @@ class ForceUpdateScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.system_update,
-                      size: 88, color: Color(0xFFFFB800)),
+                      size: 88, color: VaultColors.gold),
                   const SizedBox(height: 24),
                   Text(
                     'Update required',

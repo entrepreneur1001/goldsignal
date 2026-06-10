@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/design/app_colors.dart';
 import '../../../auth/presentation/screens/splash_screen.dart';
 
 /// Full-screen, non-dismissible maintenance notice shown at launch when
@@ -22,7 +23,7 @@ class MaintenanceScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.engineering_outlined,
-                      size: 88, color: Color(0xFFFFB800)),
+                      size: 88, color: VaultColors.gold),
                   const SizedBox(height: 24),
                   Text(
                     'Under maintenance',
