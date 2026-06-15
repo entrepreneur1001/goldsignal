@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../../shared/design/app_colors.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/ads/ad_service.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
@@ -31,6 +32,7 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
     _extraGoldController.dispose();
     _extraSilverController.dispose();
     _cashController.dispose();
+    AdService.instance.showInterstitial();
     super.dispose();
   }
 

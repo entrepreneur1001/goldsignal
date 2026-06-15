@@ -9,7 +9,9 @@ import 'package:goldsignal/firebase_options.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'core/ads/ad_service.dart';
 import 'core/analytics/analytics_service.dart';
+import 'core/purchases/purchase_service.dart';
 import 'core/notifications/alert_notification_service.dart';
 import 'core/widget/home_widget_service.dart';
 import 'core/utils/app_config.dart';
@@ -44,6 +46,8 @@ void main() async {
   await AppConfig.initialize();
   await AlertNotificationService.instance.initialize();
   await HomeWidgetService.instance.initialize();
+  await AdService.instance.initialize();
+  await PurchaseService.instance.initialize();
 
   final packageInfo = await PackageInfo.fromPlatform();
 

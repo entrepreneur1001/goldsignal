@@ -3,16 +3,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/api/metalpriceapi_service.dart';
+import '../../../../core/utils/share_price.dart';
 import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/models/metal_price.dart';
+import '../../../../shared/models/watchlist_entry.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
+import '../../../../shared/providers/watchlist_provider.dart';
 import '../../../../shared/widgets/price_card.dart';
 import '../../../../shared/widgets/shimmer.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/currency_selector.dart';
+import '../../../../shared/widgets/watchlist_strip.dart';
+import '../../../../shared/widgets/banner_ad_widget.dart';
 import '../../../alerts/presentation/widgets/create_alert_sheet.dart';
 import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
 import '../../../charts/presentation/screens/price_chart_screen.dart';
@@ -20,6 +25,35 @@ import '../../../../shared/widgets/alerts_nav_button.dart';
 
 class PricesScreen extends ConsumerWidget {
   const PricesScreen({super.key});
+
+  Future<void> _toggleWatchlist(
+    BuildContext context,
+    WidgetRef ref,
+    WatchlistEntry entry,
+  ) async {
+    final result = await ref.read(watchlistProvider.notifier).toggle(entry);
+    if (!context.mounted || result != WatchlistToggleResult.full) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Watchlist full — remove a pin first (max 8)')),
+    );
+  }
+
+  void _sharePrice({
+    required String label,
+    required double pricePerGram,
+    required String currency,
+    required double changePercent,
+  }) {
+    shareMetalPrice(
+      label: label,
+      pricePerGram: pricePerGram,
+      currency: currency,
+      changePercent: changePercent,
+    );
+  }
+
+  bool _isWatchlisted(WidgetRef ref, WatchlistEntry entry) =>
+      ref.watch(watchlistProvider).any((e) => e.id == entry.id);
 
   Future<void> _openAlertSheet(
     BuildContext context, {
@@ -144,8 +178,11 @@ class PricesScreen extends ConsumerWidget {
           ],
           _buildUpdatedRow(context, marketState.lastUpdated, localPrices),
           const SizedBox(height: 16),
+          const WatchlistStrip(),
+          if (ref.watch(watchlistProvider).isNotEmpty)
+            const SizedBox(height: 16),
           if (isLocal && localPrices != null)
-            ..._buildLocalContent(context, localPrices, priceSide)
+            ..._buildLocalContent(context, ref, localPrices, priceSide)
           else if (marketState.globalData != null)
             ..._buildGlobalContent(
               context,
@@ -156,10 +193,13 @@ class PricesScreen extends ConsumerWidget {
           else if (goldPrice != null)
             ..._buildFromProviders(
               context,
+              ref,
               goldPrice,
               silverPrice,
               side: isLocal ? priceSide : null,
             ),
+          const SizedBox(height: 16),
+          const BannerAdWidget(),
         ],
       ),
     );
@@ -217,11 +257,14 @@ class PricesScreen extends ConsumerWidget {
 
   List<Widget> _buildLocalContent(
     BuildContext context,
+    WidgetRef ref,
     LocalMarketPrices local,
     PriceSide side,
   ) {
     final headline = local.headlineGold;
     final silverHeadline = local.headlineSilver;
+    const goldEntry = WatchlistEntry(metal: 'gold', karat: '21');
+    const silverEntry = WatchlistEntry(metal: 'silver', karat: '999');
 
     return [
       if (headline != null)
@@ -234,6 +277,15 @@ class PricesScreen extends ConsumerWidget {
           currency: 'EGP',
           change24h: headline.change,
           changePercent: headline.changePercent,
+          isWatchlisted: _isWatchlisted(ref, goldEntry),
+          onToggleWatchlist: () =>
+              _toggleWatchlist(context, ref, goldEntry),
+          onShare: () => _sharePrice(
+            label: goldEntry.label,
+            pricePerGram: headline.priceFor(side),
+            currency: 'EGP',
+            changePercent: headline.changePercent,
+          ),
           onSetAlert: () => _openAlertSheet(
             context,
             metal: 'gold',
@@ -254,6 +306,15 @@ class PricesScreen extends ConsumerWidget {
           currency: 'EGP',
           change24h: silverHeadline.change,
           changePercent: silverHeadline.changePercent,
+          isWatchlisted: _isWatchlisted(ref, silverEntry),
+          onToggleWatchlist: () =>
+              _toggleWatchlist(context, ref, silverEntry),
+          onShare: () => _sharePrice(
+            label: silverEntry.label,
+            pricePerGram: silverHeadline.priceFor(side),
+            currency: 'EGP',
+            changePercent: silverHeadline.changePercent,
+          ),
           onSetAlert: () => _openAlertSheet(
             context,
             metal: 'silver',
@@ -264,9 +325,9 @@ class PricesScreen extends ConsumerWidget {
           ),
         ).animate().slideX(begin: 1, duration: 600.ms),
       const SizedBox(height: 24),
-      _buildLocalKaratCard(context, 'Gold Prices (per gram)', local.gold, side),
+      _buildLocalKaratCard(context, ref, 'Gold Prices (per gram)', local.gold, side, isGold: true),
       const SizedBox(height: 16),
-      _buildLocalKaratCard(context, 'Silver Prices (per gram)', local.silver, side),
+      _buildLocalKaratCard(context, ref, 'Silver Prices (per gram)', local.silver, side, isGold: false),
       if (local.fxRates.isNotEmpty) ...[
         const SizedBox(height: 16),
         _buildFxCard(context, local),
@@ -276,10 +337,12 @@ class PricesScreen extends ConsumerWidget {
 
   Widget _buildLocalKaratCard(
     BuildContext context,
+    WidgetRef ref,
     String title,
     List<LocalKaratPrice> rows,
-    PriceSide side,
-  ) {
+    PriceSide side, {
+    required bool isGold,
+  }) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -288,7 +351,8 @@ class PricesScreen extends ConsumerWidget {
           children: [
             Text(title, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 16),
-            for (final row in rows) _buildLocalKaratRow(context, row, side),
+            for (final row in rows)
+              _buildLocalKaratRow(context, ref, row, side, isGold: isGold),
           ],
         ),
       ),
@@ -297,12 +361,17 @@ class PricesScreen extends ConsumerWidget {
 
   Widget _buildLocalKaratRow(
     BuildContext context,
+    WidgetRef ref,
     LocalKaratPrice row,
-    PriceSide side,
-  ) {
+    PriceSide side, {
+    required bool isGold,
+  }) {
     final label = _karatLabel(row.karat);
     final price = row.priceFor(side);
     final gap = side == PriceSide.sell ? row.globalGapSell : row.globalGapBuy;
+    final entry = entryForLocalRow(row.karat, isGold: isGold);
+    final pinned = _isWatchlisted(ref, entry);
+    final canPin = !row.isPerUnit;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -329,6 +398,28 @@ class PricesScreen extends ConsumerWidget {
                   fontWeight: FontWeight.bold,
                 ),
           ),
+          IconButton(
+            tooltip: 'Share',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.ios_share_rounded, size: 20),
+            onPressed: () => _sharePrice(
+              label: entry.label,
+              pricePerGram: price,
+              currency: 'EGP',
+              changePercent: row.changePercent,
+            ),
+          ),
+          if (canPin)
+            IconButton(
+              tooltip: pinned ? 'Remove from watchlist' : 'Add to watchlist',
+              visualDensity: VisualDensity.compact,
+              icon: Icon(
+                pinned ? Icons.star_rounded : Icons.star_border_rounded,
+                size: 20,
+                color: pinned ? const Color(0xFFFFD700) : null,
+              ),
+              onPressed: () => _toggleWatchlist(context, ref, entry),
+            ),
         ],
       ),
     );
@@ -411,6 +502,18 @@ class PricesScreen extends ConsumerWidget {
         currency: currency,
         change24h: goldDelta.change,
         changePercent: goldDelta.changePercent,
+        isWatchlisted: _isWatchlisted(ref, const WatchlistEntry(metal: 'gold', karat: '24')),
+        onToggleWatchlist: () => _toggleWatchlist(
+          context,
+          ref,
+          const WatchlistEntry(metal: 'gold', karat: '24'),
+        ),
+        onShare: () => _sharePrice(
+          label: '24K Gold',
+          pricePerGram: goldPrice / 31.1034768,
+          currency: currency,
+          changePercent: goldDelta.changePercent,
+        ),
         onSetAlert: () => _openAlertSheet(
           context,
           metal: 'gold',
@@ -429,6 +532,18 @@ class PricesScreen extends ConsumerWidget {
         currency: currency,
         change24h: silverDelta.change,
         changePercent: silverDelta.changePercent,
+        isWatchlisted: _isWatchlisted(ref, const WatchlistEntry(metal: 'silver', karat: '999')),
+        onToggleWatchlist: () => _toggleWatchlist(
+          context,
+          ref,
+          const WatchlistEntry(metal: 'silver', karat: '999'),
+        ),
+        onShare: () => _sharePrice(
+          label: '999 Silver',
+          pricePerGram: silverPrice / 31.1034768,
+          currency: currency,
+          changePercent: silverDelta.changePercent,
+        ),
         onSetAlert: () => _openAlertSheet(
           context,
           metal: 'silver',
@@ -450,17 +565,20 @@ class PricesScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               for (final entry in [
-                ('24K', 1.0),
-                ('22K', 0.916),
-                ('21K', 0.875),
-                ('18K', 0.75),
+                ('24K', '24', 1.0),
+                ('22K', '22', 0.916),
+                ('21K', '21', 0.875),
+                ('18K', '18', 0.75),
               ])
                 _buildGlobalKaratRow(
                   context,
+                  ref,
                   entry.$1,
                   entry.$2,
+                  entry.$3,
                   goldPrice / 31.1034768,
                   currency,
+                  goldDelta.changePercent,
                 ),
             ],
           ),
@@ -471,10 +589,15 @@ class PricesScreen extends ConsumerWidget {
 
   List<Widget> _buildFromProviders(
     BuildContext context,
+    WidgetRef ref,
     MetalPrice gold,
     MetalPrice? silver, {
     PriceSide? side,
   }) {
+    final goldKarat = gold.currency == 'EGP' ? '21' : '24';
+    final goldEntry = WatchlistEntry(metal: 'gold', karat: goldKarat);
+    const silverEntry = WatchlistEntry(metal: 'silver', karat: '999');
+
     return [
       PriceCard(
         metal: gold.metal,
@@ -485,10 +608,18 @@ class PricesScreen extends ConsumerWidget {
         currency: gold.currency,
         change24h: gold.change24h,
         changePercent: gold.changePercent24h,
+        isWatchlisted: _isWatchlisted(ref, goldEntry),
+        onToggleWatchlist: () => _toggleWatchlist(context, ref, goldEntry),
+        onShare: () => _sharePrice(
+          label: goldEntry.label,
+          pricePerGram: gold.pricePerGram,
+          currency: gold.currency,
+          changePercent: gold.changePercent24h,
+        ),
         onSetAlert: () => _openAlertSheet(
           context,
           metal: 'gold',
-          karat: gold.currency == 'EGP' ? '21' : '24',
+          karat: goldKarat,
           currency: gold.currency,
           pricePerGram: gold.pricePerGram,
           side: side,
@@ -505,6 +636,15 @@ class PricesScreen extends ConsumerWidget {
           currency: silver.currency,
           change24h: silver.change24h,
           changePercent: silver.changePercent24h,
+          isWatchlisted: _isWatchlisted(ref, silverEntry),
+          onToggleWatchlist: () =>
+              _toggleWatchlist(context, ref, silverEntry),
+          onShare: () => _sharePrice(
+            label: silverEntry.label,
+            pricePerGram: silver.pricePerGram,
+            currency: silver.currency,
+            changePercent: silver.changePercent24h,
+          ),
           onSetAlert: () => _openAlertSheet(
             context,
             metal: 'silver',
@@ -520,23 +660,50 @@ class PricesScreen extends ConsumerWidget {
 
   Widget _buildGlobalKaratRow(
     BuildContext context,
-    String karat,
+    WidgetRef ref,
+    String karatLabel,
+    String karatCode,
     double purity,
     double goldPerGram,
     String currency,
+    double changePercent,
   ) {
     final karatPrice = goldPerGram * purity;
+    final entry = WatchlistEntry(metal: 'gold', karat: karatCode);
+    final pinned = _isWatchlisted(ref, entry);
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(karat, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(karatLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
           Text(
             '$currency ${karatPrice.toStringAsFixed(2)}',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
+          ),
+          IconButton(
+            tooltip: 'Share',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.ios_share_rounded, size: 20),
+            onPressed: () => _sharePrice(
+              label: entry.label,
+              pricePerGram: karatPrice,
+              currency: currency,
+              changePercent: changePercent,
+            ),
+          ),
+          IconButton(
+            tooltip: pinned ? 'Remove from watchlist' : 'Add to watchlist',
+            visualDensity: VisualDensity.compact,
+            icon: Icon(
+              pinned ? Icons.star_rounded : Icons.star_border_rounded,
+              size: 20,
+              color: pinned ? const Color(0xFFFFD700) : null,
+            ),
+            onPressed: () => _toggleWatchlist(context, ref, entry),
           ),
         ],
       ),

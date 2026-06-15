@@ -21,6 +21,8 @@ import 'package:share_plus/share_plus.dart';
 import '../../../rating/presentation/rate_app_sheet.dart';
 import '../../../feedback/presentation/submit_idea_sheet.dart';
 import '../../../system/store_launcher.dart';
+import '../../../../shared/providers/purchase_provider.dart';
+import '../widgets/paywall_sheet.dart';
 import 'edit_profile_screen.dart';
 import '../../../../core/config/app_remote_config.dart';
 import '../../../../shared/providers/app_config_provider.dart';
@@ -309,6 +311,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const VerifyEmailBanner(),
 
               const SizedBox(height: 8),
+
+              // Pro upgrade / status
+              Consumer(
+                builder: (context, ref, _) {
+                  final isPro = ref.watch(isProProvider);
+                  if (isPro) {
+                    return const ListTile(
+                      leading: Icon(Icons.workspace_premium, color: Color(0xFFFFD700)),
+                      title: Text('GoldSignal Pro'),
+                      subtitle: Text('Ad-free experience active'),
+                    );
+                  }
+                  return ListTile(
+                    leading: const Icon(Icons.workspace_premium, color: Color(0xFFFFD700)),
+                    title: const Text('GoldSignal Pro'),
+                    subtitle: const Text('Remove all ads'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => PaywallSheet.show(context, ref),
+                  );
+                },
+              ),
+
+              const Divider(),
 
               _buildSectionHeader('Preferences'),
 

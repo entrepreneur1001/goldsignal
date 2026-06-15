@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/ads/ad_service.dart';
 import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/models/price_snapshot.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
@@ -18,7 +19,11 @@ class PriceChartScreen extends ConsumerWidget {
     final isLocal = ref.watch(isLocalMarketProvider);
     final theme = Theme.of(context);
 
-    return Scaffold(
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) AdService.instance.showInterstitial();
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('Price History'),
         actions: [
@@ -66,6 +71,7 @@ class PriceChartScreen extends ConsumerWidget {
           ],
         ],
       ),
+    ),
     );
   }
 

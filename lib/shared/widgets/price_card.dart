@@ -19,6 +19,9 @@ class PriceCard extends StatelessWidget {
   final double change24h;
   final double changePercent;
   final VoidCallback? onSetAlert;
+  final bool isWatchlisted;
+  final VoidCallback? onToggleWatchlist;
+  final VoidCallback? onShare;
 
   const PriceCard({
     super.key,
@@ -31,6 +34,9 @@ class PriceCard extends StatelessWidget {
     required this.change24h,
     required this.changePercent,
     this.onSetAlert,
+    this.isWatchlisted = false,
+    this.onToggleWatchlist,
+    this.onShare,
   });
 
   bool get isPositive =>
@@ -82,6 +88,23 @@ class PriceCard extends StatelessWidget {
                 ),
               ),
               DeltaPill(percent: changePercent),
+              if (onToggleWatchlist != null)
+                IconButton(
+                  tooltip: isWatchlisted ? 'Remove from watchlist' : 'Add to watchlist',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onToggleWatchlist,
+                  icon: Icon(
+                    isWatchlisted ? Icons.star_rounded : Icons.star_border_rounded,
+                    color: isWatchlisted ? VaultColors.gold : c.textTertiary,
+                  ),
+                ),
+              if (onShare != null)
+                IconButton(
+                  tooltip: 'Share price',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onShare,
+                  icon: Icon(Icons.ios_share_rounded, color: c.textTertiary),
+                ),
             ],
           ),
           const SizedBox(height: 16),
