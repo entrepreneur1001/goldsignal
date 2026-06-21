@@ -8,7 +8,6 @@ import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/widgets/currency_selector.dart';
 import '../../../../shared/widgets/alerts_nav_button.dart';
-import '../../../../shared/widgets/banner_ad_widget.dart';
 
 class CalculatorScreen extends ConsumerStatefulWidget {
   const CalculatorScreen({super.key});
@@ -351,8 +350,6 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                const BannerAdWidget(),
               ],
             ),
           ),

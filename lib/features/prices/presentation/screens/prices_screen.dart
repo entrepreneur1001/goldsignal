@@ -17,7 +17,6 @@ import '../../../../shared/widgets/shimmer.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/currency_selector.dart';
 import '../../../../shared/widgets/watchlist_strip.dart';
-import '../../../../shared/widgets/banner_ad_widget.dart';
 import '../../../alerts/presentation/widgets/create_alert_sheet.dart';
 import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
 import '../../../charts/presentation/screens/price_chart_screen.dart';
@@ -198,8 +197,6 @@ class PricesScreen extends ConsumerWidget {
               silverPrice,
               side: isLocal ? priceSide : null,
             ),
-          const SizedBox(height: 16),
-          const BannerAdWidget(),
         ],
       ),
     );

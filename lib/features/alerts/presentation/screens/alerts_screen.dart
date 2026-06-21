@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../shared/models/price_alert.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
+import '../../../../shared/widgets/native_ad_widget.dart';
 import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
 import '../widgets/create_alert_sheet.dart';
 
@@ -102,6 +103,11 @@ class _ActiveAlertsTab extends ConsumerWidget {
               alert: active[i],
               currentPrice: notifier.resolveCurrentPrice(active[i]),
             ),
+            // Blend a native ad after every 3rd alert (not after the last).
+            if ((i + 1) % 3 == 0 && i != active.length - 1) ...[
+              const SizedBox(height: 8),
+              const NativeAdWidget(),
+            ],
           ],
         ],
         if (snoozed.isNotEmpty) ...[
@@ -186,15 +192,26 @@ class _HistoryTab extends ConsumerWidget {
           ),
         ),
         Expanded(
-          child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
-            itemCount: alerts.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
-            itemBuilder: (context, index) =>
-                _HistoryAlertTile(alert: alerts[index]),
-          ),
+          child: _buildHistoryList(alerts),
         ),
       ],
+    );
+  }
+
+  /// History list with a native ad blended in after every 3 alerts.
+  Widget _buildHistoryList(List<PriceAlert> alerts) {
+    const interval = 3;
+    const block = interval + 1; // alerts + 1 ad slot
+    final itemCount = alerts.length + alerts.length ~/ interval;
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
+      itemCount: itemCount,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        if (index % block == interval) return const NativeAdWidget();
+        return _HistoryAlertTile(alert: alerts[index - (index ~/ block)]);
+      },
     );
   }
 }

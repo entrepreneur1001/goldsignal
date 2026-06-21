@@ -12,6 +12,7 @@ import '../../../../shared/providers/app_info_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
 import '../../../../shared/widgets/alerts_nav_button.dart';
+import '../../../../shared/widgets/banner_ad_widget.dart';
 import '../../../../shared/widgets/floating_nav_bar.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -129,10 +130,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         index: _selectedIndex,
         children: _screens,
       ),
-      bottomNavigationBar: FloatingNavBar(
-        items: _navItems,
-        currentIndex: _selectedIndex,
-        onTap: (index) => setState(() => _selectedIndex = index),
+      // A persistent banner is anchored just above the floating nav bar so it
+      // stays visible across all tabs. BannerAdWidget collapses to zero height
+      // for Pro users or when no ad is loaded, leaving no gap.
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const BannerAdWidget(),
+          FloatingNavBar(
+            items: _navItems,
+            currentIndex: _selectedIndex,
+            onTap: (index) => setState(() => _selectedIndex = index),
+          ),
+        ],
       ),
     );
   }

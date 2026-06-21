@@ -7,6 +7,7 @@ import '../../../../shared/models/savings_goal.dart';
 import '../../../../shared/providers/portfolio_provider.dart';
 import '../../../../shared/providers/savings_goals_provider.dart';
 import '../../../../shared/widgets/empty_state.dart';
+import '../../../../shared/widgets/native_ad_widget.dart';
 import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
 
 class SavingsGoalsScreen extends ConsumerWidget {
@@ -37,13 +38,28 @@ class SavingsGoalsScreen extends ConsumerWidget {
       ),
       body: goals.isEmpty
           ? _buildEmpty(context)
-          : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
-              itemCount: goals.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 12),
-              itemBuilder: (context, index) =>
-                  _GoalCard(goal: goals[index]),
-            ),
+          : _buildGoalsList(goals),
+    );
+  }
+
+  /// Goals list with a native ad blended in after every [_adInterval] goals.
+  static const int _adInterval = 3;
+
+  Widget _buildGoalsList(List<SavingsGoal> goals) {
+    const block = _adInterval + 1; // goals + 1 ad slot
+    final adCount = goals.length ~/ _adInterval;
+    final itemCount = goals.length + adCount;
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
+      itemCount: itemCount,
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
+      itemBuilder: (context, index) {
+        final isAd = index % block == _adInterval;
+        if (isAd) return const NativeAdWidget();
+        final goalIndex = index - (index ~/ block);
+        return _GoalCard(goal: goals[goalIndex]);
+      },
     );
   }
 

@@ -10,6 +10,7 @@ import '../../../../shared/widgets/animated_value.dart';
 import '../../../../shared/widgets/delta_pill.dart';
 import '../../../../shared/widgets/shimmer.dart';
 import '../../../../shared/widgets/vault_card.dart';
+import '../../../../shared/widgets/native_ad_widget.dart';
 import '../../../../core/utils/currency_conversion.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
@@ -417,10 +418,16 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
               SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    final item = _items[index];
+                    // Blend a native ad after every 3rd holding.
+                    const interval = 3;
+                    const block = interval + 1;
+                    if (index % block == interval) {
+                      return const NativeAdWidget();
+                    }
+                    final item = _items[index - (index ~/ block)];
                     return _buildPortfolioItem(item);
                   },
-                  childCount: _items.length,
+                  childCount: _items.length + _items.length ~/ 3,
                   addAutomaticKeepAlives: false,
                 ),
               ),

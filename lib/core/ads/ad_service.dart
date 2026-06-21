@@ -2,8 +2,6 @@ import 'dart:io';
 
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
-import '../purchases/purchase_service.dart';
-
 class AdService {
   AdService._();
   static final AdService instance = AdService._();
@@ -37,6 +35,14 @@ class AdService {
     }
   }
 
+  static String get nativeAdUnitId {
+    if (Platform.isAndroid) {
+      return 'ca-app-pub-9518678425811612/9770258393';
+    } else {
+      return 'ca-app-pub-9518678425811612/4980966141';
+    }
+  }
+
   // ── Interstitial management ───────────────────────────────────────
 
   void _loadInterstitial() {
@@ -59,9 +65,6 @@ class AdService {
   }
 
   Future<void> showInterstitial() async {
-    final isPro = await PurchaseService.instance.isPro();
-    if (isPro) return;
-
     final ad = _interstitialAd;
     if (ad == null) {
       _loadInterstitial();

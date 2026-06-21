@@ -326,9 +326,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   return ListTile(
                     leading: const Icon(Icons.workspace_premium, color: Color(0xFFFFD700)),
                     title: const Text('GoldSignal Pro'),
-                    subtitle: const Text('Remove all ads'),
+                    subtitle: const Text('Temporarily unavailable'),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => PaywallSheet.show(context, ref),
+                    onTap: () => PaywallSheet.show(context),
                   );
                 },
               ),

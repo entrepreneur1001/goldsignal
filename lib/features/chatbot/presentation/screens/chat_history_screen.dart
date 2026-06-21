@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../shared/models/chat_conversation.dart';
 import '../../../../shared/providers/chat_history_provider.dart';
 import '../../../../shared/widgets/empty_state.dart';
+import '../../../../shared/widgets/native_ad_widget.dart';
 
 class ChatHistoryScreen extends ConsumerWidget {
   const ChatHistoryScreen({super.key});
@@ -37,15 +38,27 @@ class ChatHistoryScreen extends ConsumerWidget {
       ),
       body: conversations.isEmpty
           ? _buildEmpty(context)
-          : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
-              itemCount: conversations.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final conversation = conversations[index];
-                return _ConversationTile(conversation: conversation);
-              },
-            ),
+          : _buildList(conversations),
+    );
+  }
+
+  /// One native ad blended in after every [_adInterval] conversations.
+  static const int _adInterval = 3;
+
+  Widget _buildList(List<ChatConversation> conversations) {
+    const block = _adInterval + 1; // conversations + 1 ad slot
+    final adCount = conversations.length ~/ _adInterval;
+    final itemCount = conversations.length + adCount;
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
+      itemCount: itemCount,
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        if (index % block == _adInterval) return const NativeAdWidget();
+        final conversation = conversations[index - (index ~/ block)];
+        return _ConversationTile(conversation: conversation);
+      },
     );
   }
 
