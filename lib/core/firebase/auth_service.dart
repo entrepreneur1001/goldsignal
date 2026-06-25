@@ -86,6 +86,7 @@ class AuthService {
         // Create initial guest profile in Firestore
         await _createUserProfile(user.uid, isGuest: true);
         await AnalyticsService.instance.setUser(user.uid);
+        await AnalyticsService.instance.logLogin('guest');
       }
 
       return user;
@@ -104,6 +105,7 @@ class AuthService {
       );
       if (credential.user != null) {
         await AnalyticsService.instance.setUser(credential.user!.uid);
+        await AnalyticsService.instance.logLogin('password');
       }
       return credential.user;
     } catch (e) {
@@ -131,6 +133,7 @@ class AuthService {
         // let into the app immediately and nudged to verify from Profile).
         await _trySendEmailVerification(credential.user!);
         await AnalyticsService.instance.setUser(credential.user!.uid);
+        await AnalyticsService.instance.logSignUp('password');
       }
 
       return credential.user;
@@ -161,6 +164,10 @@ class AuthService {
         // Send the verification link now that the guest has a real email.
         if (userCredential.user != null) {
           await _trySendEmailVerification(userCredential.user!);
+          // Same uid as the guest session — keep the analytics association and
+          // record the upgrade as a sign-up.
+          await AnalyticsService.instance.setUser(userCredential.user!.uid);
+          await AnalyticsService.instance.logSignUp('guest_upgrade');
         }
 
         return userCredential.user;

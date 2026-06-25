@@ -176,7 +176,10 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const ZakatCalculatorScreen()),
+        MaterialPageRoute(
+          settings: const RouteSettings(name: 'ZakatCalculator'),
+          builder: (_) => const ZakatCalculatorScreen(),
+        ),
       ),
       child: Container(
         padding: const EdgeInsets.all(14),
@@ -306,6 +309,8 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
                           icon: const Icon(Icons.savings_outlined),
                           onPressed: () => Navigator.of(context).push(
                             MaterialPageRoute(
+                              settings: const RouteSettings(
+                                  name: 'SavingsGoals'),
                               builder: (_) => const SavingsGoalsScreen(),
                             ),
                           ),
@@ -315,6 +320,8 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
                           icon: const Icon(Icons.volunteer_activism_outlined),
                           onPressed: () => Navigator.of(context).push(
                             MaterialPageRoute(
+                              settings: const RouteSettings(
+                                  name: 'ZakatCalculator'),
                               builder: (_) => const ZakatCalculatorScreen(),
                             ),
                           ),

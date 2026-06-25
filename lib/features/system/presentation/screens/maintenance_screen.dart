@@ -41,7 +41,10 @@ class MaintenanceScreen extends StatelessWidget {
                   FilledButton.icon(
                     onPressed: () => Navigator.pushReplacement(
                       context,
-                      MaterialPageRoute(builder: (_) => const SplashScreen()),
+                      MaterialPageRoute(
+                        settings: const RouteSettings(name: 'Splash'),
+                        builder: (_) => const SplashScreen(),
+                      ),
                     ),
                     icon: const Icon(Icons.refresh),
                     label: const Text('Retry'),

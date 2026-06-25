@@ -40,10 +40,13 @@ class AuthWallSheet extends StatelessWidget {
     final theme = Theme.of(context);
     final c = VaultColors.of(theme.brightness);
 
-    Future<void> go(Widget screen) async {
+    Future<void> go(String routeName, Widget screen) async {
       final navigator = Navigator.of(context);
       navigator.pop(); // close the sheet first
-      await navigator.push(MaterialPageRoute(builder: (_) => screen));
+      await navigator.push(MaterialPageRoute(
+        settings: RouteSettings(name: routeName),
+        builder: (_) => screen,
+      ));
     }
 
     return Container(
@@ -96,12 +99,12 @@ class AuthWallSheet extends StatelessWidget {
               ),
               const SizedBox(height: AppDimens.space24),
               ElevatedButton(
-                onPressed: () => go(const SignUpScreen(linkGuest: true)),
+                onPressed: () => go('SignUp', const SignUpScreen(linkGuest: true)),
                 child: const Text('Create Account'),
               ),
               const SizedBox(height: AppDimens.space12),
               OutlinedButton(
-                onPressed: () => go(const SignInScreen(linkGuest: true)),
+                onPressed: () => go('SignIn', const SignInScreen(linkGuest: true)),
                 child: const Text('Sign In'),
               ),
               const SizedBox(height: AppDimens.space8),

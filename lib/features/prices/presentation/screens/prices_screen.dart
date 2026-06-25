@@ -96,7 +96,10 @@ class PricesScreen extends ConsumerWidget {
             icon: const Icon(Icons.show_chart),
             tooltip: "Price history",
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const PriceChartScreen()),
+              MaterialPageRoute(
+                settings: const RouteSettings(name: 'PriceChart'),
+                builder: (_) => const PriceChartScreen(),
+              ),
             ),
           ),
           IconButton(

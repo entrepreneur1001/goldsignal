@@ -6,6 +6,7 @@ import '../../../chatbot/presentation/screens/chatbot_screen.dart';
 import '../../../portfolio/presentation/screens/portfolio_screen.dart';
 import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../system/store_launcher.dart';
+import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/config/app_remote_config.dart';
 import '../../../../shared/providers/app_config_provider.dart';
 import '../../../../shared/providers/app_info_provider.dart';
@@ -28,10 +29,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   /// Soft "update available" prompt is shown at most once per app launch.
   static bool _softUpdateShown = false;
 
+  /// Analytics screen names for each bottom-nav tab. The tabs live inside an
+  /// `IndexedStack`, so they never push a route and the navigator observer
+  /// can't see them — we log `screen_view` manually on switch instead.
+  static const List<String> _tabScreenNames = [
+    'Markets',
+    'Calculator',
+    'AIChat',
+    'Portfolio',
+    'Profile',
+  ];
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShowSoftUpdate());
+    // Log the initial (Markets) tab — the observer won't fire for it.
+    AnalyticsService.instance.logScreenView(_tabScreenNames[_selectedIndex]);
+  }
+
+  void _onTabSelected(int index) {
+    if (index == _selectedIndex) return;
+    setState(() => _selectedIndex = index);
+    AnalyticsService.instance.logScreenView(_tabScreenNames[index]);
   }
 
   void _maybeShowSoftUpdate() {
@@ -140,7 +160,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           FloatingNavBar(
             items: _navItems,
             currentIndex: _selectedIndex,
-            onTap: (index) => setState(() => _selectedIndex = index),
+            onTap: _onTabSelected,
           ),
         ],
       ),

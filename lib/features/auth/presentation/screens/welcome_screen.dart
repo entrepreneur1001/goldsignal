@@ -19,7 +19,10 @@ class WelcomeScreen extends ConsumerWidget {
       if (user != null && context.mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+          MaterialPageRoute(
+            settings: const RouteSettings(name: 'Dashboard'),
+            builder: (_) => const DashboardScreen(),
+          ),
         );
       }
     } catch (_) {
@@ -45,7 +48,10 @@ class WelcomeScreen extends ConsumerWidget {
               ? null
               : () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const SignInScreen()),
+                    MaterialPageRoute(
+                      settings: const RouteSettings(name: 'SignIn'),
+                      builder: (_) => const SignInScreen(),
+                    ),
                   ),
           child: const Text('Sign In'),
         ).animate().fadeIn(delay: 300.ms),
@@ -55,7 +61,10 @@ class WelcomeScreen extends ConsumerWidget {
               ? null
               : () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const SignUpScreen()),
+                    MaterialPageRoute(
+                      settings: const RouteSettings(name: 'SignUp'),
+                      builder: (_) => const SignUpScreen(),
+                    ),
                   ),
           child: const Text('Create Account'),
         ).animate().fadeIn(delay: 400.ms),

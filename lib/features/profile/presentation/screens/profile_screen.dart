@@ -65,7 +65,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _openEditProfile() async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+      MaterialPageRoute(
+        settings: const RouteSettings(name: 'EditProfile'),
+        builder: (_) => const EditProfileScreen(),
+      ),
     );
     await FirebaseAuth.instance.currentUser?.reload();
     if (mounted) {
@@ -112,7 +115,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       await ref.read(authControllerProvider.notifier).wipeLocalUserData();
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+          MaterialPageRoute(
+            settings: const RouteSettings(name: 'Welcome'),
+            builder: (_) => const WelcomeScreen(),
+          ),
           (route) => false,
         );
       }
@@ -143,7 +149,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               // the in-memory providers so nothing leaks to the next session.
               await ref.read(authControllerProvider.notifier).signOut();
               navigator.pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const WelcomeScreen()),
+                MaterialPageRoute(
+                  settings: const RouteSettings(name: 'Welcome'),
+                  builder: (_) => const WelcomeScreen(),
+                ),
                 (route) => false,
               );
             },
@@ -272,6 +281,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   await Navigator.push(
                                     context,
                                     MaterialPageRoute(
+                                      settings: const RouteSettings(
+                                          name: 'SignIn'),
                                       builder: (_) =>
                                           const SignInScreen(linkGuest: true),
                                     ),
@@ -350,7 +361,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const AlertsScreen()),
+                  MaterialPageRoute(
+                    settings: const RouteSettings(name: 'Alerts'),
+                    builder: (_) => const AlertsScreen(),
+                  ),
                 ),
               ),
               ListTile(

@@ -46,6 +46,7 @@ void main() async {
   await AlertNotificationService.instance.initialize();
   await HomeWidgetService.instance.initialize();
   await AdService.instance.initialize();
+  await AnalyticsService.instance.initialize();
 
   final packageInfo = await PackageInfo.fromPlatform();
 
@@ -104,7 +105,13 @@ class _GoldSignalAppState extends ConsumerState<GoldSignalApp> {
       themeMode: ThemeMode.system,
       debugShowCheckedModeBanner: false,
       navigatorObservers: [AnalyticsService.instance.navigatorObserver],
-      home: const SplashScreen(),
+      // Use a named initial route so the analytics observer logs the first
+      // screen as 'Splash' instead of the default '/'. No other route uses
+      // named navigation, so this only handles app launch.
+      onGenerateRoute: (_) => MaterialPageRoute(
+        settings: const RouteSettings(name: 'Splash'),
+        builder: (_) => const SplashScreen(),
+      ),
     );
   }
 }

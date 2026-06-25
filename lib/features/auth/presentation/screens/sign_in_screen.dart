@@ -50,7 +50,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       } else {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+          MaterialPageRoute(
+            settings: const RouteSettings(name: 'Dashboard'),
+            builder: (_) => const DashboardScreen(),
+          ),
         );
       }
     } catch (e) {
@@ -110,6 +113,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 : () => Navigator.push(
                       context,
                       MaterialPageRoute(
+                        settings: const RouteSettings(name: 'ForgotPassword'),
                         builder: (_) => ForgotPasswordScreen(
                           initialEmail: _emailController.text.trim(),
                         ),
@@ -136,6 +140,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               : () => Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
+                      settings: const RouteSettings(name: 'SignUp'),
                       builder: (_) => SignUpScreen(linkGuest: widget.linkGuest),
                     ),
                   ),

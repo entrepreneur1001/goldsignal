@@ -40,6 +40,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
+          settings: const RouteSettings(name: 'Maintenance'),
           builder: (_) =>
               MaintenanceScreen(message: config.maintenanceMessage),
         ),
@@ -51,7 +52,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     if (isVersionLower(currentVersion, config.minimumVersion)) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => ForceUpdateScreen(config: config)),
+        MaterialPageRoute(
+          settings: const RouteSettings(name: 'ForceUpdate'),
+          builder: (_) => ForceUpdateScreen(config: config),
+        ),
       );
       return;
     }
@@ -60,6 +64,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
+        settings: RouteSettings(
+          name: currentUser != null ? 'Dashboard' : 'Welcome',
+        ),
         builder: (_) => currentUser != null
             ? const DashboardScreen()
             : const WelcomeScreen(),

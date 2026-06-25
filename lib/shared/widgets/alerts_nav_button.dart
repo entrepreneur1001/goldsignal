@@ -8,7 +8,10 @@ class AlertsNavButton extends ConsumerWidget {
 
   static void open(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const AlertsScreen()),
+      MaterialPageRoute(
+        settings: const RouteSettings(name: 'Alerts'),
+        builder: (_) => const AlertsScreen(),
+      ),
     );
   }
 

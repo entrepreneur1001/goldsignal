@@ -66,7 +66,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           );
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const DashboardScreen()),
+            MaterialPageRoute(
+              settings: const RouteSettings(name: 'Dashboard'),
+              builder: (_) => const DashboardScreen(),
+            ),
           );
         }
       }
@@ -154,6 +157,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               : () => Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
+                      settings: const RouteSettings(name: 'SignIn'),
                       builder: (_) => SignInScreen(linkGuest: widget.linkGuest),
                     ),
                   ),

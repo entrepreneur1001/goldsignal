@@ -72,7 +72,10 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     final before = ref.read(chatHistoryProvider).activeId;
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const ChatHistoryScreen()),
+      MaterialPageRoute(
+        settings: const RouteSettings(name: 'ChatHistory'),
+        builder: (_) => const ChatHistoryScreen(),
+      ),
     );
     if (!mounted) return;
     final after = ref.read(chatHistoryProvider).activeId;
