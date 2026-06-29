@@ -39,8 +39,6 @@ class PriceChartScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _buildSourceBadge(context, chartState.source),
-          const SizedBox(height: 12),
           _buildMetalToggle(ref, query.metal),
           const SizedBox(height: 12),
           _buildKaratSelector(ref, query, isLocal),
@@ -72,43 +70,6 @@ class PriceChartScreen extends ConsumerWidget {
         ],
       ),
     ),
-    );
-  }
-
-  Widget _buildSourceBadge(BuildContext context, ChartDataSource source) {
-    final isApiFallback = source == ChartDataSource.apiFallback;
-    final isCommunity = source == ChartDataSource.community;
-    final color = isApiFallback
-        ? Colors.orange
-        : isCommunity
-            ? Colors.blue
-            : Colors.green;
-    final icon = isApiFallback
-        ? Icons.cloud_download_outlined
-        : isCommunity
-            ? Icons.people_outline
-            : Icons.timeline;
-    final label = switch (source) {
-      ChartDataSource.apiFallback => 'Reference data (delayed API fallback)',
-      ChartDataSource.community => 'Community price history (Firestore)',
-      ChartDataSource.snapshots => 'Live history from scraper snapshots',
-    };
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: color.shade700),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(label, style: Theme.of(context).textTheme.bodySmall),
-          ),
-        ],
-      ),
     );
   }
 
