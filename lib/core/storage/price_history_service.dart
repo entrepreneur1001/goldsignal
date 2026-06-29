@@ -338,28 +338,27 @@ class PriceHistoryService {
       final metalKey = metal == 'gold' ? 'XAU' : 'XAG';
       final usdKey = metal == 'gold' ? 'USDXAU' : 'USDXAG';
 
-      double? ounceInCurrency = (dayRates[currency] as num?)?.toDouble();
-      if (ounceInCurrency != null && ounceInCurrency < 50) {
-        ounceInCurrency = null;
+      // The /timeframe response (base=USD) gives the metal price in USD and FX
+      // rates as units-per-USD. The metal price in the target currency is always
+      // ounceUsd * fx(currency) — never the raw FX rate. (A previous version read
+      // dayRates[currency] as if it were the price, which produced garbage for
+      // higher-magnitude rates like INR/JPY/PKR.)
+      double? ounceUsd = (dayRates[usdKey] as num?)?.toDouble();
+      if (ounceUsd == null) {
+        final metalRate = (dayRates[metalKey] as num?)?.toDouble();
+        if (metalRate != null) {
+          ounceUsd = metalRate < 0.01 ? 1 / metalRate : metalRate;
+        }
       }
+      if (ounceUsd == null) continue;
 
-      if (ounceInCurrency == null) {
-        double? ounceUsd = (dayRates[usdKey] as num?)?.toDouble();
-        if (ounceUsd == null) {
-          final metalRate = (dayRates[metalKey] as num?)?.toDouble();
-          if (metalRate != null) {
-            ounceUsd = metalRate < 0.01 ? 1 / metalRate : metalRate;
-          }
-        }
-        if (ounceUsd == null) continue;
-
-        if (currency == 'USD') {
-          ounceInCurrency = ounceUsd;
-        } else {
-          final fx = (dayRates[currency] as num?)?.toDouble();
-          if (fx == null) continue;
-          ounceInCurrency = ounceUsd * fx;
-        }
+      double ounceInCurrency;
+      if (currency == 'USD') {
+        ounceInCurrency = ounceUsd;
+      } else {
+        final fx = (dayRates[currency] as num?)?.toDouble();
+        if (fx == null) continue;
+        ounceInCurrency = ounceUsd * fx;
       }
 
       double value;

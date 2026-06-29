@@ -68,13 +68,25 @@ class ChartQueryNotifier extends Notifier<ChartQuery> {
     );
   }
 
-  void setMetal(String metal) => state = ChartQuery(
-        currency: state.currency,
-        metal: metal,
-        karat: state.karat,
-        range: state.range,
-        side: state.side,
-      );
+  void setMetal(String metal) {
+    final isLocal = state.currency == 'EGP';
+    // Valid karats per metal/market, mirroring the chart UI's karat selector.
+    final validKarats = metal == 'gold'
+        ? const ['24', '22', '21', '18']
+        : (isLocal ? const ['999', '925', '900', '800'] : const ['999']);
+    // Keep the current karat if it's valid for the new metal, otherwise reset
+    // to a sensible default (silver has no '24'/'21', so it would match nothing).
+    final karat = validKarats.contains(state.karat)
+        ? state.karat
+        : (metal == 'gold' ? (isLocal ? '21' : '24') : '999');
+    state = ChartQuery(
+      currency: state.currency,
+      metal: metal,
+      karat: karat,
+      range: state.range,
+      side: state.side,
+    );
+  }
 
   void setKarat(String karat) => state = ChartQuery(
         currency: state.currency,
