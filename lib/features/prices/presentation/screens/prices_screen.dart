@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:intl/intl.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../core/api/metalpriceapi_service.dart';
 import '../../../../core/utils/share_price.dart';
 import '../../../../shared/models/local_market_prices.dart';
@@ -33,7 +33,7 @@ class PricesScreen extends ConsumerWidget {
     final result = await ref.read(watchlistProvider.notifier).toggle(entry);
     if (!context.mounted || result != WatchlistToggleResult.full) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Watchlist full — remove a pin first (max 8)')),
+      SnackBar(content: Text(context.tr('prices.watchlist_full'))),
     );
   }
 
@@ -89,12 +89,12 @@ class PricesScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gold & Silver Prices'),
+        title: Text(context.tr('prices.title')),
         actions: [
           const AlertsNavButton(),
           IconButton(
             icon: const Icon(Icons.show_chart),
-            tooltip: "Price history",
+            tooltip: context.tr('prices.price_history'),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
                 settings: const RouteSettings(name: 'PriceChart'),
@@ -103,7 +103,7 @@ class PricesScreen extends ConsumerWidget {
             ),
           ),
           IconButton(
-            tooltip: 'Refresh prices',
+            tooltip: context.tr('prices.refresh'),
             onPressed: marketState.isRefreshing
                 ? null
                 : () => ref.read(marketPricesControllerProvider.notifier).refresh(),
@@ -157,13 +157,13 @@ class PricesScreen extends ConsumerWidget {
     if (marketState.error != null && !hasData) {
       return EmptyState(
         icon: Icons.cloud_off_rounded,
-        title: "Can't load prices",
-        message: 'Check your connection and try again.',
+        title: context.tr('prices.cant_load'),
+        message: context.tr('prices.check_connection'),
         action: FilledButton.icon(
           onPressed: () =>
               ref.read(marketPricesControllerProvider.notifier).refresh(),
           icon: const Icon(Icons.refresh),
-          label: const Text('Try again'),
+          label: Text(context.tr('prices.try_again')),
         ),
       );
     }
@@ -211,16 +211,16 @@ class PricesScreen extends ConsumerWidget {
     PriceSide side,
   ) {
     return SegmentedButton<PriceSide>(
-      segments: const [
+      segments: [
         ButtonSegment(
           value: PriceSide.sell,
-          label: Text('Sell'),
-          icon: Icon(Icons.shopping_bag_outlined),
+          label: Text(context.tr('charts.sell')),
+          icon: const Icon(Icons.shopping_bag_outlined),
         ),
         ButtonSegment(
           value: PriceSide.buy,
-          label: Text('Buy'),
-          icon: Icon(Icons.sell_outlined),
+          label: Text(context.tr('charts.buy')),
+          icon: const Icon(Icons.sell_outlined),
         ),
       ],
       selected: {side},
@@ -247,7 +247,9 @@ class PricesScreen extends ConsumerWidget {
           const Icon(Icons.access_time, size: 16),
           const SizedBox(width: 8),
           Text(
-            'Updated: ${DateFormat('MMM dd, HH:mm').format(time)}',
+            context.tr('prices.updated', namedArgs: {
+              'time': DateFormat('MMM dd, HH:mm').format(time),
+            }),
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -269,7 +271,7 @@ class PricesScreen extends ConsumerWidget {
     return [
       if (headline != null)
         PriceCard(
-          metal: 'Gold 21K',
+          metal: context.tr('prices.gold_21k'),
           icon: Icons.monetization_on,
           color: const Color(0xFFFFD700),
           pricePerOunce: headline.priceFor(side) * 31.1034768,
@@ -298,7 +300,7 @@ class PricesScreen extends ConsumerWidget {
       const SizedBox(height: 16),
       if (silverHeadline != null)
         PriceCard(
-          metal: 'Silver 999',
+          metal: context.tr('prices.silver_999'),
           icon: Icons.paid,
           color: const Color(0xFFC0C0C0),
           pricePerOunce: silverHeadline.priceFor(side) * 31.1034768,
@@ -325,9 +327,9 @@ class PricesScreen extends ConsumerWidget {
           ),
         ).animate().slideX(begin: 1, duration: 600.ms),
       const SizedBox(height: 24),
-      _buildLocalKaratCard(context, ref, 'Gold Prices (per gram)', local.gold, side, isGold: true),
+      _buildLocalKaratCard(context, ref, context.tr('prices.gold_prices_per_gram'), local.gold, side, isGold: true),
       const SizedBox(height: 16),
-      _buildLocalKaratCard(context, ref, 'Silver Prices (per gram)', local.silver, side, isGold: false),
+      _buildLocalKaratCard(context, ref, context.tr('prices.silver_prices_per_gram'), local.silver, side, isGold: false),
       if (local.fxRates.isNotEmpty) ...[
         const SizedBox(height: 16),
         _buildFxCard(context, local),
@@ -366,7 +368,7 @@ class PricesScreen extends ConsumerWidget {
     PriceSide side, {
     required bool isGold,
   }) {
-    final label = _karatLabel(row.karat);
+    final label = _karatLabel(context, row.karat);
     final price = row.priceFor(side);
     final gap = side == PriceSide.sell ? row.globalGapSell : row.globalGapBuy;
     final entry = entryForLocalRow(row.karat, isGold: isGold);
@@ -384,7 +386,8 @@ class PricesScreen extends ConsumerWidget {
                 Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
                 if (gap > 0)
                   Text(
-                    'Gap vs global: +${gap.toStringAsFixed(2)} EGP',
+                    context.tr('prices.gap_vs_global',
+                        namedArgs: {'gap': gap.toStringAsFixed(2)}),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Colors.red.shade600,
                         ),
@@ -399,7 +402,7 @@ class PricesScreen extends ConsumerWidget {
                 ),
           ),
           IconButton(
-            tooltip: 'Share',
+            tooltip: context.tr('common.share'),
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.ios_share_rounded, size: 20),
             onPressed: () => _sharePrice(
@@ -411,7 +414,9 @@ class PricesScreen extends ConsumerWidget {
           ),
           if (canPin)
             IconButton(
-              tooltip: pinned ? 'Remove from watchlist' : 'Add to watchlist',
+              tooltip: pinned
+                  ? context.tr('prices.remove_from_watchlist')
+                  : context.tr('prices.add_to_watchlist'),
               visualDensity: VisualDensity.compact,
               icon: Icon(
                 pinned ? Icons.star_rounded : Icons.star_border_rounded,
@@ -425,12 +430,12 @@ class PricesScreen extends ConsumerWidget {
     );
   }
 
-  String _karatLabel(String karat) {
+  String _karatLabel(BuildContext context, String karat) {
     switch (karat) {
       case 'gold_pound':
-        return 'Gold Pound';
+        return context.tr('prices.gold_pound');
       case 'silver_pound':
-        return 'Silver Pound';
+        return context.tr('prices.silver_pound');
       default:
         return '${karat}K';
     }
@@ -444,7 +449,7 @@ class PricesScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'FX Rates (EGP)',
+              context.tr('prices.fx_rates'),
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 12),
@@ -456,7 +461,10 @@ class PricesScreen extends ConsumerWidget {
                   children: [
                     Text(fx.code),
                     Text(
-                      'Sell ${fx.sell.toStringAsFixed(2)} / Buy ${fx.buy.toStringAsFixed(2)}',
+                      context.tr('prices.fx_sell_buy', namedArgs: {
+                        'sell': fx.sell.toStringAsFixed(2),
+                        'buy': fx.buy.toStringAsFixed(2),
+                      }),
                     ),
                   ],
                 ),
@@ -494,7 +502,7 @@ class PricesScreen extends ConsumerWidget {
 
     return [
       PriceCard(
-        metal: 'Gold',
+        metal: context.tr('charts.gold'),
         icon: Icons.monetization_on,
         color: const Color(0xFFFFD700),
         pricePerOunce: goldPrice,
@@ -509,7 +517,7 @@ class PricesScreen extends ConsumerWidget {
           const WatchlistEntry(metal: 'gold', karat: '24'),
         ),
         onShare: () => _sharePrice(
-          label: '24K Gold',
+          label: context.tr('prices.gold_24k_label'),
           pricePerGram: goldPrice / 31.1034768,
           currency: currency,
           changePercent: goldDelta.changePercent,
@@ -524,7 +532,7 @@ class PricesScreen extends ConsumerWidget {
       ).animate().slideX(begin: -1, duration: 600.ms),
       const SizedBox(height: 16),
       PriceCard(
-        metal: 'Silver',
+        metal: context.tr('charts.silver'),
         icon: Icons.paid,
         color: const Color(0xFFC0C0C0),
         pricePerOunce: silverPrice,
@@ -539,7 +547,7 @@ class PricesScreen extends ConsumerWidget {
           const WatchlistEntry(metal: 'silver', karat: '999'),
         ),
         onShare: () => _sharePrice(
-          label: '999 Silver',
+          label: context.tr('prices.silver_999_label'),
           pricePerGram: silverPrice / 31.1034768,
           currency: currency,
           changePercent: silverDelta.changePercent,
@@ -560,7 +568,7 @@ class PricesScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Gold Karat Prices (per gram)',
+                context.tr('prices.gold_karat_prices_per_gram'),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 16),
@@ -685,7 +693,7 @@ class PricesScreen extends ConsumerWidget {
                 ),
           ),
           IconButton(
-            tooltip: 'Share',
+            tooltip: context.tr('common.share'),
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.ios_share_rounded, size: 20),
             onPressed: () => _sharePrice(

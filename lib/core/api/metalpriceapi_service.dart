@@ -248,7 +248,12 @@ class MetalPriceApiService {
     required DateTime endDate,
   }) async {
     try {
-      final cacheKey = 'v2_historical_${metal}_${currency}_${startDate}_$endDate';
+      // Use date-only ISO strings for the key. DateTime.toString() carries
+      // microsecond precision, so the raw values would make every call a unique
+      // key and the 24h cache below would never hit.
+      final startKey = startDate.toIso8601String().split('T')[0];
+      final endKey = endDate.toIso8601String().split('T')[0];
+      final cacheKey = 'v2_historical_${metal}_${currency}_${startKey}_$endKey';
       final cachedData = _cacheBox.get(cacheKey);
       
       // Return cached data if available (24 hours cache for historical)

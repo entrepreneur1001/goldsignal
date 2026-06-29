@@ -7,19 +7,23 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:goldsignal/firebase_options.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'core/ads/ad_service.dart';
 import 'core/analytics/analytics_service.dart';
 import 'core/notifications/alert_notification_service.dart';
 import 'core/widget/home_widget_service.dart';
 import 'core/utils/app_config.dart';
+import 'core/utils/app_localization.dart';
 import 'shared/themes/app_theme.dart';
 import 'shared/providers/app_info_provider.dart';
 import 'features/auth/presentation/screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // easy_localization storage for the persisted language selection.
+  await EasyLocalization.ensureInitialized();
 
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -51,55 +55,30 @@ void main() async {
   final packageInfo = await PackageInfo.fromPlatform();
 
   runApp(
-    ProviderScope(
-      overrides: [
-        packageInfoProvider.overrideWith((ref) => packageInfo),
-      ],
-      child: const GoldSignalApp(),
+    EasyLocalization(
+      supportedLocales: kSupportedLocales,
+      path: 'assets/translations',
+      fallbackLocale: const Locale('en'),
+      child: ProviderScope(
+        overrides: [
+          packageInfoProvider.overrideWith((ref) => packageInfo),
+        ],
+        child: const GoldSignalApp(),
+      ),
     ),
   );
 }
 
-class GoldSignalApp extends ConsumerStatefulWidget {
+class GoldSignalApp extends StatelessWidget {
   const GoldSignalApp({super.key});
-
-  @override
-  ConsumerState<GoldSignalApp> createState() => _GoldSignalAppState();
-}
-
-class _GoldSignalAppState extends ConsumerState<GoldSignalApp> {
-  Locale _currentLocale = const Locale('en');
-  
-  @override
-  void initState() {
-    super.initState();
-    // Initialize with saved locale preference if available
-    _loadSavedLocale();
-  }
-  
-  Future<void> _loadSavedLocale() async {
-    // You can load saved locale from SharedPreferences here
-    // For now, default to English
-    setState(() {
-      _currentLocale = const Locale('en');
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'GoldSignal',
-      supportedLocales: const [
-        Locale('en', ''),
-        Locale('ar', ''),
-        Locale('ur', ''),
-      ],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      locale: _currentLocale,
+      supportedLocales: context.supportedLocales,
+      localizationsDelegates: context.localizationDelegates,
+      locale: context.locale,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,

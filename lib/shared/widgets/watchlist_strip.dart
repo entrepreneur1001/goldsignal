@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../core/utils/currency_format.dart';
 import '../../../core/utils/share_price.dart';
 import '../design/app_colors.dart';
@@ -25,7 +26,7 @@ class WatchlistStrip extends ConsumerWidget {
             const Icon(Icons.star_rounded, size: 18, color: VaultColors.gold),
             const SizedBox(width: 6),
             Text(
-              'Watchlist',
+              context.tr('prices.watchlist'),
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w600,
               ),

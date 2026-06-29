@@ -10,6 +10,8 @@ import '../../../../shared/providers/app_info_provider.dart';
 import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
+import '../../../../core/utils/app_localization.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../features/auth/presentation/screens/welcome_screen.dart';
 import '../../../../features/auth/presentation/screens/sign_in_screen.dart';
 import '../widgets/verify_email_banner.dart';
@@ -395,6 +397,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 onTap: _showCurrencySelector,
               ),
 
+              // Language — drives the app-wide locale (en/ar/ur); Arabic flips
+              // the UI to RTL automatically.
+              ListTile(
+                leading: const Icon(Icons.language),
+                title: Text(context.tr('profile.language')),
+                subtitle: Text(
+                  kLanguageNames[context.locale.languageCode] ?? 'English',
+                ),
+                onTap: _showLanguageSelector,
+              ),
+
               if (isLocal)
                 ListTile(
                   leading: const Icon(Icons.swap_horiz),
@@ -547,6 +560,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           VaultColors.of(Theme.of(context).brightness),
         ),
       ),
+    );
+  }
+
+  void _showLanguageSelector() {
+    final currentCode = context.locale.languageCode;
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) {
+        return ListView(
+          shrinkWrap: true,
+          children: kSupportedLocales.map((locale) {
+            final code = locale.languageCode;
+            return ListTile(
+              title: Text(kLanguageNames[code] ?? code),
+              trailing: currentCode == code
+                  ? const Icon(Icons.check, color: VaultColors.gold)
+                  : null,
+              onTap: () {
+                // setLocale persists the choice (easy_localization saveLocale)
+                // and rebuilds the app, flipping to RTL for Arabic.
+                context.setLocale(locale);
+                Navigator.pop(sheetContext);
+              },
+            );
+          }).toList(),
+        );
+      },
     );
   }
 

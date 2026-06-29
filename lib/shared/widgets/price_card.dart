@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../core/utils/currency_format.dart';
 import '../design/app_colors.dart';
 import '../design/app_typography.dart';
@@ -83,14 +84,17 @@ class PriceCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(metal, style: theme.textTheme.titleMedium),
-                    Text('LIVE PRICE', style: AppTypography.microLabel(c)),
+                    Text(context.tr('prices.live_price'),
+                        style: AppTypography.microLabel(c)),
                   ],
                 ),
               ),
               DeltaPill(percent: changePercent),
               if (onToggleWatchlist != null)
                 IconButton(
-                  tooltip: isWatchlisted ? 'Remove from watchlist' : 'Add to watchlist',
+                  tooltip: isWatchlisted
+                      ? context.tr('prices.remove_from_watchlist')
+                      : context.tr('prices.add_to_watchlist'),
                   visualDensity: VisualDensity.compact,
                   onPressed: onToggleWatchlist,
                   icon: Icon(
@@ -100,7 +104,7 @@ class PriceCard extends StatelessWidget {
                 ),
               if (onShare != null)
                 IconButton(
-                  tooltip: 'Share price',
+                  tooltip: context.tr('prices.share_price'),
                   visualDensity: VisualDensity.compact,
                   onPressed: onShare,
                   icon: Icon(Icons.ios_share_rounded, color: c.textTertiary),
@@ -114,7 +118,7 @@ class PriceCard extends StatelessWidget {
             style: AppTypography.hero(c, size: 34),
           ),
           const SizedBox(height: 2),
-          Text('per gram', style: theme.textTheme.bodySmall),
+          Text(context.tr('prices.per_gram'), style: theme.textTheme.bodySmall),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -122,7 +126,7 @@ class PriceCard extends StatelessWidget {
                 child: _miniStat(
                   context,
                   c,
-                  'Per ounce',
+                  context.tr('prices.per_ounce'),
                   formatCurrency(pricePerOunce, currency),
                 ),
               ),
@@ -132,7 +136,7 @@ class PriceCard extends StatelessWidget {
                 child: _miniStat(
                   context,
                   c,
-                  '24h change',
+                  context.tr('prices.change_24h'),
                   '${chg(perGramChange)} /g',
                   valueColor: changeColor,
                   sub: '${chg(perOunceChange)} /oz',
@@ -144,7 +148,7 @@ class PriceCard extends StatelessWidget {
           if (onSetAlert != null) ...[
             const SizedBox(height: 16),
             GhostButton(
-              label: 'Set alert',
+              label: context.tr('prices.set_alert'),
               icon: Icons.notifications_none_rounded,
               onPressed: onSetAlert,
             ),

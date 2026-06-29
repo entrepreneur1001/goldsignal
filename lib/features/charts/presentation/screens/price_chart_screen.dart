@@ -1,8 +1,9 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../core/ads/ad_service.dart';
+import '../../../../core/utils/currency_format.dart';
 import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/models/price_snapshot.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
@@ -25,7 +26,7 @@ class PriceChartScreen extends ConsumerWidget {
       },
       child: Scaffold(
       appBar: AppBar(
-        title: const Text('Price History'),
+        title: Text(context.tr('charts.title')),
         actions: [
           const AlertsNavButton(),
           IconButton(
@@ -36,15 +37,20 @@ class PriceChartScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: ListView(
+      body: RefreshIndicator(
+        onRefresh: () => ref.read(chartDataProvider.notifier).load(),
+        child: ListView(
+        // Always scrollable so pull-to-refresh works even when the chart is
+        // short or empty.
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         children: [
-          _buildMetalToggle(ref, query.metal),
+          _buildMetalToggle(context, ref, query.metal),
           const SizedBox(height: 12),
           _buildKaratSelector(ref, query, isLocal),
           const SizedBox(height: 12),
           if (isLocal) ...[
-            _buildSideToggle(ref, query.side),
+            _buildSideToggle(context, ref, query.side),
             const SizedBox(height: 12),
           ],
           _buildRangeSelector(ref, query.range),
@@ -69,15 +75,24 @@ class PriceChartScreen extends ConsumerWidget {
           ],
         ],
       ),
+      ),
     ),
     );
   }
 
-  Widget _buildMetalToggle(WidgetRef ref, String metal) {
+  Widget _buildMetalToggle(BuildContext context, WidgetRef ref, String metal) {
     return SegmentedButton<String>(
-      segments: const [
-        ButtonSegment(value: 'gold', label: Text('Gold'), icon: Icon(Icons.monetization_on)),
-        ButtonSegment(value: 'silver', label: Text('Silver'), icon: Icon(Icons.paid)),
+      segments: [
+        ButtonSegment(
+          value: 'gold',
+          label: Text(context.tr('charts.gold')),
+          icon: const Icon(Icons.monetization_on),
+        ),
+        ButtonSegment(
+          value: 'silver',
+          label: Text(context.tr('charts.silver')),
+          icon: const Icon(Icons.paid),
+        ),
       ],
       selected: {metal},
       onSelectionChanged: (s) => ref.read(chartQueryProvider.notifier).setMetal(s.first),
@@ -103,11 +118,17 @@ class PriceChartScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildSideToggle(WidgetRef ref, PriceSide side) {
+  Widget _buildSideToggle(BuildContext context, WidgetRef ref, PriceSide side) {
     return SegmentedButton<PriceSide>(
-      segments: const [
-        ButtonSegment(value: PriceSide.sell, label: Text('Sell')),
-        ButtonSegment(value: PriceSide.buy, label: Text('Buy')),
+      segments: [
+        ButtonSegment(
+          value: PriceSide.sell,
+          label: Text(context.tr('charts.sell')),
+        ),
+        ButtonSegment(
+          value: PriceSide.buy,
+          label: Text(context.tr('charts.buy')),
+        ),
       ],
       selected: {side},
       onSelectionChanged: (s) => ref.read(chartQueryProvider.notifier).setSide(s.first),
@@ -135,15 +156,14 @@ class PriceChartScreen extends ConsumerWidget {
             const SizedBox(height: 16),
             Text(
               state.source != ChartDataSource.apiFallback
-                  ? 'Building price history…'
-                  : 'Not enough data yet',
+                  ? context.tr('charts.building')
+                  : context.tr('charts.not_enough'),
               style: Theme.of(context).textTheme.titleMedium,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
             Text(
-              'Prices are recorded automatically on each refresh. '
-              'Pull to refresh on the Prices tab, then reopen this chart.',
+              context.tr('charts.empty_hint'),
               style: Theme.of(context).textTheme.bodySmall,
               textAlign: TextAlign.center,
             ),
@@ -172,6 +192,12 @@ class PriceChartScreen extends ConsumerWidget {
 
     final lineColor = Theme.of(context).colorScheme.primary;
 
+    // Include the year on axis labels when the range crosses a year boundary
+    // (e.g. a 90-day range spanning Dec→Feb) to avoid ambiguous dates.
+    final spansYears = points.first.date.year != points.last.date.year;
+    final axisDateFormat = DateFormat(spansYears ? 'MM/dd/yy' : 'MM/dd');
+    final tooltipDateFormat = DateFormat(spansYears ? 'MMM d, yyyy' : 'MMM d');
+
     return LineChart(
       LineChartData(
         gridData: FlGridData(
@@ -185,9 +211,9 @@ class PriceChartScreen extends ConsumerWidget {
           leftTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 52,
+              reservedSize: 56,
               getTitlesWidget: (value, meta) => Text(
-                value.toStringAsFixed(0),
+                formatCurrencyCompact(value, currency),
                 style: const TextStyle(fontSize: 10),
               ),
             ),
@@ -203,7 +229,7 @@ class PriceChartScreen extends ConsumerWidget {
                 return Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    DateFormat('MM/dd').format(points[i].date),
+                    axisDateFormat.format(points[i].date),
                     style: const TextStyle(fontSize: 10),
                   ),
                 );
@@ -235,7 +261,7 @@ class PriceChartScreen extends ConsumerWidget {
               final i = bar.x.toInt();
               if (i < 0 || i >= points.length) return null;
               return LineTooltipItem(
-                '$currency ${bar.y.toStringAsFixed(2)}\n${DateFormat('MMM d').format(points[i].date)}',
+                '${formatCurrency(bar.y, currency)}\n${tooltipDateFormat.format(points[i].date)}',
                 const TextStyle(color: Colors.white, fontSize: 12),
               );
             }).toList(),
@@ -279,28 +305,28 @@ class PriceChartScreen extends ConsumerWidget {
               children: [
                 _summaryItem(
                   context,
-                  'Start',
-                  '$currency ${first.toStringAsFixed(2)}',
-                  subtitle: DateFormat('MMM d').format(firstPoint.date),
+                  context.tr('charts.start'),
+                  formatCurrency(first, currency),
+                  subtitle: DateFormat('MMM d, yyyy').format(firstPoint.date),
                 ),
                 _summaryItem(
                   context,
-                  'Change',
-                  '${isUp ? '+' : ''}${change.toStringAsFixed(2)} (${changePct.toStringAsFixed(2)}%)',
+                  context.tr('charts.change'),
+                  '${formatCurrency(change, currency, showSign: true)} (${isUp ? '+' : ''}${changePct.toStringAsFixed(2)}%)',
                   color: isUp ? Colors.green : Colors.red,
                 ),
                 _summaryItem(
                   context,
-                  'Latest',
-                  '$currency ${last.toStringAsFixed(2)}',
-                  subtitle: DateFormat('MMM d').format(lastPoint.date),
+                  context.tr('charts.latest'),
+                  formatCurrency(last, currency),
+                  subtitle: DateFormat('MMM d, yyyy').format(lastPoint.date),
                 ),
               ],
             ),
             if (isFlatSameDay) ...[
               const SizedBox(height: 8),
               Text(
-                'Flat over selected range',
+                context.tr('charts.flat'),
                 style: Theme.of(context).textTheme.bodySmall,
                 textAlign: TextAlign.center,
               ),

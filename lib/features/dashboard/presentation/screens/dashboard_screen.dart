@@ -8,6 +8,7 @@ import '../../../profile/presentation/screens/profile_screen.dart';
 import '../../../system/store_launcher.dart';
 import '../../../../core/analytics/analytics_service.dart';
 import '../../../../core/config/app_remote_config.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../shared/providers/app_config_provider.dart';
 import '../../../../shared/providers/app_info_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
@@ -94,33 +95,35 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     const ProfileScreen(),
   ];
   
-  static const List<NavItem> _navItems = [
-    NavItem(
-      icon: Icons.show_chart_rounded,
-      activeIcon: Icons.show_chart_rounded,
-      label: 'Markets',
-    ),
-    NavItem(
-      icon: Icons.calculate_outlined,
-      activeIcon: Icons.calculate_rounded,
-      label: 'Calc',
-    ),
-    NavItem(
-      icon: Icons.auto_awesome_outlined,
-      activeIcon: Icons.auto_awesome,
-      label: 'AI',
-    ),
-    NavItem(
-      icon: Icons.account_balance_wallet_outlined,
-      activeIcon: Icons.account_balance_wallet_rounded,
-      label: 'Wallet',
-    ),
-    NavItem(
-      icon: Icons.person_outline_rounded,
-      activeIcon: Icons.person_rounded,
-      label: 'Profile',
-    ),
-  ];
+  /// Bottom-nav items with localized labels. Built per-build so the labels
+  /// follow the selected language.
+  List<NavItem> _navItems(BuildContext context) => [
+        NavItem(
+          icon: Icons.show_chart_rounded,
+          activeIcon: Icons.show_chart_rounded,
+          label: context.tr('dashboard.nav.markets'),
+        ),
+        NavItem(
+          icon: Icons.calculate_outlined,
+          activeIcon: Icons.calculate_rounded,
+          label: context.tr('dashboard.nav.calc'),
+        ),
+        NavItem(
+          icon: Icons.auto_awesome_outlined,
+          activeIcon: Icons.auto_awesome,
+          label: context.tr('dashboard.nav.ai'),
+        ),
+        NavItem(
+          icon: Icons.account_balance_wallet_outlined,
+          activeIcon: Icons.account_balance_wallet_rounded,
+          label: context.tr('dashboard.nav.wallet'),
+        ),
+        NavItem(
+          icon: Icons.person_outline_rounded,
+          activeIcon: Icons.person_rounded,
+          label: context.tr('dashboard.nav.profile'),
+        ),
+      ];
   
   @override
   Widget build(BuildContext context) {
@@ -158,7 +161,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         children: [
           const BannerAdWidget(),
           FloatingNavBar(
-            items: _navItems,
+            items: _navItems(context),
             currentIndex: _selectedIndex,
             onTap: _onTabSelected,
           ),

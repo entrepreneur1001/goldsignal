@@ -11,16 +11,20 @@ class CurrencyNotifier extends Notifier<String> {
     _loadSavedCurrency();
     return 'USD';
   }
-  
+
   Future<void> _loadSavedCurrency() async {
     final prefs = await SharedPreferences.getInstance();
     final savedCurrency = prefs.getString('selected_currency');
-    if (savedCurrency != null) {
+    // Only restore a saved value the app still offers; otherwise keep USD so a
+    // stale/unsupported code can't silently break price lookups.
+    if (savedCurrency != null &&
+        ref.read(availableCurrenciesProvider).contains(savedCurrency)) {
       state = savedCurrency;
     }
   }
-  
+
   Future<void> setCurrency(String currency) async {
+    if (!ref.read(availableCurrenciesProvider).contains(currency)) return;
     state = currency;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('selected_currency', currency);

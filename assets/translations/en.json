@@ -16,9 +16,64 @@
     "refresh": "Refresh",
     "offline_mode": "Offline Mode",
     "per_ounce": "Per Ounce",
-    "per_gram": "Per Gram"
+    "per_gram": "Per Gram",
+    "nav": {
+      "markets": "Markets",
+      "calc": "Calc",
+      "ai": "AI",
+      "wallet": "Wallet",
+      "profile": "Profile"
+    }
   },
-  
+
+  "charts": {
+    "title": "Price History",
+    "gold": "Gold",
+    "silver": "Silver",
+    "sell": "Sell",
+    "buy": "Buy",
+    "building": "Building price history…",
+    "not_enough": "Not enough data yet",
+    "empty_hint": "Prices are recorded automatically on each refresh. Pull to refresh on the Prices tab, then reopen this chart.",
+    "start": "Start",
+    "change": "Change",
+    "latest": "Latest",
+    "flat": "Flat over selected range",
+    "no_history": "Not enough history yet. Pull to refresh prices and try again."
+  },
+
+  "prices": {
+    "title": "Gold & Silver Prices",
+    "price_history": "Price history",
+    "refresh": "Refresh prices",
+    "cant_load": "Can't load prices",
+    "check_connection": "Check your connection and try again.",
+    "try_again": "Try again",
+    "updated": "Updated: {time}",
+    "gold_21k": "Gold 21K",
+    "silver_999": "Silver 999",
+    "gold_prices_per_gram": "Gold Prices (per gram)",
+    "silver_prices_per_gram": "Silver Prices (per gram)",
+    "gold_karat_prices_per_gram": "Gold Karat Prices (per gram)",
+    "fx_rates": "FX Rates (EGP)",
+    "fx_sell_buy": "Sell {sell} / Buy {buy}",
+    "gap_vs_global": "Gap vs global: +{gap} EGP",
+    "gold_pound": "Gold Pound",
+    "silver_pound": "Silver Pound",
+    "gold_24k_label": "24K Gold",
+    "silver_999_label": "999 Silver",
+    "watchlist": "Watchlist",
+    "watchlist_full": "Watchlist full — remove a pin first (max 8)",
+    "add_to_watchlist": "Add to watchlist",
+    "remove_from_watchlist": "Remove from watchlist",
+    "live_price": "LIVE PRICE",
+    "per_gram": "per gram",
+    "per_ounce": "Per ounce",
+    "change_24h": "24h change",
+    "share_price": "Share price",
+    "set_alert": "Set alert"
+  },
+
   "calculator": {
     "title": "Calculator",
     "weight": "Weight",
