@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../design/app_colors.dart';
 import '../design/app_dimens.dart';
 import '../design/app_typography.dart';
@@ -23,10 +22,14 @@ class AppTheme {
 
   static ThemeData get darkTheme => _build(VaultColors.dark);
   static ThemeData get lightTheme => _build(VaultColors.light);
+  static ThemeData darkThemeFor(Locale locale) =>
+      _build(VaultColors.dark, languageCode: locale.languageCode);
+  static ThemeData lightThemeFor(Locale locale) =>
+      _build(VaultColors.light, languageCode: locale.languageCode);
 
-  static ThemeData _build(VaultColors c) {
+  static ThemeData _build(VaultColors c, {String languageCode = 'en'}) {
     final isDark = c.brightness == Brightness.dark;
-    final text = AppTypography.textTheme(c);
+    final text = AppTypography.textTheme(c, languageCode: languageCode);
     const onGold = Color(0xFF1A1410); // ink on gold surfaces
 
     final scheme = ColorScheme(
@@ -64,7 +67,7 @@ class AppTheme {
         backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         foregroundColor: c.textPrimary,
-        titleTextStyle: GoogleFonts.sora(
+        titleTextStyle: text.titleLarge?.copyWith(
           fontSize: 20,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.3,
@@ -86,8 +89,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: isDark ? c.bgSurface : c.bgElevated,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: _inputBorder(c.hairline),
         enabledBorder: _inputBorder(c.hairline),
         focusedBorder: _inputBorder(VaultColors.gold, width: 1.5),
@@ -140,9 +145,8 @@ class AppTheme {
           (s) => s.contains(WidgetState.selected) ? onGold : c.textTertiary,
         ),
         trackColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected)
-              ? VaultColors.gold
-              : c.bgSurface,
+          (s) =>
+              s.contains(WidgetState.selected) ? VaultColors.gold : c.bgSurface,
         ),
         trackOutlineColor: WidgetStateProperty.all(c.hairline),
       ),
@@ -160,7 +164,9 @@ class AppTheme {
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: c.bgElevated,
         surfaceTintColor: Colors.transparent,
-        shape: const RoundedRectangleBorder(borderRadius: AppDimens.sheetRadius),
+        shape: const RoundedRectangleBorder(
+          borderRadius: AppDimens.sheetRadius,
+        ),
         showDragHandle: true,
       ),
 

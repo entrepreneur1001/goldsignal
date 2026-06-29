@@ -40,6 +40,7 @@ class PortfolioController {
     await _service.saveItem(uid, item.toFirestoreMap());
     await AnalyticsService.instance
         .logEvent('portfolio_item_added', parameters: {'metal': item.metal});
+    await AnalyticsService.instance.setUserProperty('has_portfolio', 'true');
   }
 
   Future<void> update(PortfolioItem item) async {

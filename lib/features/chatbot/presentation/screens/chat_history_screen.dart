@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../../shared/design/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../../../shared/models/chat_conversation.dart';
 import '../../../../shared/providers/chat_history_provider.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/native_ad_widget.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class ChatHistoryScreen extends ConsumerWidget {
   const ChatHistoryScreen({super.key});
@@ -18,11 +18,11 @@ class ChatHistoryScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Chat History'),
+        title: Text(context.tr('chat_history.title')),
         actions: [
           if (conversations.isNotEmpty)
             IconButton(
-              tooltip: 'Clear all',
+              tooltip: context.tr('chat_history.clear_all'),
               icon: const Icon(Icons.delete_sweep_outlined),
               onPressed: () => _confirmClearAll(context, ref),
             ),
@@ -34,7 +34,7 @@ class ChatHistoryScreen extends ConsumerWidget {
           Navigator.pop(context);
         },
         icon: const Icon(Icons.add_comment_outlined),
-        label: const Text('New chat'),
+        label: Text(context.tr('chatbot.new_chat')),
       ),
       body: conversations.isEmpty
           ? _buildEmpty(context)
@@ -66,19 +66,16 @@ class ChatHistoryScreen extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Clear all chats?'),
-        content: const Text(
-          'This permanently deletes every saved conversation. '
-          'This cannot be undone.',
-        ),
+        title: Text(context.tr('chat_history.clear_all_title')),
+        content: Text(context.tr('chat_history.clear_all_confirm')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('common.cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Clear all'),
+            child: Text(context.tr('chat_history.clear_all')),
           ),
         ],
       ),
@@ -89,11 +86,10 @@ class ChatHistoryScreen extends ConsumerWidget {
   }
 
   Widget _buildEmpty(BuildContext context) {
-    return const EmptyState(
+    return EmptyState(
       icon: Icons.forum_outlined,
-      title: 'No saved chats yet',
-      message: 'Your conversations with the AI assistant are saved here '
-          'automatically, so you can revisit them anytime.',
+      title: context.tr('chat_history.empty_title'),
+      message: context.tr('chat_history.empty_message'),
     );
   }
 }
@@ -134,7 +130,7 @@ class _ConversationTile extends ConsumerWidget {
             overflow: TextOverflow.ellipsis,
           ),
           subtitle: Text(
-            '${conversation.preview}\n${_relativeTime(conversation.updatedAt)}',
+            '${conversation.preview}\n${_relativeTime(context, conversation.updatedAt)}',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -151,9 +147,9 @@ class _ConversationTile extends ConsumerWidget {
                 notifier.deleteConversation(conversation.id);
               }
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'rename', child: Text('Rename')),
-              PopupMenuItem(value: 'delete', child: Text('Delete')),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'rename', child: Text(context.tr('chat_history.rename'))),
+              PopupMenuItem(value: 'delete', child: Text(context.tr('common.delete'))),
             ],
           ),
         ),
@@ -165,16 +161,16 @@ class _ConversationTile extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete chat?'),
-        content: const Text('This conversation will be permanently deleted.'),
+        title: Text(context.tr('chat_history.delete_title')),
+        content: Text(context.tr('chat_history.delete_confirm')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('common.cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete'),
+            child: Text(context.tr('common.delete')),
           ),
         ],
       ),
@@ -187,19 +183,19 @@ class _ConversationTile extends ConsumerWidget {
     final newTitle = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Rename chat'),
+        title: Text(context.tr('chat_history.rename_title')),
         content: TextField(
           controller: controller,
           autofocus: true,
           textInputAction: TextInputAction.done,
-          decoration: const InputDecoration(hintText: 'Conversation name'),
+          decoration: InputDecoration(hintText: context.tr('chat_history.rename_hint')),
           onSubmitted: (v) =>
               v.trim().isEmpty ? null : Navigator.pop(ctx, v),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(context.tr('common.cancel')),
           ),
           // Rebuilds as the user types so Save is disabled while empty.
           ValueListenableBuilder<TextEditingValue>(
@@ -208,7 +204,7 @@ class _ConversationTile extends ConsumerWidget {
               onPressed: value.text.trim().isEmpty
                   ? null
                   : () => Navigator.pop(ctx, controller.text),
-              child: const Text('Save'),
+              child: Text(context.tr('common.save')),
             ),
           ),
         ],
@@ -221,13 +217,19 @@ class _ConversationTile extends ConsumerWidget {
     }
   }
 
-  String _relativeTime(DateTime time) {
+  String _relativeTime(BuildContext context, DateTime time) {
     final now = DateTime.now();
     final diff = now.difference(time);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    if (diff.inMinutes < 1) return context.tr('chat_history.just_now');
+    if (diff.inMinutes < 60) {
+      return context.plural('chat_history.minutes_ago', diff.inMinutes);
+    }
+    if (diff.inHours < 24) {
+      return context.plural('chat_history.hours_ago', diff.inHours);
+    }
+    if (diff.inDays < 7) {
+      return context.plural('chat_history.days_ago', diff.inDays);
+    }
     return DateFormat('MMM d, yyyy').format(time);
   }
 }

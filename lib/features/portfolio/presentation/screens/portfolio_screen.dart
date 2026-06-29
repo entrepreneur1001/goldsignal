@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../core/utils/currency_format.dart';
 import '../../../../shared/design/app_colors.dart';
 import '../../../../shared/design/app_typography.dart';
@@ -196,12 +197,15 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Zakat due (2.5%)', style: theme.textTheme.bodySmall),
+                  Text(
+                    context.tr('portfolio.zakat_due'),
+                    style: theme.textTheme.bodySmall,
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     result.isDue
                         ? formatCurrency(result.amount, currency)
-                        : 'Below nisab',
+                        : context.tr('portfolio.below_nisab'),
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: accent,
@@ -212,8 +216,11 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
             ),
             Text(
               result.isDue
-                  ? 'on ${formatCurrency(total, currency)}'
-                  : 'No zakat',
+                  ? context.tr(
+                      'portfolio.zakat_on',
+                      namedArgs: {'value': formatCurrency(total, currency)},
+                    )
+                  : context.tr('portfolio.no_zakat'),
               style: theme.textTheme.bodySmall,
             ),
             const Icon(Icons.chevron_right, color: accent),
@@ -298,30 +305,32 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
                       children: [
                         Expanded(
                           child: Text(
-                            'My Portfolio',
+                            context.tr('portfolio.my_portfolio'),
                             style: theme.textTheme.headlineMedium?.copyWith(
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
                         IconButton(
-                          tooltip: 'Savings goals',
+                          tooltip: context.tr('portfolio.savings_goals'),
                           icon: const Icon(Icons.savings_outlined),
                           onPressed: () => Navigator.of(context).push(
                             MaterialPageRoute(
                               settings: const RouteSettings(
-                                  name: 'SavingsGoals'),
+                                name: 'SavingsGoals',
+                              ),
                               builder: (_) => const SavingsGoalsScreen(),
                             ),
                           ),
                         ),
                         IconButton(
-                          tooltip: 'Zakat calculator',
+                          tooltip: context.tr('portfolio.zakat_calculator'),
                           icon: const Icon(Icons.volunteer_activism_outlined),
                           onPressed: () => Navigator.of(context).push(
                             MaterialPageRoute(
                               settings: const RouteSettings(
-                                  name: 'ZakatCalculator'),
+                                name: 'ZakatCalculator',
+                              ),
                               builder: (_) => const ZakatCalculatorScreen(),
                             ),
                           ),
@@ -338,33 +347,39 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
                           color: VaultColors.goldDeep.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Text(
-                          'Valued at Egypt local buy prices (iSagha)',
-                          style: TextStyle(fontSize: 12),
+                        child: Text(
+                          context.tr('portfolio.local_value_note'),
+                          style: const TextStyle(fontSize: 12),
                         ),
                       ),
                     ],
                     const SizedBox(height: 24),
 
                     // Net-worth hero + zakat indicator
-                    Builder(builder: (_) {
-                      final zakatIndicator =
-                          _buildZakatIndicator(context, theme);
-                      return Column(children: [
-                        _buildNetWorthHero()
-                            .animate()
-                            .fadeIn(duration: 400.ms)
-                            .slideY(
-                              begin: 0.06,
-                              end: 0,
-                              curve: Curves.easeOutCubic,
-                            ),
-                        if (zakatIndicator != null) ...[
-                          const SizedBox(height: 12),
-                          zakatIndicator,
-                        ],
-                      ]);
-                    }),
+                    Builder(
+                      builder: (_) {
+                        final zakatIndicator = _buildZakatIndicator(
+                          context,
+                          theme,
+                        );
+                        return Column(
+                          children: [
+                            _buildNetWorthHero()
+                                .animate()
+                                .fadeIn(duration: 400.ms)
+                                .slideY(
+                                  begin: 0.06,
+                                  end: 0,
+                                  curve: Curves.easeOutCubic,
+                                ),
+                            if (zakatIndicator != null) ...[
+                              const SizedBox(height: 12),
+                              zakatIndicator,
+                            ],
+                          ],
+                        );
+                      },
+                    ),
                     const SizedBox(height: 24),
 
                     // Holdings Header
@@ -372,13 +387,16 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Holdings',
+                          context.tr('portfolio.holdings'),
                           style: theme.textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         Text(
-                          '${_items.length} items',
+                          context.plural(
+                            'portfolio.items_count',
+                            _items.length,
+                          ),
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: isDark ? Colors.white60 : Colors.black54,
                           ),
@@ -405,14 +423,14 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'No holdings yet',
+                        context.tr('portfolio.no_holdings'),
                         style: theme.textTheme.titleLarge?.copyWith(
                           color: Colors.grey,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Add your first gold or silver holding',
+                        context.tr('portfolio.add_first'),
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: Colors.grey,
                         ),
@@ -445,9 +463,12 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
         onPressed: _showAddItemDialog,
         backgroundColor: VaultColors.gold,
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text(
-          'Add Holding',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        label: Text(
+          context.tr('portfolio.add_holding'),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
@@ -471,6 +492,7 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
     final theme = Theme.of(context);
     final c = VaultColors.of(theme.brightness);
     final currency = ref.watch(selectedCurrencyProvider);
+    final languageCode = Localizations.localeOf(context).languageCode;
 
     final total = _calculateTotalValue();
     final pl = _calculateTotalProfitLoss();
@@ -485,12 +507,15 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('NET WORTH', style: AppTypography.microLabel(c)),
+          Text(
+            context.tr('portfolio.net_worth'),
+            style: AppTypography.microLabel(c, languageCode: languageCode),
+          ),
           const SizedBox(height: 8),
           AnimatedValue(
             value: total,
             formatter: (v) => formatCurrency(v, currency),
-            style: AppTypography.hero(c, size: 40),
+            style: AppTypography.hero(c, size: 40, languageCode: languageCode),
           ),
           const SizedBox(height: 12),
           if (hasHoldings)
@@ -499,14 +524,19 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
                 DeltaPill(percent: plPercent),
                 const SizedBox(width: 8),
                 Text(
-                  '${pl >= 0 ? '+' : ''}${formatCurrency(pl, currency)} all-time',
+                  context.tr('portfolio.all_time', namedArgs: {
+                    'amount':
+                        '${pl >= 0 ? '+' : ''}${formatCurrency(pl, currency)}',
+                  }),
                   style: theme.textTheme.bodySmall,
                 ),
               ],
             )
           else
-            Text('Add a holding to start tracking',
-                style: theme.textTheme.bodySmall),
+            Text(
+              context.tr('portfolio.add_to_start'),
+              style: theme.textTheme.bodySmall,
+            ),
           if (hasHoldings && (split.gold > 0 || split.silver > 0)) ...[
             const SizedBox(height: 18),
             _allocationBar(c, split.gold, split.silver),
@@ -545,9 +575,9 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
         const SizedBox(height: 10),
         Row(
           children: [
-            _legend(c, VaultColors.gold, 'Gold $goldPct%'),
+            _legend(c, VaultColors.gold, '${context.tr('charts.gold')} $goldPct%'),
             const SizedBox(width: 16),
-            _legend(c, VaultColors.silver, 'Silver $silverPct%'),
+            _legend(c, VaultColors.silver, '${context.tr('charts.silver')} $silverPct%'),
           ],
         ),
       ],
@@ -574,6 +604,10 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
     final isDark = theme.brightness == Brightness.dark;
     final currency = ref.watch(selectedCurrencyProvider);
     final rates = _fxRates();
+    // item.metal is stored as 'Gold'/'Silver' (data); localize only for display.
+    final metalName = item.metal == 'Gold'
+        ? context.tr('charts.gold')
+        : context.tr('charts.silver');
 
     double currentValue = 0.0;
     double profitLoss = 0.0;
@@ -595,20 +629,24 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
         final confirmed = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text('Delete holding?'),
+            title: Text(context.tr('portfolio.delete_title')),
             content: Text(
-              'Remove ${item.weight}g ${item.metal} ${item.karat}K from your portfolio? This cannot be undone.',
+              context.tr('portfolio.delete_confirm', namedArgs: {
+                'weight': '${item.weight}',
+                'metal': metalName,
+                'karat': '${item.karat}',
+              }),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
+                child: Text(context.tr('common.cancel')),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                child: const Text(
-                  'Delete',
-                  style: TextStyle(color: Colors.red),
+                child: Text(
+                  context.tr('common.delete'),
+                  style: const TextStyle(color: Colors.red),
                 ),
               ),
             ],
@@ -669,7 +707,7 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '${item.metal} ${item.karat}K',
+                                '$metalName ${item.karat}K',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.titleMedium?.copyWith(
@@ -677,12 +715,16 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
                                 ),
                               ),
                               Text(
-                                '${item.weight}g • ${_formatDate(item.purchaseDate)}',
+                                context.tr('portfolio.item_subtitle', namedArgs: {
+                                  'weight': '${item.weight}',
+                                  'date': _formatDate(item.purchaseDate),
+                                }),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.bodySmall?.copyWith(
-                                  color:
-                                      isDark ? Colors.white60 : Colors.black54,
+                                  color: isDark
+                                      ? Colors.white60
+                                      : Colors.black54,
                                 ),
                               ),
                             ],
@@ -694,7 +736,9 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 6),
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: profitLoss >= 0
                           ? Colors.green.withValues(alpha: 0.1)
@@ -731,7 +775,7 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
                 children: [
                   Expanded(
                     child: _buildItemDetail(
-                      'Purchase',
+                      context.tr('portfolio.purchase'),
                       formatCurrency(
                         _purchaseTotalInDisplay(item, currency, rates),
                         currency,
@@ -740,13 +784,13 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
                   ),
                   Expanded(
                     child: _buildItemDetail(
-                      'Current',
+                      context.tr('portfolio.current'),
                       formatCurrency(currentValue, currency),
                     ),
                   ),
                   Expanded(
                     child: _buildItemDetail(
-                      'P/L',
+                      context.tr('portfolio.pl'),
                       formatCurrency(profitLoss, currency, showSign: true),
                       valueColor: profitLoss >= 0 ? Colors.green : Colors.red,
                     ),
@@ -821,7 +865,8 @@ class AddPortfolioItemDialog extends ConsumerStatefulWidget {
       _AddPortfolioItemDialogState();
 }
 
-class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog> {
+class _AddPortfolioItemDialogState
+    extends ConsumerState<AddPortfolioItemDialog> {
   final _formKey = GlobalKey<FormState>();
   final _weightController = TextEditingController();
   final _priceController = TextEditingController();
@@ -877,7 +922,7 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
       if (mounted) {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save. Please try again.')),
+          SnackBar(content: Text(context.tr('portfolio.save_error'))),
         );
       }
     }
@@ -923,7 +968,9 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
               ),
               const SizedBox(height: 20),
               Text(
-                widget.isEditing ? 'Edit Holding' : 'Add Holding',
+                widget.isEditing
+                    ? context.tr('portfolio.edit_holding')
+                    : context.tr('portfolio.add_holding'),
                 style: theme.textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -942,17 +989,17 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
                     }
                   });
                 },
-                child: const Row(
+                child: Row(
                   children: [
                     Expanded(
                       child: RadioListTile<String>(
-                        title: Text('Gold'),
+                        title: Text(context.tr('charts.gold')),
                         value: 'Gold',
                       ),
                     ),
                     Expanded(
                       child: RadioListTile<String>(
-                        title: Text('Silver'),
+                        title: Text(context.tr('charts.silver')),
                         value: 'Silver',
                       ),
                     ),
@@ -963,10 +1010,7 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
               // Karat Selection (only for gold)
               if (_selectedMetal == 'Gold') ...[
                 const SizedBox(height: 16),
-                Text(
-                  'Karat',
-                  style: theme.textTheme.titleMedium,
-                ),
+                Text(context.tr('calculator.karat'), style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 Row(
                   children: [24, 22, 21, 18].map((karat) {
@@ -974,6 +1018,7 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: ChoiceChip(
+                          // TODO(i18n): data-driven karat label (e.g. "24K"), not localized
                           label: Text('${karat}K'),
                           selected: _selectedKarat == karat,
                           onSelected: (selected) {
@@ -995,21 +1040,22 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
               // Weight Input
               TextFormField(
                 controller: _weightController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                 ],
-                decoration: const InputDecoration(
-                  labelText: 'Weight (grams)',
-                  prefixIcon: Icon(Icons.scale),
+                decoration: InputDecoration(
+                  labelText: context.tr('portfolio.weight_grams'),
+                  prefixIcon: const Icon(Icons.scale),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter weight';
+                    return context.tr('portfolio.val_weight');
                   }
                   if (double.tryParse(value) == null) {
-                    return 'Please enter a valid number';
+                    return context.tr('portfolio.val_number');
                   }
                   return null;
                 },
@@ -1020,21 +1066,23 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
               // Purchase Price Input
               TextFormField(
                 controller: _priceController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                 ],
                 decoration: InputDecoration(
-                  labelText: 'Purchase price per gram ($priceCurrencyLabel)',
+                  labelText: context.tr('portfolio.purchase_price_label',
+                      namedArgs: {'currency': priceCurrencyLabel}),
                   prefixIcon: const Icon(Icons.attach_money),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Please enter purchase price';
+                    return context.tr('portfolio.val_price');
                   }
                   if (double.tryParse(value) == null) {
-                    return 'Please enter a valid number';
+                    return context.tr('portfolio.val_number');
                   }
                   return null;
                 },
@@ -1046,7 +1094,8 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.calendar_today),
-                title: Text('Purchase Date: ${_formatDate(_selectedDate)}'),
+                title: Text(context.tr('portfolio.purchase_date_label',
+                    namedArgs: {'date': _formatDate(_selectedDate)})),
                 onTap: () async {
                   final date = await showDatePicker(
                     context: context,
@@ -1065,9 +1114,9 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
               // Notes Input
               TextFormField(
                 controller: _notesController,
-                decoration: const InputDecoration(
-                  labelText: 'Notes (optional)',
-                  prefixIcon: Icon(Icons.note),
+                decoration: InputDecoration(
+                  labelText: context.tr('portfolio.notes'),
+                  prefixIcon: const Icon(Icons.note),
                 ),
                 maxLines: 2,
               ),
@@ -1080,7 +1129,7 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Cancel'),
+                      child: Text(context.tr('common.cancel')),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -1100,7 +1149,9 @@ class _AddPortfolioItemDialogState extends ConsumerState<AddPortfolioItemDialog>
                               ),
                             )
                           : Text(
-                              widget.isEditing ? 'Save' : 'Add',
+                              widget.isEditing
+                                  ? context.tr('common.save')
+                                  : context.tr('portfolio.add'),
                               style: const TextStyle(color: Colors.white),
                             ),
                     ),

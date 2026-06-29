@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/providers/digest_provider.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
+import '../../../../shared/providers/reengage_provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class DigestSettingsSheet extends ConsumerWidget {
   const DigestSettingsSheet({super.key});
@@ -22,6 +24,7 @@ class DigestSettingsSheet extends ConsumerWidget {
     final theme = Theme.of(context);
     final prefs = ref.watch(digestProvider);
     final notifier = ref.read(digestProvider.notifier);
+    final reengageEnabled = ref.watch(reengageEnabledProvider);
 
     return SafeArea(
       child: Column(
@@ -31,13 +34,13 @@ class DigestSettingsSheet extends ConsumerWidget {
           const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-            child: Text('Daily Price Digest',
+            child: Text(context.tr('profile.digest'),
                 style: theme.textTheme.titleLarge),
           ),
           SwitchListTile(
             secondary: const Icon(Icons.summarize_outlined),
-            title: const Text('Send a daily digest'),
-            subtitle: const Text('Today\'s gold & silver and 24h move'),
+            title: Text(context.tr('profile.digest_send')),
+            subtitle: Text(context.tr('profile.digest_send_sub')),
             value: prefs.enabled,
             onChanged: (value) async {
               if (value) {
@@ -49,10 +52,8 @@ class DigestSettingsSheet extends ConsumerWidget {
                 if (!granted) {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Enable notifications to receive the daily digest.',
-                        ),
+                      SnackBar(
+                        content: Text(context.tr('profile.digest_enable_notif')),
                       ),
                     );
                   }
@@ -65,7 +66,7 @@ class DigestSettingsSheet extends ConsumerWidget {
           ListTile(
             enabled: prefs.enabled,
             leading: const Icon(Icons.schedule),
-            title: const Text('Delivery time'),
+            title: Text(context.tr('profile.digest_delivery_time')),
             subtitle: Text(prefs.formattedTime),
             trailing: const Icon(Icons.edit_outlined),
             onTap: prefs.enabled
@@ -84,11 +85,18 @@ class DigestSettingsSheet extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: Text(
-              'Delivered within ~30 minutes of your chosen time, even when the '
-              'app is closed. Uses your selected currency. Requires '
-              'notifications to be enabled.',
+              context.tr('profile.digest_note'),
               style: theme.textTheme.bodySmall,
             ),
+          ),
+          const Divider(height: 24),
+          SwitchListTile(
+            secondary: const Icon(Icons.campaign_outlined),
+            title: Text(context.tr('profile.reengage_title')),
+            subtitle: Text(context.tr('profile.reengage_sub')),
+            value: reengageEnabled,
+            onChanged: (value) =>
+                ref.read(reengageEnabledProvider.notifier).setEnabled(value),
           ),
         ],
       ),

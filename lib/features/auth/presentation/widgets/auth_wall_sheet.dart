@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../shared/design/app_colors.dart';
 import '../../../../shared/design/app_dimens.dart';
 import '../screens/sign_in_screen.dart';
@@ -86,31 +87,31 @@ class AuthWallSheet extends StatelessWidget {
               ),
               const SizedBox(height: AppDimens.space16),
               Text(
-                'Create a free account',
+                context.tr('auth.wall_title'),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.headlineSmall,
               ),
               const SizedBox(height: AppDimens.space8),
               Text(
-                'Sign in to save your $feature securely and sync it across your '
-                'devices. It only takes a moment.',
+                // TODO(i18n): {feature} is passed in English at call sites
+                context.tr('auth.wall_message', namedArgs: {'feature': feature}),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium,
               ),
               const SizedBox(height: AppDimens.space24),
               ElevatedButton(
                 onPressed: () => go('SignUp', const SignUpScreen(linkGuest: true)),
-                child: const Text('Create Account'),
+                child: Text(context.tr('auth.create_account')),
               ),
               const SizedBox(height: AppDimens.space12),
               OutlinedButton(
                 onPressed: () => go('SignIn', const SignInScreen(linkGuest: true)),
-                child: const Text('Sign In'),
+                child: Text(context.tr('sign_in')),
               ),
               const SizedBox(height: AppDimens.space8),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: Text('Not now',
+                child: Text(context.tr('auth.not_now'),
                     style: TextStyle(color: c.textSecondary)),
               ),
             ],

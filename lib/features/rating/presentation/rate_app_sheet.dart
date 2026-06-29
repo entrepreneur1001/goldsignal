@@ -7,6 +7,7 @@ import '../../../shared/providers/app_config_provider.dart';
 import '../../../shared/providers/app_info_provider.dart';
 import '../../system/store_launcher.dart';
 import '../rating_service.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class RateAppSheet extends ConsumerStatefulWidget {
   const RateAppSheet({super.key});
@@ -61,7 +62,7 @@ class _RateAppSheetState extends ConsumerState<RateAppSheet> {
     final messenger = ScaffoldMessenger.of(context);
     if (FirebaseAuth.instance.currentUser == null) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Please sign in to rate the app.')),
+        SnackBar(content: Text(context.tr('rating.sign_in_required'))),
       );
       return;
     }
@@ -70,6 +71,8 @@ class _RateAppSheetState extends ConsumerState<RateAppSheet> {
     final appVersion = ref.read(packageInfoProvider).version;
     final iosAppStoreId = ref.read(appRemoteConfigProvider)?.iosAppStoreId ?? '';
     final stars = _stars;
+    // Resolve before the async gap to avoid using context across an await.
+    final thanksMsg = context.tr('rating.thanks_feedback');
 
     try {
       await _service.submit(
@@ -86,7 +89,7 @@ class _RateAppSheetState extends ConsumerState<RateAppSheet> {
     Navigator.pop(context);
     if (stars < 5) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Thanks for your feedback!')),
+        SnackBar(content: Text(thanksMsg)),
       );
     }
   }
@@ -117,14 +120,16 @@ class _RateAppSheetState extends ConsumerState<RateAppSheet> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Text(
-                    _hasExisting ? 'Your rating' : 'Enjoying GoldSignal?',
+                    _hasExisting
+                        ? context.tr('rating.your_rating')
+                        : context.tr('rating.enjoying'),
                     style: theme.textTheme.titleLarge,
                   ),
                   const SizedBox(height: 8),
                   Text(
                     _hasExisting
-                        ? 'You can update your rating any time.'
-                        : 'Tap a star to rate your experience.',
+                        ? context.tr('rating.update_hint')
+                        : context.tr('rating.tap_hint'),
                     style: theme.textTheme.bodySmall,
                     textAlign: TextAlign.center,
                   ),
@@ -149,10 +154,10 @@ class _RateAppSheetState extends ConsumerState<RateAppSheet> {
                   TextField(
                     controller: _feedbackController,
                     maxLines: 3,
-                    decoration: const InputDecoration(
-                      labelText: 'Feedback (optional)',
-                      hintText: 'Tell us how we can improve…',
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: context.tr('rating.feedback_label'),
+                      hintText: context.tr('rating.feedback_hint'),
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -166,14 +171,16 @@ class _RateAppSheetState extends ConsumerState<RateAppSheet> {
                               width: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : Text(_hasExisting ? 'Update rating' : 'Submit'),
+                          : Text(_hasExisting
+                              ? context.tr('rating.update')
+                              : context.tr('rating.submit')),
                     ),
                   ),
                   const SizedBox(height: 8),
                   TextButton.icon(
                     onPressed: _rateOnStore,
                     icon: const Icon(Icons.open_in_new, size: 18),
-                    label: const Text('Rate on the store'),
+                    label: Text(context.tr('rating.rate_store')),
                   ),
                 ],
               ),

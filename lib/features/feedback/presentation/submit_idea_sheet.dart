@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/providers/app_info_provider.dart';
 import '../idea_service.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class SubmitIdeaSheet extends ConsumerStatefulWidget {
   const SubmitIdeaSheet({super.key});
@@ -46,26 +47,25 @@ class _SubmitIdeaSheetState extends ConsumerState<SubmitIdeaSheet> {
     final messenger = ScaffoldMessenger.of(context);
     if (FirebaseAuth.instance.currentUser == null) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Please sign in to submit an idea.')),
+        SnackBar(content: Text(context.tr('feedback.sign_in_required'))),
       );
       return;
     }
     setState(() => _submitting = true);
+    // Resolve before the async gap to avoid using context across an await.
+    final thanksMsg = context.tr('feedback.thanks');
+    final failedMsg = context.tr('feedback.submit_failed');
 
     final appVersion = ref.read(packageInfoProvider).version;
     try {
       await IdeaService().submit(idea: idea, appVersion: appVersion);
       if (!mounted) return;
       Navigator.pop(context);
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Thanks! Your idea was submitted.')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text(thanksMsg)));
     } catch (_) {
       if (!mounted) return;
       setState(() => _submitting = false);
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Could not submit. Please try again.')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text(failedMsg)));
     }
   }
 
@@ -84,10 +84,10 @@ class _SubmitIdeaSheetState extends ConsumerState<SubmitIdeaSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Share your idea', style: theme.textTheme.titleLarge),
+            Text(context.tr('feedback.title'), style: theme.textTheme.titleLarge),
             const SizedBox(height: 8),
             Text(
-              'Have a feature in mind? Tell us what would make GoldSignal better.',
+              context.tr('feedback.description'),
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
@@ -96,9 +96,9 @@ class _SubmitIdeaSheetState extends ConsumerState<SubmitIdeaSheet> {
               maxLines: 5,
               maxLength: 2000,
               autofocus: true,
-              decoration: const InputDecoration(
-                hintText: 'Describe your idea…',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: context.tr('feedback.hint'),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 8),
@@ -112,7 +112,7 @@ class _SubmitIdeaSheetState extends ConsumerState<SubmitIdeaSheet> {
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Submit idea'),
+                    : Text(context.tr('feedback.submit')),
               ),
             ),
           ],

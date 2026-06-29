@@ -8,6 +8,7 @@ import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/widgets/currency_selector.dart';
 import '../../../../shared/widgets/alerts_nav_button.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class CalculatorScreen extends ConsumerStatefulWidget {
   const CalculatorScreen({super.key});
@@ -81,9 +82,9 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
       if (next == 'EGP' && _selectedKarat == 24) {
         setState(() => _selectedKarat = 21);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Showing 21K — the standard karat in Egypt\'s local market.'),
-            duration: Duration(seconds: 3),
+          SnackBar(
+            content: Text(context.tr('calculator.egypt_21k_note')),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -110,7 +111,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        'Gold Calculator',
+                        context.tr('calculator.screen_title'),
                         style: theme.textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -142,7 +143,12 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      'Using Egypt local ${priceSide.name} prices from iSagha',
+                      // TODO(i18n-review): verify ar/ur wording for 'calculator.local_note'
+                      context.tr('calculator.local_note', namedArgs: {
+                        'side': priceSide.name == 'sell'
+                            ? context.tr('charts.sell')
+                            : context.tr('charts.buy'),
+                      }),
                       style: theme.textTheme.bodySmall,
                     ),
                   ),
@@ -150,7 +156,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                 ],
                 // Karat Selection
                 Text(
-                  'Select Karat',
+                  context.tr('calculator.select_karat'),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -187,6 +193,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                               ),
                             ),
                             child: Center(
+                              // TODO(i18n): data-driven karat label (e.g. "24K"), not localized
                               child: Text(
                                 '${karat}K',
                                 style: TextStyle(
@@ -211,7 +218,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                 
                 // Weight Input
                 Text(
-                  'Weight (grams)',
+                  context.tr('calculator.weight_grams'),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -225,7 +232,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                   ],
                   onChanged: (_) => _calculateValue(),
                   decoration: InputDecoration(
-                    hintText: 'Enter weight in grams',
+                    hintText: context.tr('calculator.weight_hint'),
                     filled: true,
                     fillColor: isDark ? Colors.grey[800] : Colors.grey[100],
                     border: OutlineInputBorder(
@@ -239,7 +246,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                 
                 // Quantity Input
                 Text(
-                  'Quantity',
+                  context.tr('calculator.quantity'),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
@@ -253,7 +260,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                   ],
                   onChanged: (_) => _calculateValue(),
                   decoration: InputDecoration(
-                    hintText: 'Number of items',
+                    hintText: context.tr('calculator.quantity_hint'),
                     filled: true,
                     fillColor: isDark ? Colors.grey[800] : Colors.grey[100],
                     border: OutlineInputBorder(
@@ -292,7 +299,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Total Value',
+                        context.tr('calculator.total_value'),
                         style: theme.textTheme.titleMedium?.copyWith(
                           color: Colors.white.withValues(alpha: 0.9),
                         ),
@@ -340,7 +347,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          'This calculator provides estimated values based on current market prices. Actual prices may vary.',
+                          context.tr('calculator.disclaimer'),
                           style: TextStyle(
                             color: isDark ? Colors.white70 : Colors.black87,
                             fontSize: 12,
@@ -381,14 +388,15 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
     
     return Column(
       children: [
-        _buildDetailRow('Weight', '${weight.toStringAsFixed(2)} g'),
+        _buildDetailRow(
+            context.tr('calculator.weight'), '${weight.toStringAsFixed(2)} g'),
         const SizedBox(height: 8),
-        _buildDetailRow('Karat', '${_selectedKarat}K'),
+        _buildDetailRow(context.tr('calculator.karat'), '${_selectedKarat}K'),
         const SizedBox(height: 8),
-        _buildDetailRow('Quantity', quantity.toString()),
+        _buildDetailRow(context.tr('calculator.quantity'), quantity.toString()),
         const SizedBox(height: 8),
         _buildDetailRow(
-          'Price per gram',
+          context.tr('calculator.price_per_gram'),
           formatCurrency(karatPrice, currency),
         ),
       ],

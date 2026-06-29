@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../shared/design/app_colors.dart';
 import '../../../auth/presentation/screens/splash_screen.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 /// Full-screen, non-dismissible maintenance notice shown at launch when
 /// `metadata/app.maintenanceEnabled` is true. "Retry" re-runs the launch gate.
@@ -26,7 +27,7 @@ class MaintenanceScreen extends StatelessWidget {
                       size: 88, color: VaultColors.gold),
                   const SizedBox(height: 24),
                   Text(
-                    'Under maintenance',
+                    context.tr('system.under_maintenance'),
                     style: theme.textTheme.headlineSmall
                         ?.copyWith(fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
@@ -47,7 +48,7 @@ class MaintenanceScreen extends StatelessWidget {
                       ),
                     ),
                     icon: const Icon(Icons.refresh),
-                    label: const Text('Retry'),
+                    label: Text(context.tr('common.retry')),
                   ),
                 ],
               ),

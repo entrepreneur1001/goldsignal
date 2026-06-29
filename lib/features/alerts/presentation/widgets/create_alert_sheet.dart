@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/models/price_alert.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class CreateAlertSheet extends ConsumerStatefulWidget {
   final AlertDraft? draft;
@@ -38,11 +39,12 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
   int _repeatAfterHours = 24;
   bool _initialized = false;
 
+  // Values are translation keys, resolved at render time.
   static const _repeatOptions = <int, String>{
-    1: '1 hour',
-    6: '6 hours',
-    24: '24 hours',
-    168: '1 week',
+    1: 'alerts.repeat_1h',
+    6: 'alerts.repeat_6h',
+    24: 'alerts.repeat_24h',
+    168: 'alerts.repeat_1w',
   };
 
   void _initFromDraftOrDefaults() {
@@ -101,8 +103,8 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(_type == AlertType.price
-              ? 'Enter a valid target price per gram'
-              : 'Enter a valid percent change'),
+              ? context.tr('alerts.snack_invalid_price')
+              : context.tr('alerts.snack_invalid_percent')),
         ),
       );
       return;
@@ -110,7 +112,7 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
 
     if (_type == AlertType.percentChange && target > 100) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Percent change must be 100% or less')),
+        SnackBar(content: Text(context.tr('alerts.snack_percent_max'))),
       );
       return;
     }
@@ -135,14 +137,14 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
       if (mounted) {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Alert saved')),
+          SnackBar(content: Text(context.tr('alerts.saved'))),
         );
       }
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save alert. Please try again.')),
+          SnackBar(content: Text(context.tr('alerts.save_failed'))),
         );
       }
     }
@@ -170,19 +172,20 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-          Text('Create alert', style: Theme.of(context).textTheme.titleLarge),
+          Text(context.tr('alerts.create_alert'),
+              style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 16),
           SegmentedButton<AlertType>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: AlertType.price,
-                label: Text('Price'),
-                icon: Icon(Icons.payments_outlined),
+                label: Text(context.tr('alerts.type_price')),
+                icon: const Icon(Icons.payments_outlined),
               ),
               ButtonSegment(
                 value: AlertType.percentChange,
-                label: Text('% Change'),
-                icon: Icon(Icons.trending_up),
+                label: Text(context.tr('alerts.type_percent')),
+                icon: const Icon(Icons.trending_up),
               ),
             ],
             selected: {_type},
@@ -200,9 +203,9 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
           ),
           const SizedBox(height: 12),
           SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'gold', label: Text('Gold')),
-              ButtonSegment(value: 'silver', label: Text('Silver')),
+            segments: [
+              ButtonSegment(value: 'gold', label: Text(context.tr('charts.gold'))),
+              ButtonSegment(value: 'silver', label: Text(context.tr('charts.silver'))),
             ],
             selected: {_metal},
             onSelectionChanged: (s) => setState(() {
@@ -225,9 +228,9 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
           if (_currency == 'EGP') ...[
             const SizedBox(height: 12),
             SegmentedButton<PriceSide>(
-              segments: const [
-                ButtonSegment(value: PriceSide.sell, label: Text('Sell')),
-                ButtonSegment(value: PriceSide.buy, label: Text('Buy')),
+              segments: [
+                ButtonSegment(value: PriceSide.sell, label: Text(context.tr('charts.sell'))),
+                ButtonSegment(value: PriceSide.buy, label: Text(context.tr('charts.buy'))),
               ],
               selected: {_side ?? PriceSide.sell},
               onSelectionChanged: (s) => setState(() => _side = s.first),
@@ -238,11 +241,15 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
             segments: [
               ButtonSegment(
                 value: AlertCondition.above,
-                label: Text(_type == AlertType.price ? 'Above' : 'Up'),
+                label: Text(_type == AlertType.price
+                    ? context.tr('alerts.cond_above')
+                    : context.tr('alerts.cond_up')),
               ),
               ButtonSegment(
                 value: AlertCondition.below,
-                label: Text(_type == AlertType.price ? 'Below' : 'Down'),
+                label: Text(_type == AlertType.price
+                    ? context.tr('alerts.cond_below')
+                    : context.tr('alerts.cond_down')),
               ),
             ],
             selected: {_condition},
@@ -254,8 +261,9 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
               labelText: _type == AlertType.price
-                  ? 'Target price per gram ($_currency)'
-                  : 'Percent change from current price',
+                  ? context.tr('alerts.target_price_label',
+                      namedArgs: {'currency': _currency})
+                  : context.tr('alerts.percent_label'),
               suffixText: _type == AlertType.percentChange ? '%' : null,
               border: const OutlineInputBorder(),
             ),
@@ -263,9 +271,9 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
           if (_type == AlertType.percentChange) ...[
             const SizedBox(height: 12),
             SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(value: false, label: Text('From now')),
-                ButtonSegment(value: true, label: Text('24h market')),
+              segments: [
+                ButtonSegment(value: false, label: Text(context.tr('alerts.from_now'))),
+                ButtonSegment(value: true, label: Text(context.tr('alerts.market_24h'))),
               ],
               selected: {_use24hPercent},
               onSelectionChanged: (s) =>
@@ -286,34 +294,36 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
           if (preview != null) ...[
             const SizedBox(height: 8),
             Text(
-              'Current: ${preview.toStringAsFixed(2)} $_currency/g',
+              context.tr('alerts.current', namedArgs: {
+                'price': preview.toStringAsFixed(2),
+                'currency': _currency,
+              }),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             if (_type == AlertType.percentChange && !_use24hPercent)
               Text(
-                'Baseline is set to the current price when you save',
+                context.tr('alerts.baseline_note'),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             if (_type == AlertType.percentChange && _use24hPercent)
               Text(
-                'Uses the same 24h change shown on the Prices screen',
+                context.tr('alerts.use_24h_note'),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
           ],
           const SizedBox(height: 8),
           Text(
             _currency == 'EGP'
-                ? 'Uses Egypt local iSagha prices'
-                : 'Uses global spot prices in $_currency',
+                ? context.tr('alerts.egp_note')
+                : context.tr('alerts.global_note',
+                    namedArgs: {'currency': _currency}),
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Auto-repeat'),
-            subtitle: const Text(
-              'Re-arm this alert automatically after it triggers',
-            ),
+            title: Text(context.tr('alerts.auto_repeat')),
+            subtitle: Text(context.tr('alerts.auto_repeat_sub')),
             value: _autoRepeat,
             onChanged: (v) => setState(() => _autoRepeat = v),
           ),
@@ -323,7 +333,7 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
               spacing: 8,
               children: _repeatOptions.entries.map((entry) {
                 return ChoiceChip(
-                  label: Text(entry.value),
+                  label: Text(context.tr(entry.value)),
                   selected: _repeatAfterHours == entry.key,
                   onSelected: (_) =>
                       setState(() => _repeatAfterHours = entry.key),
@@ -340,7 +350,7 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
                     width: 20,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Save alert'),
+                : Text(context.tr('alerts.save_alert')),
           ),
           ],
         ),

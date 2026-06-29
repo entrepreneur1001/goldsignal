@@ -4,6 +4,7 @@ import '../../../../core/widget/home_widget_service.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/providers/widget_preferences_provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class WidgetSettingsSheet extends ConsumerStatefulWidget {
   const WidgetSettingsSheet({super.key});
@@ -43,8 +44,8 @@ class _WidgetSettingsSheetState extends ConsumerState<WidgetSettingsSheet> {
     await HomeWidgetService.instance.requestPin();
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Confirm adding the widget on your home screen'),
+      SnackBar(
+        content: Text(context.tr('profile.widget_pin_confirm')),
       ),
     );
   }
@@ -70,21 +71,22 @@ class _WidgetSettingsSheetState extends ConsumerState<WidgetSettingsSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Home screen widget',
+            context.tr('profile.widget_title'),
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 12),
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const Icon(Icons.attach_money),
-            title: Text('Currency: $currency'),
-            subtitle: const Text('Change in Currency settings above'),
+            title: Text(context.tr('profile.widget_currency',
+                namedArgs: {'currency': currency})),
+            subtitle: Text(context.tr('profile.widget_currency_sub')),
           ),
           const SizedBox(height: 8),
           SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'gold', label: Text('Gold')),
-              ButtonSegment(value: 'silver', label: Text('Silver')),
+            segments: [
+              ButtonSegment(value: 'gold', label: Text(context.tr('charts.gold'))),
+              ButtonSegment(value: 'silver', label: Text(context.tr('charts.silver'))),
             ],
             selected: {prefs.metal},
             onSelectionChanged: (s) async {
@@ -110,15 +112,21 @@ class _WidgetSettingsSheetState extends ConsumerState<WidgetSettingsSheet> {
           if (preview != null) ...[
             const SizedBox(height: 12),
             Text(
-              'Preview: ${preview.label} — ${preview.pricePerGram.toStringAsFixed(2)} ${preview.currency}/g · 24h ${preview.formattedChangePercent}',
+              context.tr('profile.widget_preview', namedArgs: {
+                'label': preview.label,
+                'price': preview.pricePerGram.toStringAsFixed(2),
+                'currency': preview.currency,
+                'change': preview.formattedChangePercent,
+              }),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
           const SizedBox(height: 8),
           Text(
             currency == 'EGP'
-                ? 'EGP uses iSagha prices and your buy/sell side setting.'
-                : 'Uses global spot prices in $currency.',
+                ? context.tr('profile.widget_egp_note')
+                : context.tr('profile.widget_global_note',
+                    namedArgs: {'currency': currency}),
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 12),
@@ -126,13 +134,13 @@ class _WidgetSettingsSheetState extends ConsumerState<WidgetSettingsSheet> {
             FilledButton.icon(
               onPressed: _requestPin,
               icon: const Icon(Icons.add_to_home_screen),
-              label: const Text('Add to home screen'),
+              label: Text(context.tr('profile.widget_add_home')),
             ),
             const SizedBox(height: 8),
           ],
           if (_pinSupported != true)
             Text(
-              'Add widget: long-press home screen → Widgets → GoldSignal',
+              context.tr('profile.widget_add_manual'),
               style: Theme.of(context).textTheme.bodySmall,
             ),
         ],

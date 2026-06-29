@@ -8,6 +8,7 @@ import '../widgets/auth_scaffold.dart';
 import '../widgets/auth_text_field.dart';
 import 'forgot_password_screen.dart';
 import 'sign_up_screen.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 /// Email + password sign-in. When [linkGuest] is true the screen is reached
 /// from a guest upgrading their account; on success it simply pops back so the
@@ -73,10 +74,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final isLoading = ref.watch(authControllerProvider).isLoading;
 
     return AuthScaffold(
-      title: widget.linkGuest ? 'Link your account' : 'Welcome back',
+      title: widget.linkGuest
+          ? context.tr('auth.link_title')
+          : context.tr('auth.welcome_back'),
       subtitle: widget.linkGuest
-          ? 'Sign in to keep your data on this account'
-          : 'Sign in to your GoldSignal account',
+          ? context.tr('auth.link_subtitle')
+          : context.tr('auth.signin_subtitle'),
       children: [
         Form(
           key: _formKey,
@@ -84,7 +87,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             children: [
               AuthTextField(
                 controller: _emailController,
-                label: 'Email',
+                label: context.tr('email'),
                 icon: Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
@@ -94,7 +97,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               const SizedBox(height: AppDimens.space16),
               AuthTextField(
                 controller: _passwordController,
-                label: 'Password',
+                label: context.tr('password'),
                 icon: Icons.lock_outline,
                 obscure: true,
                 textInputAction: TextInputAction.done,
@@ -119,7 +122,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         ),
                       ),
                     ),
-            child: const Text('Forgot Password?'),
+            child: Text(context.tr('forgot_password')),
           ),
         ),
         const SizedBox(height: AppDimens.space8),
@@ -131,7 +134,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   width: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Sign In'),
+              : Text(context.tr('sign_in')),
         ),
         const SizedBox(height: AppDimens.space16),
         TextButton(
@@ -144,7 +147,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                       builder: (_) => SignUpScreen(linkGuest: widget.linkGuest),
                     ),
                   ),
-          child: const Text("Don't have an account? Create one"),
+          child: Text(context.tr('auth.no_account')),
         ),
       ],
     );

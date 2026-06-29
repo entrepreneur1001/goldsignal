@@ -10,6 +10,7 @@ import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 import '../../../system/presentation/screens/force_update_screen.dart';
 import '../../../system/presentation/screens/maintenance_screen.dart';
 import 'welcome_screen.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -132,7 +133,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
             // Tagline
             Text(
-              'Track Gold & Silver Prices',
+              context.tr('auth.app_tagline_splash'),
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.white.withValues(alpha: 0.9),

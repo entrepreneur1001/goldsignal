@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../design/app_colors.dart';
 import '../design/app_typography.dart';
 import 'animated_value.dart';
@@ -39,6 +40,7 @@ class MetalPriceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = VaultColors.of(Theme.of(context).brightness);
+    final languageCode = Localizations.localeOf(context).languageCode;
     final isGold = metal.toLowerCase() == 'gold';
     final accent = isGold ? VaultColors.gold : VaultColors.silver;
     final label = karatLabel != null
@@ -67,7 +69,15 @@ class MetalPriceCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Expanded(child: Text(label, style: AppTypography.microLabel(c))),
+              Expanded(
+                child: Text(
+                  label,
+                  style: AppTypography.microLabel(
+                    c,
+                    languageCode: languageCode,
+                  ),
+                ),
+              ),
               DeltaPill(percent: changePercent),
             ],
           ),
@@ -75,7 +85,7 @@ class MetalPriceCard extends StatelessWidget {
           AnimatedValue(
             value: price,
             formatter: priceFormatter,
-            style: AppTypography.hero(c, size: 38),
+            style: AppTypography.hero(c, size: 38, languageCode: languageCode),
           ),
           const SizedBox(height: 2),
           Text(unitLabel, style: Theme.of(context).textTheme.bodySmall),
@@ -89,7 +99,7 @@ class MetalPriceCard extends StatelessWidget {
               children: [
                 if (onAlert != null)
                   GhostButton(
-                    label: 'Set alert',
+                    label: context.tr('prices.set_alert'),
                     icon: Icons.notifications_none_rounded,
                     onPressed: onAlert,
                   ),
@@ -97,7 +107,7 @@ class MetalPriceCard extends StatelessWidget {
                   const SizedBox(width: 8),
                 if (onHistory != null)
                   GhostButton(
-                    label: 'History',
+                    label: context.tr('prices.history'),
                     icon: Icons.show_chart_rounded,
                     onPressed: onHistory,
                   ),

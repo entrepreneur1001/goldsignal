@@ -9,6 +9,7 @@ import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/providers/portfolio_provider.dart';
 import '../../zakat.dart';
 import '../../../../core/utils/currency_format.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class ZakatCalculatorScreen extends ConsumerStatefulWidget {
   const ZakatCalculatorScreen({super.key});
@@ -113,7 +114,7 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Zakat Calculator'),
+        title: Text(context.tr('zakat.title')),
         elevation: 0,
         backgroundColor: Colors.transparent,
       ),
@@ -135,12 +136,11 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
             Icon(Icons.price_change_outlined,
                 size: 56, color: Colors.grey.shade400),
             const SizedBox(height: 16),
-            Text('Live prices not loaded yet',
+            Text(context.tr('zakat.prices_unavailable_title'),
                 style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             Text(
-              'Zakat is calculated from current gold and silver prices. '
-              'Refresh prices and try again.',
+              context.tr('zakat.prices_unavailable_msg'),
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall,
             ),
@@ -149,7 +149,7 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
               onPressed: () =>
                   ref.read(marketPricesControllerProvider.notifier).refresh(),
               icon: const Icon(Icons.refresh),
-              label: const Text('Refresh prices'),
+              label: Text(context.tr('prices.refresh')),
             ),
           ],
         ),
@@ -205,7 +205,7 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
         const SizedBox(height: 24),
 
         // Holdings source
-        Text('Assets', style: theme.textTheme.titleMedium),
+        Text(context.tr('zakat.assets'), style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
         Card(
           margin: EdgeInsets.zero,
@@ -214,10 +214,12 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
               SwitchListTile(
                 value: _includePortfolio,
                 onChanged: (v) => setState(() => _includePortfolio = v),
-                title: const Text('Include my portfolio'),
+                title: Text(context.tr('zakat.include_portfolio')),
                 subtitle: Text(
-                  'Gold ${formatCurrency(portfolio.gold, currency)} · '
-                  'Silver ${formatCurrency(portfolio.silver, currency)}',
+                  context.tr('zakat.portfolio_sub', namedArgs: {
+                    'gold': formatCurrency(portfolio.gold, currency),
+                    'silver': formatCurrency(portfolio.silver, currency),
+                  }),
                 ),
               ),
             ],
@@ -226,46 +228,51 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
         const SizedBox(height: 16),
 
         // Manual additions
-        Text('Add other assets', style: theme.textTheme.titleMedium),
+        Text(context.tr('zakat.add_other'), style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
         _buildGoldRow(theme),
         const SizedBox(height: 12),
         _buildNumberField(
           controller: _extraSilverController,
-          label: 'Other silver (grams)',
+          label: context.tr('zakat.other_silver'),
           icon: Icons.circle_outlined,
         ),
         const SizedBox(height: 12),
         _buildNumberField(
           controller: _cashController,
-          label: 'Cash / savings ($currency)',
+          label: context.tr('zakat.cash', namedArgs: {'currency': currency}),
           icon: Icons.payments_outlined,
         ),
         const SizedBox(height: 24),
 
         // Nisab basis
-        Text('Nisab threshold', style: theme.textTheme.titleMedium),
+        Text(context.tr('zakat.nisab_threshold'),
+            style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
         SegmentedButton<NisabBasis>(
-          segments: const [
+          segments: [
             ButtonSegment(
               value: NisabBasis.silver,
-              label: Text('Silver (595g)'),
+              label: Text(context.tr('zakat.nisab_silver')),
             ),
             ButtonSegment(
               value: NisabBasis.gold,
-              label: Text('Gold (85g)'),
+              label: Text(context.tr('zakat.nisab_gold')),
             ),
           ],
           selected: {_nisabBasis},
           onSelectionChanged: (s) => setState(() => _nisabBasis = s.first),
         ),
         const SizedBox(height: 8),
+        // TODO(i18n-review): verify ar/ur religious wording for 'zakat.nisab_note'
         Text(
-          'Nisab = ${nisabGrams.toStringAsFixed(0)}g '
-          '${effectiveBasis == NisabBasis.silver ? 'silver' : 'gold'} '
-          '≈ ${formatCurrency(nisabValue, currency)}. '
-          'Silver basis is recommended when combining assets.',
+          context.tr('zakat.nisab_note', namedArgs: {
+            'grams': nisabGrams.toStringAsFixed(0),
+            'basis': effectiveBasis == NisabBasis.silver
+                ? context.tr('zakat.basis_silver')
+                : context.tr('zakat.basis_gold'),
+            'value': formatCurrency(nisabValue, currency),
+          }),
           style: theme.textTheme.bodySmall,
         ),
       ],
@@ -306,7 +313,9 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            isDue ? 'Zakat due (2.5%)' : 'No zakat due',
+            isDue
+                ? context.tr('portfolio.zakat_due')
+                : context.tr('zakat.not_due'),
             style: theme.textTheme.titleMedium?.copyWith(
               color: Colors.white.withValues(alpha: 0.9),
             ),
@@ -320,12 +329,15 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          _resultRow('Zakatable wealth', formatCurrency(total, currency)),
+          _resultRow(context.tr('zakat.zakatable'),
+              formatCurrency(total, currency)),
           const SizedBox(height: 4),
-          _resultRow('Nisab threshold', formatCurrency(nisabValue, currency)),
+          _resultRow(context.tr('zakat.nisab_threshold'),
+              formatCurrency(nisabValue, currency)),
           if (!isDue && shortfall > 0) ...[
             const SizedBox(height: 4),
-            _resultRow('Below nisab by', formatCurrency(shortfall, currency)),
+            _resultRow(context.tr('zakat.below_by'),
+                formatCurrency(shortfall, currency)),
           ],
         ],
       ),
@@ -352,7 +364,7 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
         Expanded(
           child: _buildNumberField(
             controller: _extraGoldController,
-            label: 'Other gold (grams)',
+            label: context.tr('zakat.other_gold'),
             icon: Icons.diamond_outlined,
           ),
         ),
@@ -405,10 +417,8 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Zakat of 2.5% is due on gold, silver and cash once their combined '
-              'value reaches the nisab and a full lunar year (hawl) has passed. '
-              'This is an estimate for guidance — consult a scholar for rulings, '
-              'including on personal-use jewelry.',
+              // TODO(i18n-review): verify ar/ur religious wording for 'zakat.disclaimer'
+              context.tr('zakat.disclaimer'),
               style: theme.textTheme.bodySmall,
             ),
           ),

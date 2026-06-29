@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../../../core/firebase/auth_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -10,6 +10,7 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
+  // TODO(i18n): country names are stored profile values, not localized here.
   static const _countries = [
     'Saudi Arabia', 'United Arab Emirates', 'Egypt', 'Kuwait', 'Bahrain',
     'Oman', 'Qatar', 'Jordan', 'Lebanon', 'Iraq', 'Pakistan', 'India',
@@ -69,7 +70,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _save() async {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your name')),
+        SnackBar(content: Text(context.tr('profile.enter_name'))),
       );
       return;
     }
@@ -87,13 +88,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       if (!mounted) return;
       Navigator.pop(context, true);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Profile updated')),
+        SnackBar(content: Text(context.tr('success.profile_updated'))),
       );
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Could not save profile. Try again.')),
+        SnackBar(content: Text(context.tr('profile.save_failed'))),
       );
     }
   }
@@ -101,7 +102,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Profile')),
+      appBar: AppBar(title: Text(context.tr('profile.edit_title'))),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView(
@@ -110,20 +111,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 TextField(
                   controller: _nameController,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'Full name',
-                    prefixIcon: Icon(Icons.person_outline),
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: context.tr('profile.full_name'),
+                    prefixIcon: const Icon(Icons.person_outline),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   initialValue: _country,
                   isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Country',
-                    prefixIcon: Icon(Icons.public),
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: context.tr('profile.country'),
+                    prefixIcon: const Icon(Icons.public),
+                    border: const OutlineInputBorder(),
                   ),
                   items: _countries
                       .map((c) =>
@@ -135,25 +136,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 TextField(
                   controller: _cityController,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    labelText: 'City',
-                    prefixIcon: Icon(Icons.location_city_outlined),
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: context.tr('profile.city'),
+                    prefixIcon: const Icon(Icons.location_city_outlined),
+                    border: const OutlineInputBorder(),
                   ),
                 ),
                 const SizedBox(height: 16),
                 InkWell(
                   onTap: _pickDob,
                   child: InputDecorator(
-                    decoration: const InputDecoration(
-                      labelText: 'Date of birth',
-                      prefixIcon: Icon(Icons.cake_outlined),
-                      border: OutlineInputBorder(),
+                    decoration: InputDecoration(
+                      labelText: context.tr('profile.dob'),
+                      prefixIcon: const Icon(Icons.cake_outlined),
+                      border: const OutlineInputBorder(),
                     ),
                     child: Text(
                       _dob != null
                           ? DateFormat('MMM d, yyyy').format(_dob!)
-                          : 'Select date',
+                          : context.tr('profile.select_date'),
                     ),
                   ),
                 ),
@@ -168,7 +169,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             width: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('Save'),
+                        : Text(context.tr('common.save')),
                   ),
                 ),
               ],

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/design/app_colors.dart';
 import '../../../../shared/design/app_dimens.dart';
 import '../../../../shared/providers/auth_provider.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 /// Soft-verification nudge shown in Profile for signed-in (non-guest) users
 /// whose email is not yet verified. Lets them resend the link or re-check after
@@ -26,9 +27,11 @@ class _VerifyEmailBannerState extends ConsumerState<VerifyEmailBanner> {
 
   Future<void> _resend() async {
     setState(() => _busy = true);
+    // Resolve before the async gap to avoid using context across an await.
+    final sentMsg = context.tr('profile.verify_sent');
     try {
       await ref.read(authControllerProvider.notifier).resendVerification();
-      _toast('Verification email sent — check your inbox');
+      _toast(sentMsg);
     } catch (e) {
       _toast(e.toString().replaceFirst('Exception: ', ''));
     } finally {
@@ -38,11 +41,14 @@ class _VerifyEmailBannerState extends ConsumerState<VerifyEmailBanner> {
 
   Future<void> _check() async {
     setState(() => _busy = true);
+    // Resolve before the async gap to avoid using context across an await.
+    final doneMsg = context.tr('profile.verify_done');
+    final notYetMsg = context.tr('profile.verify_not_yet');
     try {
       final verified =
           await ref.read(authControllerProvider.notifier).refreshVerification();
       if (mounted) setState(() => _verified = verified);
-      _toast(verified ? 'Email verified — thank you!' : 'Not verified yet');
+      _toast(verified ? doneMsg : notYetMsg);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -83,7 +89,7 @@ class _VerifyEmailBannerState extends ConsumerState<VerifyEmailBanner> {
               const SizedBox(width: AppDimens.space12),
               Expanded(
                 child: Text(
-                  'Verify your email',
+                  context.tr('profile.verify_email_title'),
                   style: Theme.of(context)
                       .textTheme
                       .titleMedium
@@ -100,8 +106,9 @@ class _VerifyEmailBannerState extends ConsumerState<VerifyEmailBanner> {
           ),
           const SizedBox(height: AppDimens.space4),
           Text(
-            'We sent a link to ${user.email ?? 'your email'}. Verify to secure '
-            'your account.',
+            context.tr('profile.verify_email_body', namedArgs: {
+              'email': user.email ?? context.tr('profile.verify_email_default'),
+            }),
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: AppDimens.space8),
@@ -109,11 +116,12 @@ class _VerifyEmailBannerState extends ConsumerState<VerifyEmailBanner> {
             children: [
               TextButton(
                 onPressed: _busy ? null : _check,
-                child: const Text("I've verified"),
+                child: Text(context.tr('profile.ive_verified')),
               ),
               TextButton(
                 onPressed: _busy ? null : _resend,
-                child: Text('Resend', style: TextStyle(color: c.textSecondary)),
+                child: Text(context.tr('profile.resend'),
+                    style: TextStyle(color: c.textSecondary)),
               ),
             ],
           ),

@@ -3,20 +3,24 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:goldsignal/firebase_options.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'core/ads/ad_service.dart';
 import 'core/analytics/analytics_service.dart';
+import 'core/firebase/firestore_user_service.dart';
 import 'core/notifications/alert_notification_service.dart';
 import 'core/widget/home_widget_service.dart';
 import 'core/utils/app_config.dart';
 import 'core/utils/app_localization.dart';
 import 'shared/themes/app_theme.dart';
 import 'shared/providers/app_info_provider.dart';
+import 'shared/providers/currency_provider.dart';
 import 'features/auth/presentation/screens/splash_screen.dart';
 
 void main() async {
@@ -60,27 +64,92 @@ void main() async {
       path: 'assets/translations',
       fallbackLocale: const Locale('en'),
       child: ProviderScope(
-        overrides: [
-          packageInfoProvider.overrideWith((ref) => packageInfo),
-        ],
+        overrides: [packageInfoProvider.overrideWith((ref) => packageInfo)],
         child: const GoldSignalApp(),
       ),
     ),
   );
 }
 
-class GoldSignalApp extends StatelessWidget {
+/// Throttle Firestore activity writes: a foreground bounce shouldn't write on
+/// every resume. Survives app restarts via shared_preferences.
+const _lastActivityWriteKey = 'last_activity_write_ms';
+const _activityWriteThrottle = Duration(hours: 1);
+
+class GoldSignalApp extends ConsumerStatefulWidget {
   const GoldSignalApp({super.key});
 
   @override
+  ConsumerState<GoldSignalApp> createState() => _GoldSignalAppState();
+}
+
+class _GoldSignalAppState extends ConsumerState<GoldSignalApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // App launch counts as a foreground — record activity once the first frame
+    // is up so providers/auth are ready.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onForeground());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _onForeground();
+    }
+  }
+
+  /// Logs the open, refreshes cohort user properties, and writes the throttled
+  /// activity signal the re-engagement function reads.
+  Future<void> _onForeground() async {
+    // Read context/provider state up front, before any await crosses a frame.
+    final currency = ref.read(selectedCurrencyProvider);
+    final localeCode = context.locale.languageCode;
+    final appVersion = ref.read(packageInfoProvider).version;
+
+    await AnalyticsService.instance.logAppOpen();
+    await AnalyticsService.instance.setUserProperty('currency', currency);
+    await AnalyticsService.instance.setUserProperty('app_language', localeCode);
+
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final last = prefs.getInt(_lastActivityWriteKey) ?? 0;
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (nowMs - last < _activityWriteThrottle.inMilliseconds) return;
+    await prefs.setInt(_lastActivityWriteKey, nowMs);
+
+    try {
+      await FirestoreUserService().recordActivity(
+        uid,
+        appVersion: appVersion,
+        locale: localeCode,
+      );
+    } catch (_) {
+      // Non-fatal; activity will be recorded on the next foreground.
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final locale = context.locale;
+
     return MaterialApp(
       title: 'GoldSignal',
       supportedLocales: context.supportedLocales,
       localizationsDelegates: context.localizationDelegates,
-      locale: context.locale,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      locale: locale,
+      theme: AppTheme.lightThemeFor(locale),
+      darkTheme: AppTheme.darkThemeFor(locale),
       themeMode: ThemeMode.system,
       debugShowCheckedModeBanner: false,
       navigatorObservers: [AnalyticsService.instance.navigatorObserver],

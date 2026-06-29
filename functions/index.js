@@ -524,3 +524,166 @@ exports.sendDailyDigest = onSchedule(
     logger.info(`Digest sent to ${sent} user(s)`);
   },
 );
+
+// ---------------------------------------------------------------------------
+// Re-engagement campaign
+// ---------------------------------------------------------------------------
+
+// Inactivity thresholds (days) at which a lapsed user becomes eligible. The
+// largest tier whose threshold the user has crossed is recorded for analytics.
+const REENGAGE_TIERS_DAYS = [3, 7, 14];
+// Minimum gap between two re-engagement pushes to the same user.
+const REENGAGE_COOLDOWN_DAYS = 7;
+// 24h gold move (absolute %) that promotes a generic win-back into a market nudge.
+const BIG_MOVE_PCT = 2;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function reengageTier(inactivityDays) {
+  let tier = 0;
+  for (const t of REENGAGE_TIERS_DAYS) {
+    if (inactivityDays >= t) tier = t;
+  }
+  return tier; // 0 == not yet lapsed
+}
+
+function reengageMessage(nums, currency) {
+  const pct = nums.goldPct;
+  if (pct != null && Math.abs(pct) >= BIG_MOVE_PCT) {
+    const dir = pct >= 0 ? 'up' : 'down';
+    const body =
+      `Gold is ${dir} ${Math.abs(pct).toFixed(1)}% today` +
+      (nums.goldPerGram != null
+        ? ` at ${formatDigestNum(nums.goldPerGram)} ${currency}/g.`
+        : '.') +
+      ' Check the latest prices.';
+    return { title: 'Gold is on the move', body };
+  }
+  return {
+    title: 'We miss you',
+    body: "See today's gold & silver prices and how your portfolio is doing.",
+  };
+}
+
+async function sendReEngagePush(token, title, body) {
+  try {
+    await messaging.send({
+      token,
+      notification: { title, body },
+      data: { type: 're_engagement' },
+      android: { priority: 'high' },
+      apns: { payload: { aps: { sound: 'default' } } },
+    });
+    return true;
+  } catch (err) {
+    if (
+      err.code === 'messaging/registration-token-not-registered' ||
+      err.code === 'messaging/invalid-registration-token'
+    ) {
+      return false;
+    }
+    throw err;
+  }
+}
+
+// Nudges lapsed users back. Runs daily, targets users inactive >= the smallest
+// tier, respects a per-user cooldown, the `reengage.enabled` opt-out, and a
+// `metadata/app.reengageEnabled` kill switch. De-duped per local calendar day.
+exports.sendReEngagement = onSchedule(
+  {
+    schedule: 'every 24 hours',
+    timeZone: 'UTC',
+    retryCount: 0,
+    memory: '256MiB',
+    timeoutSeconds: 300,
+    maxInstances: 1,
+  },
+  async () => {
+    const cfgSnap = await db.collection('metadata').doc('app').get();
+    if (cfgSnap.exists && cfgSnap.data()?.reengageEnabled === false) {
+      logger.info('Re-engagement disabled via metadata/app kill switch');
+      return;
+    }
+
+    const ctx = await loadPriceContextFromFirestore(db);
+    if (!ctx.globalRates && !ctx.localEgp) {
+      logger.warn('Re-engagement: no price data available');
+      return;
+    }
+
+    const now = Date.now();
+    const minTier = REENGAGE_TIERS_DAYS[0];
+    const cutoff = admin.firestore.Timestamp.fromDate(
+      new Date(now - minTier * DAY_MS),
+    );
+
+    // Only users with a recorded activity signal older than the smallest tier
+    // can be lapsed; users active more recently are excluded by the query.
+    const usersSnap = await db
+      .collection('users')
+      .where('lastActiveAt', '<=', cutoff)
+      .get();
+
+    if (usersSnap.empty) {
+      logger.info('Re-engagement: no lapsed users');
+      return;
+    }
+
+    const pad = (n) => String(n).padStart(2, '0');
+    let sent = 0;
+
+    for (const userDoc of usersSnap.docs) {
+      const data = userDoc.data();
+      const token = data.fcmToken;
+      if (!token) continue;
+
+      const reengage = data.reengage || {};
+      if (reengage.enabled === false) continue; // opted out
+
+      const cooldownPassed = (lastSentAt) => {
+        if (!lastSentAt) return true;
+        const ms =
+          typeof lastSentAt.toDate === 'function'
+            ? lastSentAt.toDate().getTime()
+            : 0;
+        return now - ms >= REENGAGE_COOLDOWN_DAYS * DAY_MS;
+      };
+      if (!cooldownPassed(reengage.lastSentAt)) continue;
+
+      const lastActive = data.lastActiveAt?.toDate?.();
+      if (!lastActive) continue;
+      const inactivityDays = (now - lastActive.getTime()) / DAY_MS;
+      const tier = reengageTier(inactivityDays);
+      if (tier === 0) continue;
+
+      const currency = data.digest?.currency || 'USD';
+      const nums = digestNumbers(ctx, currency);
+      const { title, body } = reengageMessage(nums, currency);
+
+      const ok = await sendReEngagePush(token, title, body);
+      if (!ok) {
+        await userDoc.ref.update({
+          fcmToken: admin.firestore.FieldValue.delete(),
+        });
+        continue;
+      }
+
+      const ymd = `${new Date(now).getUTCFullYear()}-${pad(
+        new Date(now).getUTCMonth() + 1,
+      )}-${pad(new Date(now).getUTCDate())}`;
+      await userDoc.ref.set(
+        {
+          reengage: {
+            lastSentAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastSentYmd: ymd,
+            lastTier: tier,
+          },
+        },
+        { merge: true },
+      );
+      sent += 1;
+    }
+
+    logger.info(`Re-engagement sent to ${sent} user(s)`);
+  },
+);

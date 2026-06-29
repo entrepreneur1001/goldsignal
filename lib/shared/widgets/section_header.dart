@@ -12,11 +12,17 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = VaultColors.of(Theme.of(context).brightness);
+    final languageCode = Localizations.localeOf(context).languageCode;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12, top: 4),
       child: Row(
         children: [
-          Expanded(child: Text(title.toUpperCase(), style: AppTypography.microLabel(c))),
+          Expanded(
+            child: Text(
+              title.toUpperCase(),
+              style: AppTypography.microLabel(c, languageCode: languageCode),
+            ),
+          ),
           ?action,
         ],
       ),

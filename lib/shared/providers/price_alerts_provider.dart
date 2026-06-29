@@ -178,6 +178,7 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
       'alert_created',
       parameters: {'type': type.name, 'metal': metal},
     );
+    await AnalyticsService.instance.setUserProperty('has_alerts', 'true');
   }
 
   Future<void> deleteAlert(String id) async {

@@ -1,17 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
+import 'package:easy_localization/easy_localization.dart';
+import '../../../../core/analytics/analytics_service.dart';
 import '../../../../shared/models/price_alert.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
 import '../../../../shared/widgets/native_ad_widget.dart';
 import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
 import '../widgets/create_alert_sheet.dart';
 
-class AlertsScreen extends ConsumerWidget {
+class AlertsScreen extends ConsumerStatefulWidget {
   const AlertsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AlertsScreen> createState() => _AlertsScreenState();
+}
+
+class _AlertsScreenState extends ConsumerState<AlertsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Top of the alert funnel: alerts_viewed → alert_created → notification_opened.
+    AnalyticsService.instance.logAlertsViewed();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(priceAlertsProvider);
     final notifier = ref.read(priceAlertsProvider.notifier);
 
@@ -19,23 +32,25 @@ class AlertsScreen extends ConsumerWidget {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Price Alerts'),
+          title: Text(context.tr('alerts.title')),
           bottom: TabBar(
             tabs: [
-              Tab(text: 'Active (${state.activeCount})'),
-              Tab(text: 'History (${state.historyAlerts.length})'),
+              Tab(text: context.tr('alerts.tab_active',
+                  namedArgs: {'count': '${state.activeCount}'})),
+              Tab(text: context.tr('alerts.tab_history',
+                  namedArgs: {'count': '${state.historyAlerts.length}'})),
             ],
           ),
           actions: [
             IconButton(
-              tooltip: 'Enable notifications',
+              tooltip: context.tr('alerts.enable_notifications'),
               icon: const Icon(Icons.notifications_active_outlined),
               onPressed: () async {
                 await notifier.requestNotificationPermission();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Notification permission updated'),
+                    SnackBar(
+                      content: Text(context.tr('profile.notif_updated')),
                     ),
                   );
                 }
@@ -49,7 +64,7 @@ class AlertsScreen extends ConsumerWidget {
             if (context.mounted) CreateAlertSheet.show(context);
           },
           icon: const Icon(Icons.add_alert),
-          label: const Text('New alert'),
+          label: Text(context.tr('alerts.new_alert')),
         ),
         body: Column(
           children: [
@@ -86,10 +101,8 @@ class _ActiveAlertsTab extends ConsumerWidget {
       return _buildEmpty(
         context,
         icon: Icons.notifications_off_outlined,
-        title: 'No active alerts',
-        message:
-            'Create a price or percent-change alert for gold or silver. '
-            'Alerts sync to your account and notify you in the background.',
+        title: context.tr('profile.no_active_alerts'),
+        message: context.tr('alerts.empty_active_msg'),
       );
     }
 
@@ -112,7 +125,8 @@ class _ActiveAlertsTab extends ConsumerWidget {
         ],
         if (snoozed.isNotEmpty) ...[
           const SizedBox(height: 24),
-          Text('Snoozed', style: Theme.of(context).textTheme.titleSmall),
+          Text(context.tr('alerts.snoozed'),
+              style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           for (var i = 0; i < snoozed.length; i++) ...[
             if (i > 0) const SizedBox(height: 8),
@@ -121,7 +135,8 @@ class _ActiveAlertsTab extends ConsumerWidget {
         ],
         if (paused.isNotEmpty) ...[
           const SizedBox(height: 24),
-          Text('Paused', style: Theme.of(context).textTheme.titleSmall),
+          Text(context.tr('alerts.paused'),
+              style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
           for (var i = 0; i < paused.length; i++) ...[
             if (i > 0) const SizedBox(height: 8),
@@ -147,10 +162,8 @@ class _HistoryTab extends ConsumerWidget {
       return _buildEmpty(
         context,
         icon: Icons.history,
-        title: 'No triggered alerts yet',
-        message:
-            'When an alert fires, it moves here with the price and time '
-            'it triggered. You can reactivate any alert from history.',
+        title: context.tr('alerts.empty_history_title'),
+        message: context.tr('alerts.empty_history_msg'),
       );
     }
 
@@ -165,19 +178,19 @@ class _HistoryTab extends ConsumerWidget {
                 final confirmed = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    title: const Text('Clear history?'),
+                    title: Text(context.tr('alerts.clear_history_title')),
                     content: Text(
-                      'Delete ${alerts.length} triggered alert(s) from history? '
-                      'Active and snoozed alerts are not affected.',
+                      context.tr('alerts.clear_history_confirm',
+                          namedArgs: {'count': '${alerts.length}'}),
                     ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('Cancel'),
+                        child: Text(context.tr('common.cancel')),
                       ),
                       FilledButton(
                         onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text('Clear'),
+                        child: Text(context.tr('alerts.clear')),
                       ),
                     ],
                   ),
@@ -187,7 +200,7 @@ class _HistoryTab extends ConsumerWidget {
                 }
               },
               icon: const Icon(Icons.delete_sweep_outlined),
-              label: const Text('Clear history'),
+              label: Text(context.tr('alerts.clear_history')),
             ),
           ),
         ),
@@ -234,7 +247,7 @@ class _ActiveAlertTile extends ConsumerWidget {
           color: Theme.of(context).colorScheme.primary,
         ),
         title: Text(alert.label),
-        subtitle: _buildActiveSubtitle(alert, currentPrice, ref),
+        subtitle: _buildActiveSubtitle(context, alert, currentPrice, ref),
         isThreeLine: alert.autoRepeats || alert.isPercent24h,
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -266,12 +279,14 @@ class _SnoozedAlertTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dateFmt = DateFormat('MMM d, HH:mm');
-    final subtitle = StringBuffer('Waiting to repeat');
+    final subtitle = StringBuffer(context.tr('alerts.waiting_repeat'));
     if (alert.reactivateAt != null) {
       subtitle.write(' · ${dateFmt.format(alert.reactivateAt!)}');
     }
     if (alert.triggeredAt != null) {
-      subtitle.write('\nTriggered ${dateFmt.format(alert.triggeredAt!)}');
+      subtitle.write('\n${context.tr('alerts.triggered_at', namedArgs: {
+            'date': dateFmt.format(alert.triggeredAt!)
+          })}');
     }
 
     return Card(
@@ -285,7 +300,7 @@ class _SnoozedAlertTile extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              tooltip: 'Reactivate now',
+              tooltip: context.tr('alerts.reactivate_now'),
               icon: const Icon(Icons.replay),
               onPressed: () => ref
                   .read(priceAlertsProvider.notifier)
@@ -320,7 +335,7 @@ class _PausedAlertTile extends ConsumerWidget {
       child: ListTile(
         leading: Icon(Icons.notifications_paused, color: Colors.grey.shade600),
         title: Text(alert.label),
-        subtitle: _buildLiveSubtitle(alert, currentPrice, ref),
+        subtitle: _buildLiveSubtitle(context, alert, currentPrice, ref),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -357,17 +372,22 @@ class _HistoryAlertTile extends ConsumerWidget {
       subtitle.write(dateFmt.format(alert.triggeredAt!));
     }
     if (alert.triggeredPrice != null) {
-      subtitle.write(
-        '\nAt ${alert.triggeredPrice!.toStringAsFixed(2)} ${alert.currency}/g',
-      );
+      subtitle.write('\n${context.tr('alerts.at_price', namedArgs: {
+            'price': alert.triggeredPrice!.toStringAsFixed(2),
+            'currency': alert.currency,
+          })}');
       if (alert.isPercentChange && alert.baselinePrice != null) {
         final change = alert.changePercentFrom(alert.triggeredPrice!) ?? 0;
         final sign = change >= 0 ? '+' : '';
-        subtitle.write(' ($sign${change.toStringAsFixed(2)}% from baseline)');
+        subtitle.write(' ${context.tr('alerts.from_baseline', namedArgs: {
+              'value': '$sign${change.toStringAsFixed(2)}%'
+            })}');
       }
     }
     if (alert.isSnoozed && alert.reactivateAt != null) {
-      subtitle.write('\nRepeats ${dateFmt.format(alert.reactivateAt!)}');
+      subtitle.write('\n${context.tr('alerts.repeats', namedArgs: {
+            'date': dateFmt.format(alert.reactivateAt!)
+          })}');
     } else if (alert.autoRepeats) {
       subtitle.write('\n${alert.repeatDescription}');
     }
@@ -385,7 +405,7 @@ class _HistoryAlertTile extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              tooltip: 'Reactivate',
+              tooltip: context.tr('alerts.reactivate'),
               icon: const Icon(Icons.replay),
               onPressed: () => ref
                   .read(priceAlertsProvider.notifier)
@@ -405,6 +425,7 @@ class _HistoryAlertTile extends ConsumerWidget {
 }
 
 Widget? _buildActiveSubtitle(
+  BuildContext context,
   PriceAlert alert,
   double? currentPrice,
   WidgetRef ref,
@@ -414,6 +435,7 @@ Widget? _buildActiveSubtitle(
       : null;
   final lines = <String>[];
   final live = _liveSubtitleText(
+    context,
     alert,
     currentPrice,
     rolling24hPercent: rolling24h,
@@ -425,6 +447,7 @@ Widget? _buildActiveSubtitle(
 }
 
 String? _liveSubtitleText(
+  BuildContext context,
   PriceAlert alert,
   double? currentPrice, {
   double? rolling24hPercent,
@@ -437,30 +460,39 @@ String? _liveSubtitleText(
 
   final subtitle = StringBuffer();
   if (currentPrice != null) {
-    subtitle.write(
-      'Now: ${currentPrice.toStringAsFixed(2)} ${alert.currency}/g',
-    );
+    subtitle.write(context.tr('alerts.now', namedArgs: {
+      'price': currentPrice.toStringAsFixed(2),
+      'currency': alert.currency,
+    }));
     if (alert.isPercent24h && rolling24hPercent != null) {
       final sign = rolling24hPercent >= 0 ? '+' : '';
-      subtitle.write(' · 24h: $sign${rolling24hPercent.toStringAsFixed(2)}%');
+      subtitle.write(' · ${context.tr('alerts.h24', namedArgs: {
+            'value': '$sign${rolling24hPercent.toStringAsFixed(2)}%'
+          })}');
     } else if (alert.type == AlertType.percentChange &&
         alert.baselinePrice != null) {
       final change = alert.changePercentFrom(currentPrice) ?? 0;
       final sign = change >= 0 ? '+' : '';
-      subtitle.write(' ($sign${change.toStringAsFixed(2)}% from baseline)');
+      subtitle.write(' ${context.tr('alerts.from_baseline', namedArgs: {
+            'value': '$sign${change.toStringAsFixed(2)}%'
+          })}');
     }
   } else if (alert.isPercent24h && rolling24hPercent != null) {
     final sign = rolling24hPercent >= 0 ? '+' : '';
-    subtitle.write('24h: $sign${rolling24hPercent.toStringAsFixed(2)}%');
+    subtitle.write(context.tr('alerts.h24', namedArgs: {
+      'value': '$sign${rolling24hPercent.toStringAsFixed(2)}%'
+    }));
   } else if (alert.type == AlertType.percentChange && alert.baselinePrice != null) {
-    subtitle.write(
-      'Baseline: ${alert.baselinePrice!.toStringAsFixed(2)} ${alert.currency}/g',
-    );
+    subtitle.write(context.tr('alerts.baseline', namedArgs: {
+      'price': alert.baselinePrice!.toStringAsFixed(2),
+      'currency': alert.currency,
+    }));
   }
   return subtitle.toString();
 }
 
 Widget? _buildLiveSubtitle(
+  BuildContext context,
   PriceAlert alert,
   double? currentPrice,
   WidgetRef ref,
@@ -469,6 +501,7 @@ Widget? _buildLiveSubtitle(
       ? ref.read(priceAlertsProvider.notifier).resolveRolling24hPercent(alert)
       : null;
   final text = _liveSubtitleText(
+    context,
     alert,
     currentPrice,
     rolling24hPercent: rolling24h,

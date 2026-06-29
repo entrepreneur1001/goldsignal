@@ -7,6 +7,7 @@ import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 import '../widgets/auth_scaffold.dart';
 import 'sign_in_screen.dart';
 import 'sign_up_screen.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 /// Landing screen for unauthenticated users: Sign In, Create Account, or
 /// Continue as Guest. Entry point of the auth flow.
@@ -28,7 +29,7 @@ class WelcomeScreen extends ConsumerWidget {
     } catch (_) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to continue as guest')),
+          SnackBar(content: Text(context.tr('auth.guest_failed'))),
         );
       }
     }
@@ -40,8 +41,8 @@ class WelcomeScreen extends ConsumerWidget {
 
     return AuthScaffold(
       showBack: false,
-      title: 'Welcome to GoldSignal',
-      subtitle: 'Track precious metals prices with AI insights',
+      title: context.tr('auth.welcome_title'),
+      subtitle: context.tr('auth.welcome_subtitle'),
       children: [
         ElevatedButton(
           onPressed: isLoading
@@ -53,7 +54,7 @@ class WelcomeScreen extends ConsumerWidget {
                       builder: (_) => const SignInScreen(),
                     ),
                   ),
-          child: const Text('Sign In'),
+          child: Text(context.tr('sign_in')),
         ).animate().fadeIn(delay: 300.ms),
         const SizedBox(height: AppDimens.space12),
         OutlinedButton(
@@ -66,7 +67,7 @@ class WelcomeScreen extends ConsumerWidget {
                       builder: (_) => const SignUpScreen(),
                     ),
                   ),
-          child: const Text('Create Account'),
+          child: Text(context.tr('auth.create_account')),
         ).animate().fadeIn(delay: 400.ms),
         const SizedBox(height: AppDimens.space24),
         Row(
@@ -74,7 +75,7 @@ class WelcomeScreen extends ConsumerWidget {
             const Expanded(child: Divider()),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppDimens.space16),
-              child: Text('OR', style: Theme.of(context).textTheme.bodySmall),
+              child: Text(context.tr('auth.or'), style: Theme.of(context).textTheme.bodySmall),
             ),
             const Expanded(child: Divider()),
           ],
@@ -89,7 +90,7 @@ class WelcomeScreen extends ConsumerWidget {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.person_outline),
-          label: const Text('Continue as Guest'),
+          label: Text(context.tr('guest_mode')),
         ).animate().fadeIn(delay: 600.ms),
       ],
     );

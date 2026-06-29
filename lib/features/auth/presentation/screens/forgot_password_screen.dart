@@ -6,6 +6,7 @@ import '../../../../shared/design/app_dimens.dart';
 import '../../../../shared/providers/auth_provider.dart';
 import '../widgets/auth_scaffold.dart';
 import '../widgets/auth_text_field.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 /// Sends a Firebase password-reset email, then shows a confirmation state.
 class ForgotPasswordScreen extends ConsumerStatefulWidget {
@@ -56,40 +57,40 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
     if (_sent) {
       return AuthScaffold(
-        title: 'Check your inbox',
-        subtitle:
-            'We sent a password reset link to ${_emailController.text.trim()}',
+        title: context.tr('auth.check_inbox'),
+        subtitle: context.tr('auth.reset_sent_to',
+            namedArgs: {'email': _emailController.text.trim()}),
         children: [
           Icon(Icons.mark_email_read_outlined, size: 56, color: VaultColors.gold),
           const SizedBox(height: AppDimens.space24),
           Text(
-            'Open the link in the email to choose a new password, then sign in '
-            'again. Be sure to check your spam folder.',
+            context.tr('auth.reset_instructions'),
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           const SizedBox(height: AppDimens.space32),
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Back to Sign In'),
+            child: Text(context.tr('auth.back_to_signin')),
           ),
           TextButton(
             onPressed: isLoading ? null : () => setState(() => _sent = false),
-            child: Text('Use a different email', style: TextStyle(color: c.textSecondary)),
+            child: Text(context.tr('auth.different_email'),
+                style: TextStyle(color: c.textSecondary)),
           ),
         ],
       );
     }
 
     return AuthScaffold(
-      title: 'Reset password',
-      subtitle: "Enter your email and we'll send you a reset link",
+      title: context.tr('auth.reset_title'),
+      subtitle: context.tr('auth.reset_subtitle'),
       children: [
         Form(
           key: _formKey,
           child: AuthTextField(
             controller: _emailController,
-            label: 'Email',
+            label: context.tr('email'),
             icon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.done,
@@ -107,7 +108,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   width: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Send Reset Link'),
+              : Text(context.tr('auth.send_reset')),
         ),
       ],
     );

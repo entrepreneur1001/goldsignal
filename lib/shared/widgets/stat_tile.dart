@@ -21,11 +21,15 @@ class StatTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = VaultColors.of(Theme.of(context).brightness);
     final theme = Theme.of(context);
+    final languageCode = Localizations.localeOf(context).languageCode;
     return Column(
       crossAxisAlignment: align,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label.toUpperCase(), style: AppTypography.microLabel(c)),
+        Text(
+          label.toUpperCase(),
+          style: AppTypography.microLabel(c, languageCode: languageCode),
+        ),
         const SizedBox(height: 4),
         Text(
           value,

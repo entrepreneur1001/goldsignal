@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:easy_localization/easy_localization.dart';
 import '../../features/alerts/presentation/screens/alerts_screen.dart';
 import '../providers/price_alerts_provider.dart';
 
@@ -20,7 +21,7 @@ class AlertsNavButton extends ConsumerWidget {
     final count = ref.watch(priceAlertsProvider).activeCount;
 
     return IconButton(
-      tooltip: 'Price alerts',
+      tooltip: context.tr('alerts.title'),
       onPressed: () => open(context),
       icon: Badge(
         isLabelVisible: count > 0,

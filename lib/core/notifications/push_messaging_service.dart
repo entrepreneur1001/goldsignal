@@ -4,6 +4,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import '../../firebase_options.dart';
+import '../analytics/analytics_service.dart';
 import '../firebase/firestore_price_alerts_service.dart';
 import 'alert_notification_service.dart';
 
@@ -74,7 +75,13 @@ class PushMessagingService {
   }
 
   void _handleOpenedMessage(RemoteMessage message) {
-    if (message.data['type'] == 'price_alert') {
+    // A tap (or cold-launch from a notification) is the bottom of the funnel.
+    // Logged for every known push type: price_alert, daily_digest, re_engagement.
+    final type = message.data['type'];
+    if (type is String && type.isNotEmpty) {
+      AnalyticsService.instance.logNotificationOpened(type);
+    }
+    if (type == 'price_alert') {
       onPriceAlertReceived?.call();
     }
   }

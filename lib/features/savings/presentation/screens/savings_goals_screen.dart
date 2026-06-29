@@ -9,6 +9,7 @@ import '../../../../shared/providers/savings_goals_provider.dart';
 import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/native_ad_widget.dart';
 import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class SavingsGoalsScreen extends ConsumerWidget {
   const SavingsGoalsScreen({super.key});
@@ -27,14 +28,14 @@ class SavingsGoalsScreen extends ConsumerWidget {
     final goals = ref.watch(savingsGoalsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Savings Goals')),
+      appBar: AppBar(title: Text(context.tr('savings.title'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           if (!await requireAccount(context, 'savings goals')) return;
           if (context.mounted) _AddGoalSheet.show(context);
         },
         icon: const Icon(Icons.add),
-        label: const Text('New goal'),
+        label: Text(context.tr('savings.new_goal')),
       ),
       body: goals.isEmpty
           ? _buildEmpty(context)
@@ -64,11 +65,10 @@ class SavingsGoalsScreen extends ConsumerWidget {
   }
 
   Widget _buildEmpty(BuildContext context) {
-    return const EmptyState(
+    return EmptyState(
       icon: Icons.savings_outlined,
-      title: 'No savings goals yet',
-      message: 'Set a target like "save 100g of gold" and track your progress '
-          'as you add holdings to your portfolio.',
+      title: context.tr('savings.empty_title'),
+      message: context.tr('savings.empty_msg'),
     );
   }
 }
@@ -121,7 +121,11 @@ class _GoalCard extends ConsumerWidget {
                     child: Text(
                       goal.note?.isNotEmpty == true
                           ? goal.note!
-                          : '${goal.metal} savings',
+                          : context.tr('savings.metal_savings', namedArgs: {
+                              'metal': goal.metal == 'Gold'
+                                  ? context.tr('charts.gold')
+                                  : context.tr('charts.silver'),
+                            }),
                       style: theme.textTheme.titleMedium
                           ?.copyWith(fontWeight: FontWeight.bold),
                       maxLines: 1,
@@ -147,7 +151,10 @@ class _GoalCard extends ConsumerWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '${_g(held)} / ${_g(goal.targetGrams)} g',
+                    context.tr('savings.progress', namedArgs: {
+                      'held': _g(held),
+                      'target': _g(goal.targetGrams),
+                    }),
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(fontWeight: FontWeight.w600),
                   ),
@@ -157,8 +164,8 @@ class _GoalCard extends ConsumerWidget {
               const SizedBox(height: 2),
               Text(
                 complete
-                    ? 'Goal reached 🎉'
-                    : '${_g(remaining)} g to go',
+                    ? context.tr('savings.goal_reached')
+                    : context.tr('savings.to_go', namedArgs: {'grams': _g(remaining)}),
                 style: theme.textTheme.bodySmall,
               ),
             ],
@@ -175,16 +182,16 @@ class _GoalCard extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete goal?'),
-        content: const Text('This savings goal will be removed.'),
+        title: Text(context.tr('savings.delete_title')),
+        content: Text(context.tr('savings.delete_confirm')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('common.cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete'),
+            child: Text(context.tr('common.delete')),
           ),
         ],
       ),
@@ -253,7 +260,7 @@ class _AddGoalSheetState extends ConsumerState<_AddGoalSheet> {
       if (mounted) {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save goal. Please try again.')),
+          SnackBar(content: Text(context.tr('savings.save_error'))),
         );
       }
     }
@@ -269,12 +276,13 @@ class _AddGoalSheetState extends ConsumerState<_AddGoalSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('New savings goal', style: theme.textTheme.titleLarge),
+            Text(context.tr('savings.new_goal_title'),
+                style: theme.textTheme.titleLarge),
             const SizedBox(height: 16),
             SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'Gold', label: Text('Gold')),
-                ButtonSegment(value: 'Silver', label: Text('Silver')),
+              segments: [
+                ButtonSegment(value: 'Gold', label: Text(context.tr('charts.gold'))),
+                ButtonSegment(value: 'Silver', label: Text(context.tr('charts.silver'))),
               ],
               selected: {_metal},
               onSelectionChanged: (s) => setState(() => _metal = s.first),
@@ -287,20 +295,20 @@ class _AddGoalSheetState extends ConsumerState<_AddGoalSheet> {
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
               ],
-              decoration: const InputDecoration(
-                labelText: 'Target weight (grams)',
-                prefixIcon: Icon(Icons.flag_outlined),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: context.tr('savings.target_label'),
+                prefixIcon: const Icon(Icons.flag_outlined),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _noteController,
-              decoration: const InputDecoration(
-                labelText: 'Name (optional)',
-                hintText: 'e.g. Wedding fund',
-                prefixIcon: Icon(Icons.edit_outlined),
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: context.tr('savings.name_label'),
+                hintText: context.tr('savings.name_hint'),
+                prefixIcon: const Icon(Icons.edit_outlined),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 20),
@@ -314,7 +322,7 @@ class _AddGoalSheetState extends ConsumerState<_AddGoalSheet> {
                         width: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text('Save goal'),
+                    : Text(context.tr('savings.save_goal')),
               ),
             ),
           ],

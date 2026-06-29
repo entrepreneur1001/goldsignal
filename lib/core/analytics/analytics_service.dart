@@ -57,6 +57,37 @@ class AnalyticsService {
     }
   }
 
+  /// Standard GA `app_open` event. Logged on each foreground resume so
+  /// engagement funnels and re-engagement campaigns have a consistent open
+  /// signal alongside Firebase's auto-logged `session_start`.
+  Future<void> logAppOpen() async {
+    try {
+      await _analytics.logAppOpen();
+    } catch (e, st) {
+      await FirebaseCrashlytics.instance.recordError(e, st, fatal: false);
+    }
+  }
+
+  /// Bottom of the notification funnel: a push was opened. [source] is the
+  /// push `data.type`, e.g. 'price_alert', 'daily_digest', 're_engagement'.
+  Future<void> logNotificationOpened(String source) =>
+      logEvent('notification_opened', parameters: {'source': source});
+
+  /// Top of the alert funnel: the user opened the Alerts screen.
+  /// Pairs with the existing `alert_created` event to form
+  /// `alerts_viewed → alert_created → notification_opened`.
+  Future<void> logAlertsViewed() => logEvent('alerts_viewed');
+
+  /// Set a user property for cohort segmentation (e.g. `has_alerts`,
+  /// `has_portfolio`, `currency`, `app_language`). Pass null to clear.
+  Future<void> setUserProperty(String name, String? value) async {
+    try {
+      await _analytics.setUserProperty(name: name, value: value);
+    } catch (e, st) {
+      await FirebaseCrashlytics.instance.recordError(e, st, fatal: false);
+    }
+  }
+
   /// Standard GA `login` event. [method] e.g. 'password', 'guest'.
   Future<void> logLogin(String method) async {
     try {

@@ -18,6 +18,7 @@ import '../../../../shared/models/chat_conversation.dart';
 import '../../../../shared/providers/chat_history_provider.dart';
 import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
 import 'chat_history_screen.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 class ChatbotScreen extends ConsumerStatefulWidget {
   const ChatbotScreen({super.key});
@@ -53,16 +54,9 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     _groq.startChat();
   }
 
-  ChatMessage _welcomeMessage() {
+  ChatMessage _welcomeMessage(BuildContext context) {
     return ChatMessage(
-      text: "Hello! I'm your gold and silver investment assistant. I can help you with:\n\n"
-          "• Market insights and price analysis\n"
-          "• Investment strategies (DCA, timing)\n"
-          "• Jewelry pricing and fairness checks\n"
-          "• Answering questions about precious metals\n"
-          "• Portfolio analysis and recommendations\n"
-          "• Scam detection and claim verification\n\n"
-          "How can I assist you today?",
+      text: context.tr('chatbot.welcome'),
       isUser: false,
       timestamp: DateTime.now(),
     );
@@ -94,6 +88,8 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     super.dispose();
   }
 
+  // TODO(i18n): dev-facing setup/config message (only shown when the build has
+  // no Groq key) — intentionally not localized.
   static const _groqSetupMessage =
       'AI chat is not configured. To enable it:\n\n'
       '1. Copy secrets.json.example to secrets.json\n'
@@ -139,6 +135,9 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   Future<void> _sendMessage() async {
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
+
+    // Resolve localized fallback now, before any async gap uses context.
+    final genericError = context.tr('chatbot.error_generic');
 
     // Guests get a short free trial, then must create an account to continue.
     if (!await _ensureCanChat()) return;
@@ -200,7 +199,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       if (mounted) setState(() => _isTyping = false);
     } catch (e) {
       await history.appendMessage(ChatMessage(
-        text: "I apologize, but I encountered an error. Please check your internet connection and try again.",
+        text: genericError,
         isUser: false,
         timestamp: DateTime.now(),
       ));
@@ -339,23 +338,23 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
 
     final storedMessages = ref.watch(chatHistoryProvider).activeMessages;
     final messages =
-        storedMessages.isEmpty ? [_welcomeMessage()] : storedMessages;
+        storedMessages.isEmpty ? [_welcomeMessage(context)] : storedMessages;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('Gold AI Assistant'),
+        title: Text(context.tr('chatbot.assistant_title')),
         elevation: 0,
         backgroundColor: Colors.transparent,
         actions: [
           const AlertsNavButton(),
           IconButton(
-            tooltip: 'Chat history',
+            tooltip: context.tr('chatbot.chat_history'),
             icon: const Icon(Icons.history),
             onPressed: _openHistory,
           ),
           IconButton(
-            tooltip: 'New chat',
+            tooltip: context.tr('chatbot.new_chat'),
             icon: const Icon(Icons.add_comment_outlined),
             onPressed: () {
               ref.read(chatHistoryProvider.notifier).startNewChat();
@@ -377,6 +376,7 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
                     vertical: 10,
                   ),
                   child: Text(
+                    // TODO(i18n): dev-facing config banner, not localized
                     'Groq API key not set. Run with --dart-define-from-file=secrets.json',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.onErrorContainer,
@@ -391,10 +391,14 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
-                  _buildQuickAction("📈 Today's Analysis", "Explain today's gold price movement"),
-                  _buildQuickAction("💎 Jewelry Check", "Is 50g 21K gold for \$3000 fair?"),
-                  _buildQuickAction("📊 DCA Plan", "Create a \$1000/month gold buying plan"),
-                  _buildQuickAction("💼 My Portfolio", "How is my portfolio doing? Any recommendations?"),
+                  _buildQuickAction(context.tr('chatbot.qa_analysis_label'),
+                      context.tr('chatbot.qa_analysis_prompt')),
+                  _buildQuickAction(context.tr('chatbot.qa_jewelry_label'),
+                      context.tr('chatbot.qa_jewelry_prompt')),
+                  _buildQuickAction(context.tr('chatbot.qa_dca_label'),
+                      context.tr('chatbot.qa_dca_prompt')),
+                  _buildQuickAction(context.tr('chatbot.qa_portfolio_label'),
+                      context.tr('chatbot.qa_portfolio_prompt')),
                 ],
               ),
             ),
@@ -436,7 +440,7 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
                       maxLines: null,
                       keyboardType: TextInputType.multiline,
                       decoration: InputDecoration(
-                        hintText: 'Ask about gold investments...',
+                        hintText: context.tr('chatbot.input_hint'),
                         filled: true,
                         fillColor: isDark ? Colors.grey[800] : Colors.grey[100],
                         border: OutlineInputBorder(

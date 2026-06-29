@@ -47,6 +47,7 @@ class PriceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = VaultColors.of(Theme.of(context).brightness);
     final theme = Theme.of(context);
+    final languageCode = Localizations.localeOf(context).languageCode;
     final isGold = metal.toLowerCase().contains('gold');
     final accent = isGold ? VaultColors.gold : VaultColors.silver;
 
@@ -84,8 +85,13 @@ class PriceCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(metal, style: theme.textTheme.titleMedium),
-                    Text(context.tr('prices.live_price'),
-                        style: AppTypography.microLabel(c)),
+                    Text(
+                      context.tr('prices.live_price'),
+                      style: AppTypography.microLabel(
+                        c,
+                        languageCode: languageCode,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -98,7 +104,9 @@ class PriceCard extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                   onPressed: onToggleWatchlist,
                   icon: Icon(
-                    isWatchlisted ? Icons.star_rounded : Icons.star_border_rounded,
+                    isWatchlisted
+                        ? Icons.star_rounded
+                        : Icons.star_border_rounded,
                     color: isWatchlisted ? VaultColors.gold : c.textTertiary,
                   ),
                 ),
@@ -115,7 +123,7 @@ class PriceCard extends StatelessWidget {
           AnimatedValue(
             value: pricePerGram,
             formatter: (v) => formatCurrency(v, currency),
-            style: AppTypography.hero(c, size: 34),
+            style: AppTypography.hero(c, size: 34, languageCode: languageCode),
           ),
           const SizedBox(height: 2),
           Text(context.tr('prices.per_gram'), style: theme.textTheme.bodySmall),
@@ -167,18 +175,23 @@ class PriceCard extends StatelessWidget {
     String? sub,
     Color? subColor,
   }) {
+    final languageCode = Localizations.localeOf(context).languageCode;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(label.toUpperCase(), style: AppTypography.microLabel(c)),
+        Text(
+          label.toUpperCase(),
+          style: AppTypography.microLabel(c, languageCode: languageCode),
+        ),
         const SizedBox(height: 3),
         Text(
           value,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: valueColor ?? c.textPrimary,
-                fontWeight: FontWeight.w700,
-              ),
+            color: valueColor ?? c.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -186,9 +199,9 @@ class PriceCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             sub,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: subColor ?? c.textTertiary,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: subColor ?? c.textTertiary),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),

@@ -7,6 +7,7 @@ import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 import '../widgets/auth_scaffold.dart';
 import '../widgets/auth_text_field.dart';
 import 'sign_in_screen.dart';
+import 'package:easy_localization/easy_localization.dart';
 
 /// Create a new email/password account. When [linkGuest] is true an anonymous
 /// guest is upgraded in place (same uid — Firestore data carries over). A
@@ -60,8 +61,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Account created — check your inbox to verify your email'),
+            SnackBar(
+              content: Text(context.tr('auth.account_created')),
             ),
           );
           Navigator.pushReplacement(
@@ -90,8 +91,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     final isLoading = ref.watch(authControllerProvider).isLoading;
 
     return AuthScaffold(
-      title: 'Create your account',
-      subtitle: 'Save your portfolio, alerts and preferences',
+      title: context.tr('auth.signup_title'),
+      subtitle: context.tr('auth.signup_subtitle'),
       children: [
         Form(
           key: _formKey,
@@ -99,7 +100,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             children: [
               AuthTextField(
                 controller: _nameController,
-                label: 'Name (optional)',
+                label: context.tr('auth.name_optional'),
                 icon: Icons.person_outline,
                 keyboardType: TextInputType.name,
                 textInputAction: TextInputAction.next,
@@ -108,7 +109,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               const SizedBox(height: AppDimens.space16),
               AuthTextField(
                 controller: _emailController,
-                label: 'Email',
+                label: context.tr('email'),
                 icon: Icons.email_outlined,
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
@@ -118,7 +119,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               const SizedBox(height: AppDimens.space16),
               AuthTextField(
                 controller: _passwordController,
-                label: 'Password',
+                label: context.tr('password'),
                 icon: Icons.lock_outline,
                 obscure: true,
                 textInputAction: TextInputAction.next,
@@ -128,7 +129,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
               const SizedBox(height: AppDimens.space16),
               AuthTextField(
                 controller: _confirmController,
-                label: 'Confirm password',
+                label: context.tr('auth.confirm_password'),
                 icon: Icons.lock_outline,
                 obscure: true,
                 textInputAction: TextInputAction.done,
@@ -148,7 +149,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   width: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Create Account'),
+              : Text(context.tr('auth.create_account')),
         ),
         const SizedBox(height: AppDimens.space16),
         TextButton(
@@ -161,7 +162,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       builder: (_) => SignInScreen(linkGuest: widget.linkGuest),
                     ),
                   ),
-          child: const Text('Already have an account? Sign In'),
+          child: Text(context.tr('auth.have_account')),
         ),
       ],
     );
