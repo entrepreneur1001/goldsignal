@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../core/ads/ad_service.dart';
-import '../providers/purchase_provider.dart';
 
 class BannerAdWidget extends ConsumerStatefulWidget {
   const BannerAdWidget({super.key});
@@ -50,8 +49,6 @@ class _BannerAdWidgetState extends ConsumerState<BannerAdWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final isPro = ref.watch(isProProvider);
-    if (isPro) return const SizedBox.shrink();
     if (!_isLoaded || _bannerAd == null) return const SizedBox.shrink();
 
     return Container(

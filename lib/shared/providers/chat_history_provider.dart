@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/crash/crash_reporter.dart';
 import '../../core/firebase/firestore_chat_history_service.dart';
 import '../models/chat_conversation.dart';
 
@@ -83,7 +84,9 @@ class ChatHistoryNotifier extends Notifier<ChatHistoryState> {
     if (uid == null) return;
     try {
       await _cloud.saveConversation(uid, conversation);
-    } catch (_) {}
+    } catch (e, st) {
+      reportNonFatal(e, st, reason: 'chat saveConversation failed');
+    }
   }
 
   Future<void> _delete(String id) async {
@@ -91,7 +94,9 @@ class ChatHistoryNotifier extends Notifier<ChatHistoryState> {
     if (uid == null) return;
     try {
       await _cloud.deleteConversation(uid, id);
-    } catch (_) {}
+    } catch (e, st) {
+      reportNonFatal(e, st, reason: 'chat deleteConversation failed');
+    }
   }
 
   /// Start a fresh chat. The conversation is created lazily once the first

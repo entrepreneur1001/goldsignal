@@ -6,7 +6,6 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../core/ads/ad_service.dart';
 import '../design/app_colors.dart';
-import '../providers/purchase_provider.dart';
 
 /// A native ad rendered with AdMob's built-in template — no platform-side
 /// `NativeAdFactory` is required (templates ship with google_mobile_ads).
@@ -84,8 +83,6 @@ class _NativeAdWidgetState extends ConsumerState<NativeAdWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final isPro = ref.watch(isProProvider);
-    if (isPro) return const SizedBox.shrink();
     if (!_isLoaded || _nativeAd == null) return const SizedBox.shrink();
 
     return Container(

@@ -208,7 +208,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   }
 
   String _buildSystemPrompt(MetalPrice? gold, MetalPrice? silver, String currency) {
-    String priceContext = "";
+    String priceContext = '';
     final isLocal = currency == 'EGP';
     final local = ref.read(localMarketPricesProvider);
     final side = ref.read(priceSideProvider);
@@ -218,11 +218,11 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       priceContext += " Headline 21K gold ${side.name} price: ${local.headlineGold?.priceFor(side).toStringAsFixed(2) ?? 'N/A'} EGP/g. ";
     } else {
       if (gold != null) {
-        priceContext += "Current gold price: $currency ${gold.pricePerOunce.toStringAsFixed(2)}/oz ($currency ${gold.pricePerGram.toStringAsFixed(2)}/g). ";
-        priceContext += "24h change: ${gold.formattedChangePercent}. ";
+        priceContext += 'Current gold price: $currency ${gold.pricePerOunce.toStringAsFixed(2)}/oz ($currency ${gold.pricePerGram.toStringAsFixed(2)}/g). ';
+        priceContext += '24h change: ${gold.formattedChangePercent}. ';
       }
       if (silver != null) {
-        priceContext += "Current silver price: $currency ${silver.pricePerOunce.toStringAsFixed(2)}/oz ($currency ${silver.pricePerGram.toStringAsFixed(2)}/g). ";
+        priceContext += 'Current silver price: $currency ${silver.pricePerOunce.toStringAsFixed(2)}/oz ($currency ${silver.pricePerGram.toStringAsFixed(2)}/g). ';
       }
     }
 
@@ -230,7 +230,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     final rates = ref.read(metalPriceApiProvider).getCachedPrices()?.rates;
     String portfolioContext = _buildPortfolioContext(gold, silver, currency, rates);
 
-    return """You are a knowledgeable and helpful precious metals investment assistant specialized in gold and silver.
+    return '''You are a knowledgeable and helpful precious metals investment assistant specialized in gold and silver.
     You provide accurate, practical advice about gold/silver investments, market analysis, and jewelry pricing.
 
     $priceContext
@@ -247,7 +247,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     8. When the user asks about their portfolio, reference the portfolio data above
     9. Respond in the same language the user writes in (Arabic, English, etc.)
 
-    Keep responses concise and actionable. Use bullet points when listing multiple items.""";
+    Keep responses concise and actionable. Use bullet points when listing multiple items.''';
   }
 
   String _buildPortfolioContext(
@@ -260,7 +260,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     final local = ref.read(localMarketPricesProvider);
     try {
       final items = ref.read(portfolioProvider).asData?.value ?? const [];
-      if (items.isEmpty) return "User has no portfolio holdings yet.";
+      if (items.isEmpty) return 'User has no portfolio holdings yet.';
 
       double purchaseInDisplay(PortfolioItem item) {
         final raw = item.purchasePrice * item.weight;
@@ -315,7 +315,7 @@ Total purchase cost: $currency ${totalPurchaseCost.toStringAsFixed(2)}
 Total current value: $currency ${totalCurrentValue.toStringAsFixed(2)}
 Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}% ($currency ${totalPL.toStringAsFixed(2)})""";
     } catch (e) {
-      return "";
+      return '';
     }
   }
 

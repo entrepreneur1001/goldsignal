@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../utils/api_config.dart';
+import '../crash/crash_reporter.dart';
 import '../firebase/firestore_price_service.dart';
 import 'gold_price_scraper.dart';
 
@@ -226,7 +227,9 @@ class MetalPriceApiService {
       if (doc != null) {
         return MetalPricesResponse.fromJson(_firestoreToApiFormat(doc));
       }
-    } catch (_) {}
+    } catch (e, st) {
+      reportNonFatal(e, st, reason: 'Firestore stale price fallback failed');
+    }
 
     throw Exception('Failed to fetch metal prices');
   }

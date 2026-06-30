@@ -121,12 +121,12 @@ class PriceCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           AnimatedValue(
-            value: pricePerGram,
+            value: pricePerOunce,
             formatter: (v) => formatCurrency(v, currency),
             style: AppTypography.hero(c, size: 34, languageCode: languageCode),
           ),
           const SizedBox(height: 2),
-          Text(context.tr('prices.per_gram'), style: theme.textTheme.bodySmall),
+          Text(context.tr('prices.per_ounce'), style: theme.textTheme.bodySmall),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -134,8 +134,8 @@ class PriceCard extends StatelessWidget {
                 child: _miniStat(
                   context,
                   c,
-                  context.tr('prices.per_ounce'),
-                  formatCurrency(pricePerOunce, currency),
+                  context.tr('prices.per_gram'),
+                  formatCurrency(pricePerGram, currency),
                 ),
               ),
               Container(width: 1, height: 40, color: c.hairline),
@@ -145,9 +145,9 @@ class PriceCard extends StatelessWidget {
                   context,
                   c,
                   context.tr('prices.change_24h'),
-                  '${chg(perGramChange)} /g',
+                  '${chg(perOunceChange)} /oz',
                   valueColor: changeColor,
-                  sub: '${chg(perOunceChange)} /oz',
+                  sub: '${chg(perGramChange)} /g',
                   subColor: changeColor,
                 ),
               ),

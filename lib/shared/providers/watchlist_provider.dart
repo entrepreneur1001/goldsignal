@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/crash/crash_reporter.dart';
 import '../models/local_market_prices.dart';
 import '../models/watchlist_entry.dart';
 import 'currency_provider.dart';
@@ -35,7 +36,9 @@ class WatchlistNotifier extends Notifier<List<WatchlistEntry>> {
           .map((e) => WatchlistEntry.fromJson(Map<String, dynamic>.from(e)))
           .toList();
       state = list;
-    } catch (_) {}
+    } catch (e, st) {
+      reportNonFatal(e, st, reason: 'watchlist decode failed');
+    }
   }
 
   bool contains(WatchlistEntry entry) =>

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/api/isagha_price_scraper.dart';
+import '../../core/crash/crash_reporter.dart';
 import '../../core/firebase/firestore_price_history_service.dart';
 import '../../core/storage/price_history_service.dart';
 import '../../core/api/metalpriceapi_service.dart';
@@ -152,7 +153,9 @@ class MarketPricesController extends Notifier<MarketPricesState> {
       );
       try {
         await ref.read(priceAlertsProvider.notifier).checkAgainstLatestPrices();
-      } catch (_) {}
+      } catch (e, st) {
+        reportNonFatal(e, st, reason: 'price alert check failed');
+      }
     } catch (e) {
       state = state.copyWith(
         isRefreshing: false,
@@ -175,12 +178,16 @@ class MarketPricesController extends Notifier<MarketPricesState> {
     ref.read(localMarketPricesProvider.notifier).update(local);
     try {
       await ref.read(priceHistoryServiceProvider).recordLocalSnapshot(local);
-    } catch (_) {}
+    } catch (e, st) {
+      reportNonFatal(e, st, reason: 'recordLocalSnapshot failed');
+    }
     try {
       await ref
           .read(firestorePriceHistoryServiceProvider)
           .tryRecordHourlyLocal(local);
-    } catch (_) {}
+    } catch (e, st) {
+      reportNonFatal(e, st, reason: 'tryRecordHourlyLocal failed');
+    }
     // Note: the shared `prices/local_EGP` cache is written server-side by the
     // Cloud Function (refreshPricesScheduled); clients no longer write it.
   }
@@ -201,12 +208,16 @@ class MarketPricesController extends Notifier<MarketPricesState> {
     _pushGlobalToMetalProviders(response, currency);
     try {
       await ref.read(priceHistoryServiceProvider).recordGlobalSnapshot(response, currency);
-    } catch (_) {}
+    } catch (e, st) {
+      reportNonFatal(e, st, reason: 'recordGlobalSnapshot failed');
+    }
     try {
       await ref
           .read(firestorePriceHistoryServiceProvider)
           .tryRecordHourlyGlobal(response, currency);
-    } catch (_) {}
+    } catch (e, st) {
+      reportNonFatal(e, st, reason: 'tryRecordHourlyGlobal failed');
+    }
   }
 
   void applyCurrentPrices() {
@@ -228,16 +239,9 @@ class MarketPricesController extends Notifier<MarketPricesState> {
   }
 
   void _updateHomeWidget() {
-    final display = resolveWidgetDisplayForUpdate(ref);
-    if (display == null) return;
-
-    HomeWidgetService.instance.updateDisplay(
-      label: display.label,
-      pricePerGram: display.pricePerGram.toStringAsFixed(2),
-      currency: display.currency,
-      changePercent: display.formattedChangePercent,
-      isPositive: display.isPositive,
-    );
+    final board = resolveWidgetBoardForUpdate(ref);
+    if (board == null || board.isEmpty) return;
+    HomeWidgetService.instance.updateBoard(board);
   }
 
   void _pushGlobalToMetalProviders(MetalPricesResponse response, String currency) {

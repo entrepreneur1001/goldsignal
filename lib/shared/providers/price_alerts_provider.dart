@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/analytics/analytics_service.dart';
+import '../../core/crash/crash_reporter.dart';
 import '../../core/firebase/firestore_price_alerts_service.dart';
 import '../../core/notifications/alert_notification_service.dart';
 import '../../core/notifications/push_messaging_service.dart';
@@ -112,7 +113,9 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
     if (uid == null) return;
     try {
       await _cloud.saveAlert(uid, alert);
-    } catch (_) {}
+    } catch (e, st) {
+      reportNonFatal(e, st, reason: 'saveAlert failed');
+    }
   }
 
   Future<void> _deleteFromCloud(String id) async {
@@ -120,7 +123,9 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
     if (uid == null) return;
     try {
       await _cloud.deleteAlert(uid, id);
-    } catch (_) {}
+    } catch (e, st) {
+      reportNonFatal(e, st, reason: 'deleteAlert failed');
+    }
   }
 
   void clearSnackbar() {

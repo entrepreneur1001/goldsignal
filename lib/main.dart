@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -8,6 +9,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:goldsignal/firebase_options.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,7 +23,9 @@ import 'core/utils/app_localization.dart';
 import 'shared/themes/app_theme.dart';
 import 'shared/providers/app_info_provider.dart';
 import 'shared/providers/currency_provider.dart';
+import 'shared/providers/market_prices_provider.dart';
 import 'features/auth/presentation/screens/splash_screen.dart';
+import 'features/profile/presentation/widgets/widget_settings_sheet.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -53,6 +57,7 @@ void main() async {
   await AppConfig.initialize();
   await AlertNotificationService.instance.initialize();
   await HomeWidgetService.instance.initialize();
+  await HomeWidgetService.instance.registerInteractivity();
   await AdService.instance.initialize();
   await AnalyticsService.instance.initialize();
 
@@ -83,8 +88,13 @@ class GoldSignalApp extends ConsumerStatefulWidget {
   ConsumerState<GoldSignalApp> createState() => _GoldSignalAppState();
 }
 
+final GlobalKey<NavigatorState> rootNavigatorKey =
+    GlobalKey<NavigatorState>();
+
 class _GoldSignalAppState extends ConsumerState<GoldSignalApp>
     with WidgetsBindingObserver {
+  StreamSubscription<Uri?>? _widgetClickSub;
+
   @override
   void initState() {
     super.initState();
@@ -92,12 +102,42 @@ class _GoldSignalAppState extends ConsumerState<GoldSignalApp>
     // App launch counts as a foreground — record activity once the first frame
     // is up so providers/auth are ready.
     WidgetsBinding.instance.addPostFrameCallback((_) => _onForeground());
+    _initWidgetDeepLinks();
   }
 
   @override
   void dispose() {
+    _widgetClickSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  /// Routes taps on the home-screen widget into the app. The settings gear
+  /// opens the widget settings sheet; any tap also refreshes prices.
+  Future<void> _initWidgetDeepLinks() async {
+    _widgetClickSub = HomeWidget.widgetClicked.listen(_handleWidgetUri);
+    try {
+      final launchUri = await HomeWidget.initiallyLaunchedFromHomeWidget();
+      _handleWidgetUri(launchUri);
+    } catch (_) {
+      // Non-fatal; ignore if the launch URI can't be read.
+    }
+  }
+
+  void _handleWidgetUri(Uri? uri) {
+    if (uri == null) return;
+    switch (uri.queryParameters['action']) {
+      case 'settings':
+        // Defer so the navigator is ready (e.g. on cold launch).
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final ctx = rootNavigatorKey.currentContext;
+          if (ctx != null) WidgetSettingsSheet.show(ctx);
+        });
+        break;
+      case 'refresh':
+        ref.read(marketPricesControllerProvider.notifier).refresh();
+        break;
+    }
   }
 
   @override
@@ -145,6 +185,7 @@ class _GoldSignalAppState extends ConsumerState<GoldSignalApp>
 
     return MaterialApp(
       title: 'GoldSignal',
+      navigatorKey: rootNavigatorKey,
       supportedLocales: context.supportedLocales,
       localizationsDelegates: context.localizationDelegates,
       locale: locale,

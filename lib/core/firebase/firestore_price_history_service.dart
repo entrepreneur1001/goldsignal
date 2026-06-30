@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../shared/models/local_market_prices.dart';
 import '../../shared/models/price_snapshot.dart';
 import '../api/metalpriceapi_service.dart';
+import '../crash/crash_reporter.dart';
 
 class FirestorePriceHistoryService {
   static const _collection = 'priceHistory';
@@ -87,7 +88,9 @@ class FirestorePriceHistoryService {
         transaction.set(docRef, data);
       });
       await _markUploaded(marketType, currency);
-    } catch (_) {}
+    } catch (e, st) {
+      reportNonFatal(e, st, reason: 'priceHistory hourly upload failed');
+    }
   }
 
   Future<void> tryRecordHourlyLocal(LocalMarketPrices local) async {

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import '../../firebase_options.dart';
 import '../analytics/analytics_service.dart';
+import '../crash/crash_reporter.dart';
 import '../firebase/firestore_price_alerts_service.dart';
 import 'alert_notification_service.dart';
 
@@ -93,7 +94,9 @@ class PushMessagingService {
       await _messaging.requestPermission(alert: true, badge: true, sound: true);
       final token = await _messaging.getToken();
       if (token != null) await _persistToken(token);
-    } catch (_) {}
+    } catch (e, st) {
+      reportNonFatal(e, st, reason: 'FCM token refresh failed');
+    }
   }
 
   Future<void> _persistToken(String token) async {
@@ -101,6 +104,8 @@ class PushMessagingService {
     if (uid == null) return;
     try {
       await _firestoreAlerts.saveFcmToken(uid, token);
-    } catch (_) {}
+    } catch (e, st) {
+      reportNonFatal(e, st, reason: 'FCM token persist failed');
+    }
   }
 }
