@@ -12,7 +12,28 @@
           "package_name": "com.goldsignal.goldsignal"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "180716366944-gfi35vqjeurdrdrsoc5mmdqgi4mj5snd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.goldsignal.goldsignal",
+            "certificate_hash": "e8f587a7937ff6de608ef5496e7d72ca889e8242"
+          }
+        },
+        {
+          "client_id": "180716366944-mmtmomr396lkfq879p26um17et7qp48d.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.goldsignal.goldsignal",
+            "certificate_hash": "a016779d4d31baf7d9d378c44d867fb2801e28c4"
+          }
+        },
+        {
+          "client_id": "180716366944-7q85p48jf2km4q4t311pfvug2o36a97v.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAU9JFsceJvMZeDcRLArvu5_00eCf2xfXI"
@@ -20,7 +41,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "180716366944-7q85p48jf2km4q4t311pfvug2o36a97v.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "180716366944-eqfrqt3rq93l1o6jfa1291nn7j4asplq.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.goldsignal.goldsignal"
+              }
+            }
+          ]
         }
       }
     }

@@ -412,7 +412,12 @@
     "send_reset": "Send Reset Link",
     "wall_title": "Create a free account",
     "wall_message": "Sign in to save your {feature} securely and sync it across your devices. It only takes a moment.",
-    "not_now": "Not now"
+    "not_now": "Not now",
+    "continue_google": "Continue with Google",
+    "continue_apple": "Continue with Apple",
+    "google_failed": "Google sign-in failed. Please try again.",
+    "apple_failed": "Apple sign-in failed. Please try again.",
+    "account_exists": "An account already exists with this email. Try signing in instead."
   },
 
   "savings": {

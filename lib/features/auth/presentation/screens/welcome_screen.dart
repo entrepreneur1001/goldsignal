@@ -5,6 +5,7 @@ import '../../../../shared/design/app_dimens.dart';
 import '../../../../shared/providers/auth_provider.dart';
 import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 import '../widgets/auth_scaffold.dart';
+import '../widgets/social_sign_in_buttons.dart';
 import 'sign_in_screen.dart';
 import 'sign_up_screen.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -80,7 +81,31 @@ class WelcomeScreen extends ConsumerWidget {
             const Expanded(child: Divider()),
           ],
         ).animate().fadeIn(delay: 500.ms),
+        const SizedBox(height: AppDimens.space16),
+        SocialSignInButtons(
+          onSuccess: (user) {
+            if (!context.mounted) return;
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                settings: const RouteSettings(name: 'Dashboard'),
+                builder: (_) => const DashboardScreen(),
+              ),
+            );
+          },
+        ).animate().fadeIn(delay: 550.ms),
         const SizedBox(height: AppDimens.space24),
+        Row(
+          children: [
+            const Expanded(child: Divider()),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppDimens.space16),
+              child: Text(context.tr('auth.or'), style: Theme.of(context).textTheme.bodySmall),
+            ),
+            const Expanded(child: Divider()),
+          ],
+        ).animate().fadeIn(delay: 600.ms),
+        const SizedBox(height: AppDimens.space16),
         TextButton.icon(
           onPressed: isLoading ? null : () => _continueAsGuest(context, ref),
           icon: isLoading

@@ -5,6 +5,7 @@ import '../../../../shared/design/app_colors.dart';
 import '../../../../shared/design/app_dimens.dart';
 import '../screens/sign_in_screen.dart';
 import '../screens/sign_up_screen.dart';
+import 'social_sign_in_buttons.dart';
 
 /// Ensures the current user is a real (non-anonymous) account before a gated
 /// action proceeds. Returns true if already signed in, or if the user signs
@@ -107,6 +108,27 @@ class AuthWallSheet extends StatelessWidget {
               OutlinedButton(
                 onPressed: () => go('SignIn', const SignInScreen(linkGuest: true)),
                 child: Text(context.tr('sign_in')),
+              ),
+              const SizedBox(height: AppDimens.space16),
+              Row(
+                children: [
+                  Expanded(child: Divider(color: c.hairline)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppDimens.space16,
+                    ),
+                    child: Text(
+                      context.tr('auth.or'),
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                  Expanded(child: Divider(color: c.hairline)),
+                ],
+              ),
+              const SizedBox(height: AppDimens.space16),
+              SocialSignInButtons(
+                linkGuest: true,
+                onSuccess: (_) => Navigator.of(context).pop(),
               ),
               const SizedBox(height: AppDimens.space8),
               TextButton(

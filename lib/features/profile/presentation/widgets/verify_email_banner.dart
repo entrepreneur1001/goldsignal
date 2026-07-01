@@ -64,8 +64,11 @@ class _VerifyEmailBannerState extends ConsumerState<VerifyEmailBanner> {
   Widget build(BuildContext context) {
     final service = ref.read(authServiceProvider);
     final user = service.currentUser;
-    // Only relevant for a registered (non-anonymous) user that isn't verified.
-    if (user == null || user.isAnonymous || _verified) {
+    // Only relevant for a registered (non-anonymous) password user that isn't verified.
+    if (user == null ||
+        user.isAnonymous ||
+        _verified ||
+        service.isEmailVerified) {
       return const SizedBox.shrink();
     }
 

@@ -6,6 +6,7 @@ import '../../../../shared/providers/auth_provider.dart';
 import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 import '../widgets/auth_scaffold.dart';
 import '../widgets/auth_text_field.dart';
+import '../widgets/social_sign_in_buttons.dart';
 import 'forgot_password_screen.dart';
 import 'sign_up_screen.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -135,6 +136,35 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : Text(context.tr('sign_in')),
+        ),
+        const SizedBox(height: AppDimens.space16),
+        Row(
+          children: [
+            const Expanded(child: Divider()),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppDimens.space16),
+              child: Text(context.tr('auth.or'), style: Theme.of(context).textTheme.bodySmall),
+            ),
+            const Expanded(child: Divider()),
+          ],
+        ),
+        const SizedBox(height: AppDimens.space16),
+        SocialSignInButtons(
+          linkGuest: widget.linkGuest,
+          onSuccess: (user) {
+            if (!context.mounted) return;
+            if (widget.linkGuest) {
+              Navigator.pop(context, true);
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  settings: const RouteSettings(name: 'Dashboard'),
+                  builder: (_) => const DashboardScreen(),
+                ),
+              );
+            }
+          },
         ),
         const SizedBox(height: AppDimens.space16),
         TextButton(

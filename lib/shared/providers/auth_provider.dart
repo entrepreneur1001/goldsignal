@@ -60,6 +60,17 @@ class AuthController extends Notifier<AsyncValue<void>> {
   Future<User?> convertGuest(String email, String password) =>
       _authThenReset(() => _service.convertGuestToEmail(email, password));
 
+  Future<User?> signInWithGoogle({bool linkGuest = false}) => _authThenReset(
+        () => linkGuest
+            ? _service.convertGuestToGoogle()
+            : _service.signInWithGoogle(),
+      );
+
+  Future<User?> signInWithApple({bool linkGuest = false}) => _authThenReset(
+        () =>
+            linkGuest ? _service.convertGuestToApple() : _service.signInWithApple(),
+      );
+
   Future<void> sendReset(String email) =>
       _run(() => _service.resetPassword(email));
 
