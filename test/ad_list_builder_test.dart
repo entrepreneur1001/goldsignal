@@ -7,16 +7,19 @@ void main() {
       expect(adListItemCount(0), 0);
     });
 
-    test('short lists append one trailing ad', () {
+    test('single-item list appends one trailing ad', () {
       expect(adListItemCount(1), 2);
-      expect(adListItemCount(2), 3);
     });
 
-    test('full lists insert ads every 3 items but not after the last', () {
-      expect(adListItemCount(3), 3);
+    test('two-item list has no ad slot', () {
+      expect(adListItemCount(2), 2);
+    });
+
+    test('full lists insert ads every 2 items but not after the last', () {
+      expect(adListItemCount(3), 4);
       expect(adListItemCount(4), 5);
-      expect(adListItemCount(6), 7);
-      expect(adListItemCount(9), 11);
+      expect(adListItemCount(6), 8);
+      expect(adListItemCount(9), 13);
     });
   });
 
@@ -24,21 +27,25 @@ void main() {
     test('short list ad is only at the end', () {
       expect(adListIndexIsAd(0, 1), isFalse);
       expect(adListIndexIsAd(1, 1), isTrue);
-      expect(adListIndexIsAd(2, 2), isTrue);
     });
 
-    test('periodic ads skip the final group of exactly 3', () {
-      expect(adListIndexIsAd(3, 3), isFalse);
-      expect(adListIndexIsAd(3, 4), isTrue);
-      expect(adListIndexIsAd(7, 6), isFalse);
-      expect(adListIndexIsAd(3, 6), isTrue);
+    test('two items have no ad slot', () {
+      expect(adListIndexIsAd(0, 2), isFalse);
+      expect(adListIndexIsAd(1, 2), isFalse);
+    });
+
+    test('periodic ads skip the final group of exactly 2', () {
+      expect(adListIndexIsAd(2, 2), isFalse);
+      expect(adListIndexIsAd(2, 3), isTrue);
+      expect(adListIndexIsAd(5, 6), isTrue);
+      expect(adListIndexIsAd(2, 4), isTrue);
     });
   });
 
   group('adListContentIndex', () {
     test('maps list indices back to content indices', () {
-      expect(adListContentIndex(4, 4), 3);
-      expect(adListContentIndex(6, 6), 5);
+      expect(adListContentIndex(3, 4), 2);
+      expect(adListContentIndex(4, 6), 3);
     });
   });
 }

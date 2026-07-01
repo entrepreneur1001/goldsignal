@@ -27,6 +27,7 @@ import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
 import '../../../zakat/zakat.dart';
 import '../../../zakat/presentation/screens/zakat_calculator_screen.dart';
 import '../../../savings/presentation/screens/savings_goals_screen.dart';
+import '../widgets/portfolio_analyzer_card.dart';
 
 // Re-export so existing importers of this file keep getting PortfolioItem.
 export '../../../../shared/models/portfolio_item.dart';
@@ -403,6 +404,11 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
                               const SizedBox(height: 12),
                               zakatIndicator,
                             ],
+                            const SizedBox(height: 12),
+                            PortfolioAnalyzerCard(
+                              hasHoldings: _items.isNotEmpty,
+                              onAddHolding: _showAddItemDialog,
+                            ),
                           ],
                         );
                       },
@@ -451,7 +457,7 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
                     if (adListIndexIsAd(index, _items.length)) {
-                      return const NativeAdWidget();
+                      return const NativeAdWidget.list();
                     }
                     return _buildPortfolioItem(
                       _items[adListContentIndex(index, _items.length)],

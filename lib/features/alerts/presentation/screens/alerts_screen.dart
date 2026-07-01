@@ -105,7 +105,7 @@ class _ActiveAlertsTab extends ConsumerWidget {
           for (var i = 0; i < adListItemCount(active.length); i++) ...[
             if (i > 0) const SizedBox(height: 8),
             if (adListIndexIsAd(i, active.length))
-              const NativeAdWidget()
+              const NativeAdWidget.list()
             else
               _ActiveAlertTile(
                 alert: active[adListContentIndex(i, active.length)],
@@ -212,7 +212,7 @@ class _HistoryTab extends ConsumerWidget {
       separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         if (adListIndexIsAd(index, alerts.length)) {
-          return const NativeAdWidget();
+          return const NativeAdWidget.list();
         }
         return _HistoryAlertTile(
           alert: alerts[adListContentIndex(index, alerts.length)],

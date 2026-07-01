@@ -200,8 +200,6 @@ class PricesScreen extends ConsumerWidget {
           const WatchlistStrip(),
           if (ref.watch(watchlistProvider).isNotEmpty)
             const SizedBox(height: 16),
-          const NativeAdWidget(),
-          const SizedBox(height: 16),
           if (isLocal && localPrices != null)
             ..._buildLocalContent(context, ref, localPrices, priceSide)
           else if (marketState.globalData != null)
@@ -219,6 +217,9 @@ class PricesScreen extends ConsumerWidget {
               silverPrice,
               side: isLocal ? priceSide : null,
             ),
+          const SizedBox(height: 16),
+          const NativeAdWidget(),
+          const SizedBox(height: 88),
         ],
       ),
     );
@@ -347,8 +348,6 @@ class PricesScreen extends ConsumerWidget {
             side: side,
           ),
         ).animate().slideX(begin: 1, duration: 600.ms),
-      const SizedBox(height: 16),
-      const NativeAdWidget(),
       const SizedBox(height: 24),
       _buildLocalKaratCard(context, ref, context.tr('prices.gold_prices_per_gram'), local.gold, side, isGold: true),
       const SizedBox(height: 16),
@@ -586,8 +585,6 @@ class PricesScreen extends ConsumerWidget {
           pricePerGram: silverPrice / 31.1034768,
         ),
       ).animate().slideX(begin: 1, duration: 600.ms),
-      const SizedBox(height: 16),
-      const NativeAdWidget(),
       const SizedBox(height: 24),
       Card(
         child: Padding(

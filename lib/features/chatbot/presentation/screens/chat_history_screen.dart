@@ -52,7 +52,7 @@ class ChatHistoryScreen extends ConsumerWidget {
       separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         if (adListIndexIsAd(index, conversations.length)) {
-          return const NativeAdWidget();
+          return const NativeAdWidget.list();
         }
         return _ConversationTile(
           conversation: conversations[adListContentIndex(index, conversations.length)],

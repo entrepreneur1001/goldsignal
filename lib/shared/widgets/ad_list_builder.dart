@@ -1,7 +1,7 @@
 /// Shared list index math for blending [NativeAdWidget] slots into scroll lists.
 library;
 
-const int kNativeAdInterval = 3;
+const int kNativeAdInterval = 2;
 
 /// Number of native ad slots for [contentCount] content items.
 int adListAdCount(int contentCount, {int interval = kNativeAdInterval}) {

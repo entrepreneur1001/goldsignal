@@ -241,7 +241,17 @@
     "purchase_date_label": "Purchase Date: {date}",
     "notes": "Notes (optional)",
     "add": "Add",
-    "share_performance": "Share portfolio performance"
+    "share_performance": "Share portfolio performance",
+    "ai_analyzer_title": "AI Portfolio Analysis",
+    "ai_analyzer_empty_title": "AI Portfolio Analysis",
+    "ai_analyzer_empty_message": "Add at least one gold or silver holding to unlock personalized AI insights about your allocation, performance, and next steps.",
+    "ai_analyzer_refresh": "Refresh analysis",
+    "ai_analyzer_loading": "Analyzing your portfolio…",
+    "ai_analyzer_error": "Could not load analysis. Pull to refresh or try again later.",
+    "ai_analyzer_no_api_key": "AI analysis is not configured on this build. Use the Metals Bot tab or add a Groq API key to enable it.",
+    "ai_analyzer_refresh_limit": "Daily refresh limit reached. Your cached analysis is still available.",
+    "ai_analyzer_ask_more": "Ask AI more",
+    "ai_analyzer_disclaimer": "Educational insights only — not financial advice."
   },
   
   "jewelry": {

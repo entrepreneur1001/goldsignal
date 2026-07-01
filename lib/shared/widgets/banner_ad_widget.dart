@@ -14,16 +14,22 @@ class BannerAdWidget extends ConsumerStatefulWidget {
 class _BannerAdWidgetState extends ConsumerState<BannerAdWidget> {
   BannerAd? _bannerAd;
   bool _isLoaded = false;
+  bool _isLoading = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_bannerAd == null) _loadAd();
+    if (_bannerAd == null && !_isLoading) _loadAd();
   }
 
-  void _loadAd() {
-    final width = MediaQuery.of(context).size.width.truncate();
-    final adSize = AdSize(width: width, height: 60);
+  Future<void> _loadAd() async {
+    _isLoading = true;
+    final width = MediaQuery.sizeOf(context).width.truncate();
+    final adSize =
+        await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(width) ??
+            AdSize.banner;
+
+    if (!mounted) return;
 
     _bannerAd = BannerAd(
       adUnitId: AdService.bannerAdUnitId,

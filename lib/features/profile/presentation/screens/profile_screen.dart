@@ -335,11 +335,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               // Soft email-verification nudge (hidden for guests / verified users)
               const VerifyEmailBanner(),
 
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: NativeAdWidget(),
-              ),
-
               const Divider(),
 
               _buildSectionHeader(context.tr('profile.preferences')),
@@ -519,6 +514,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 title: Text(context.tr('profile.share_app')),
                 subtitle: Text(context.tr('profile.share_app_sub')),
                 onTap: _shareApp,
+              ),
+
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: NativeAdWidget(),
               ),
 
               const SizedBox(height: 16),

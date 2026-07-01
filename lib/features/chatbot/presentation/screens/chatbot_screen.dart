@@ -4,9 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:groq/groq.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/analytics/analytics_service.dart';
-import '../../../../shared/design/app_colors.dart';
+import '../../../../core/ai/portfolio_context_builder.dart';
 import '../../../../core/utils/api_config.dart';
-import '../../../../core/utils/currency_conversion.dart';
+import '../../../../shared/design/app_colors.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
@@ -15,7 +15,6 @@ import '../../../../shared/widgets/alerts_nav_button.dart';
 import '../../../../shared/widgets/ad_list_builder.dart';
 import '../../../../shared/widgets/native_ad_widget.dart';
 import '../../../../shared/models/metal_price.dart';
-import '../../../../shared/models/portfolio_item.dart';
 import '../../../../shared/models/chat_conversation.dart';
 import '../../../../shared/providers/chat_history_provider.dart';
 import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
@@ -258,67 +257,15 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     String currency,
     Map<String, double>? rates,
   ) {
-    final isLocal = currency == 'EGP';
-    final local = ref.read(localMarketPricesProvider);
-    try {
-      final items = ref.read(portfolioProvider).asData?.value ?? const [];
-      if (items.isEmpty) return 'User has no portfolio holdings yet.';
-
-      double purchaseInDisplay(PortfolioItem item) {
-        final raw = item.purchasePrice * item.weight;
-        if (rates == null) return raw;
-        return convertWithUsdBaseRates(
-              raw,
-              item.purchaseCurrency,
-              currency,
-              rates,
-            ) ??
-            raw;
-      }
-
-      double totalCurrentValue = 0;
-      double totalPurchaseCost = 0;
-      final holdings = <String>[];
-
-      for (final item in items) {
-        final price = item.metal == 'Gold' ? gold : silver;
-        final purchaseCost = purchaseInDisplay(item);
-        totalPurchaseCost += purchaseCost;
-
-        double currentValue = 0;
-        if (isLocal && local != null) {
-          if (item.metal == 'Gold') {
-            final perGram = localGoldPortfolioPrice(local, item.karat.round());
-            if (perGram != null) currentValue = perGram * item.weight;
-          } else {
-            final perGram = localSilverPortfolioPrice(local, item.karat.round());
-            if (perGram != null) currentValue = perGram * item.weight;
-          }
-          totalCurrentValue += currentValue;
-        } else if (price != null) {
-          final karatMultiplier = item.karat / 24;
-          currentValue = price.getPricePerGram() * karatMultiplier * item.weight;
-          totalCurrentValue += currentValue;
-        }
-
-        final pl = currentValue - purchaseCost;
-        final plPercent = purchaseCost > 0 ? (pl / purchaseCost * 100) : 0.0;
-        holdings.add(
-          "${item.weight}g ${item.metal} ${item.karat}K (bought at ${item.purchasePrice.toStringAsFixed(2)}/${item.purchaseCurrency}/g, current value in $currency: ${currentValue.toStringAsFixed(2)}, P/L: ${plPercent >= 0 ? '+' : ''}${plPercent.toStringAsFixed(1)}%)",
-        );
-      }
-
-      final totalPL = totalCurrentValue - totalPurchaseCost;
-      final totalPLPercent = totalPurchaseCost > 0 ? (totalPL / totalPurchaseCost * 100) : 0.0;
-
-      return """User's portfolio (${items.length} holding${items.length > 1 ? 's' : ''}):
-${holdings.map((h) => "- $h").join("\n")}
-Total purchase cost: $currency ${totalPurchaseCost.toStringAsFixed(2)}
-Total current value: $currency ${totalCurrentValue.toStringAsFixed(2)}
-Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}% ($currency ${totalPL.toStringAsFixed(2)})""";
-    } catch (e) {
-      return '';
-    }
+    final items = ref.read(portfolioProvider).asData?.value ?? const [];
+    return buildPortfolioContext(
+      items: items,
+      gold: gold,
+      silver: silver,
+      currency: currency,
+      rates: rates,
+      local: ref.read(localMarketPricesProvider),
+    );
   }
 
   void _scrollToBottom() {
@@ -425,7 +372,7 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
                   if (adListIndexIsAd(index, adContentCount)) {
                     return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 8),
-                      child: NativeAdWidget(),
+                      child: NativeAdWidget.list(),
                     );
                   }
                   return _buildMessage(

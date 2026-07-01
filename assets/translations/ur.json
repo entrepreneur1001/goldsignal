@@ -241,7 +241,17 @@
     "purchase_date_label": "خریداری کی تاریخ: {date}",
     "notes": "نوٹس (اختیاری)",
     "add": "شامل کریں",
-    "share_performance": "پورٹ فولیو کارکردگی شیئر کریں"
+    "share_performance": "پورٹ فولیو کارکردگی شیئر کریں",
+    "ai_analyzer_title": "AI پورٹ فولیو تجزیہ",
+    "ai_analyzer_empty_title": "AI پورٹ فولیو تجزیہ",
+    "ai_analyzer_empty_message": "ذاتی AI بصیرت کے لیے کم از کم ایک سونے یا چاندی کی ہولڈنگ شامل کریں — تقسیم، کارکردگی اور اگلے اقدامات کے بارے میں۔",
+    "ai_analyzer_refresh": "تجزیہ تازہ کریں",
+    "ai_analyzer_loading": "آپ کے پورٹ فولیو کا تجزیہ ہو رہا ہے…",
+    "ai_analyzer_error": "تجزیہ لوڈ نہیں ہو سکا۔ بعد میں دوبارہ کوشش کریں۔",
+    "ai_analyzer_no_api_key": "اس بلڈ میں AI تجزیہ ترتیب نہیں ہے۔ میٹلز بوٹ استعمال کریں یا Groq API key شامل کریں۔",
+    "ai_analyzer_refresh_limit": "روزانہ تازہ کاری کی حد پوری ہو گئی۔ محفوظ تجزیہ اب بھی دستیاب ہے۔",
+    "ai_analyzer_ask_more": "AI سے مزید پوچھیں",
+    "ai_analyzer_disclaimer": "صرف تعلیمی بصیرت — مالی مشورہ نہیں۔"
   },
 
   "jewelry": {

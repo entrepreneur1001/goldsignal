@@ -53,7 +53,7 @@ class SavingsGoalsScreen extends ConsumerWidget {
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         if (adListIndexIsAd(index, goals.length)) {
-          return const NativeAdWidget();
+          return const NativeAdWidget.list();
         }
         return _GoalCard(goal: goals[adListContentIndex(index, goals.length)]);
       },

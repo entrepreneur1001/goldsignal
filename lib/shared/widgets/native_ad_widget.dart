@@ -21,6 +21,9 @@ class NativeAdWidget extends ConsumerStatefulWidget {
 
   const NativeAdWidget({super.key, this.templateType = TemplateType.medium});
 
+  /// Compact native ad for blending into scroll lists (~110px tall).
+  const NativeAdWidget.list({super.key}) : templateType = TemplateType.small;
+
   @override
   ConsumerState<NativeAdWidget> createState() => _NativeAdWidgetState();
 }

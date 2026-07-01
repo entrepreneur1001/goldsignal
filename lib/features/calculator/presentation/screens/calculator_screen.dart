@@ -348,10 +348,8 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                 ),
                 
                 const SizedBox(height: 24),
-                const NativeAdWidget(),
 
                 // Info Card
-                const SizedBox(height: 24),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -380,6 +378,8 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 24),
+                const NativeAdWidget(),
                 const SizedBox(height: 88),
               ],
             ),
