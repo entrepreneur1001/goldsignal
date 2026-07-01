@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../../../core/analytics/analytics_service.dart';
 import '../../../../shared/models/price_alert.dart';
+import '../../../../core/notifications/notification_permission_ui.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
 import '../../../../shared/widgets/ad_list_builder.dart';
 import '../../../../shared/widgets/empty_state_with_ad.dart';
@@ -28,7 +29,6 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(priceAlertsProvider);
-    final notifier = ref.read(priceAlertsProvider.notifier);
 
     return DefaultTabController(
       length: 2,
@@ -47,16 +47,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
             IconButton(
               tooltip: context.tr('alerts.enable_notifications'),
               icon: const Icon(Icons.notifications_active_outlined),
-              onPressed: () async {
-                await notifier.requestNotificationPermission();
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(context.tr('profile.notif_updated')),
-                    ),
-                  );
-                }
-              },
+              onPressed: () => enableNotifications(context, ref),
             ),
           ],
         ),

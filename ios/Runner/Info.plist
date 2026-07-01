@@ -72,6 +72,8 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>io.flutter.embedded_views_preview</key>
+	<true/>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-9518678425811612~7305776968</string>
 	<key>SKAdNetworkItems</key>

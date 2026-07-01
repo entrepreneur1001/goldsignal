@@ -59,6 +59,26 @@ class AlertNotificationService {
     return androidGranted || iosGranted;
   }
 
+  Future<bool> isPermissionGranted() async {
+    if (kIsWeb) return false;
+    if (!_initialized) await initialize();
+
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    if (android != null) {
+      return await android.areNotificationsEnabled() ?? false;
+    }
+
+    final ios = _plugin.resolvePlatformSpecificImplementation<
+        IOSFlutterLocalNotificationsPlugin>();
+    if (ios != null) {
+      final options = await ios.checkPermissions();
+      return options?.isEnabled ?? false;
+    }
+
+    return false;
+  }
+
   Future<void> showPriceAlert({
     required String title,
     required String body,

@@ -25,6 +25,7 @@ import 'shared/themes/app_theme.dart';
 import 'shared/providers/app_info_provider.dart';
 import 'shared/providers/currency_provider.dart';
 import 'shared/providers/market_prices_provider.dart';
+import 'shared/providers/notification_permission_provider.dart';
 import 'features/auth/presentation/screens/splash_screen.dart';
 import 'features/profile/presentation/widgets/widget_settings_sheet.dart';
 
@@ -151,6 +152,7 @@ class _GoldSignalAppState extends ConsumerState<GoldSignalApp>
   /// Logs the open, refreshes cohort user properties, and writes the throttled
   /// activity signal the re-engagement function reads.
   Future<void> _onForeground() async {
+    ref.invalidate(notificationPermissionProvider);
     // Read context/provider state up front, before any await crosses a frame.
     final currency = ref.read(selectedCurrencyProvider);
     final localeCode = context.locale.languageCode;

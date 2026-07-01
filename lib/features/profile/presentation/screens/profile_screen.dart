@@ -17,6 +17,8 @@ import '../../../../features/auth/presentation/screens/sign_in_screen.dart';
 import '../widgets/verify_email_banner.dart';
 import '../../../alerts/presentation/screens/alerts_screen.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
+import '../../../../shared/providers/notification_permission_provider.dart';
+import '../../../../core/notifications/notification_permission_ui.dart';
 import '../widgets/widget_settings_sheet.dart';
 import '../widgets/digest_settings_sheet.dart';
 import 'package:share_plus/share_plus.dart';
@@ -363,21 +365,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
               ),
-              ListTile(
-                leading: const Icon(Icons.notifications_outlined),
-                title: Text(context.tr('profile.notif_permission')),
-                subtitle: Text(context.tr('profile.notif_permission_sub')),
-                onTap: () async {
-                  await ref
-                      .read(priceAlertsProvider.notifier)
-                      .requestNotificationPermission();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(context.tr('profile.notif_updated')),
-                      ),
-                    );
-                  }
+              Consumer(
+                builder: (context, ref, _) {
+                  final permAsync = ref.watch(notificationPermissionProvider);
+                  final isGranted = permAsync.value ?? false;
+                  return SwitchListTile(
+                    secondary: const Icon(Icons.notifications_outlined),
+                    title: Text(context.tr('profile.notif_permission')),
+                    subtitle: Text(context.tr('profile.notif_permission_sub')),
+                    value: isGranted,
+                    onChanged: permAsync.isLoading
+                        ? null
+                        : (value) async {
+                            if (value) {
+                              await enableNotifications(context, ref);
+                            } else {
+                              await showDisableInSettingsDialog(context);
+                              await ref
+                                  .read(notificationPermissionProvider.notifier)
+                                  .refresh();
+                            }
+                          },
+                  );
                 },
               ),
 
