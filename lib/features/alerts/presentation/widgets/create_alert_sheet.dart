@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/models/price_alert.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
+import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 class CreateAlertSheet extends ConsumerStatefulWidget {
@@ -98,6 +99,9 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
 
   Future<void> _submit() async {
     if (_saving) return;
+    if (!await requireAccount(context, 'price_alerts')) return;
+    if (!mounted) return;
+
     final target = double.tryParse(_targetController.text.trim());
     if (target == null || target <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
+import '../../../core/config/app_remote_config.dart';
 import '../../../core/utils/currency_format.dart';
 import '../../../core/utils/share_price.dart';
+import '../providers/app_config_provider.dart';
 import '../design/app_colors.dart';
 import '../models/watchlist_entry.dart';
 import '../providers/watchlist_provider.dart';
@@ -67,12 +69,19 @@ class _WatchlistTile extends ConsumerWidget {
       elevation: 1,
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: () => shareMetalPrice(
-          label: quote.entry.label,
-          pricePerGram: quote.pricePerGram,
-          currency: quote.currency,
-          changePercent: quote.changePercent,
-        ),
+        onTap: () async {
+          final config = ref.read(appRemoteConfigProvider) ??
+              const AppRemoteConfig();
+          await shareMetalPrice(
+            context: context,
+            label: quote.entry.label,
+            pricePerGram: quote.pricePerGram,
+            currency: quote.currency,
+            changePercent: quote.changePercent,
+            config: config,
+            isGold: quote.entry.metal == 'gold',
+          );
+        },
         child: Container(
           width: 156,
           padding: const EdgeInsets.all(12),

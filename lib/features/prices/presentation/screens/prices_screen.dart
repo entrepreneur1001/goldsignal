@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../../../core/api/metalpriceapi_service.dart';
+import '../../../../core/config/app_remote_config.dart';
 import '../../../../core/utils/share_price.dart';
+import '../../../../shared/providers/app_config_provider.dart';
 import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/models/metal_price.dart';
 import '../../../../shared/models/watchlist_entry.dart';
@@ -18,9 +20,12 @@ import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/currency_selector.dart';
 import '../../../../shared/widgets/watchlist_strip.dart';
 import '../../../alerts/presentation/widgets/create_alert_sheet.dart';
-import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
 import '../../../charts/presentation/screens/price_chart_screen.dart';
 import '../../../../shared/widgets/alerts_nav_button.dart';
+import '../../../../shared/widgets/sync_account_banner.dart';
+import '../../../../shared/widgets/daily_insight_card.dart';
+import '../../../../shared/widgets/egp_spread_card.dart';
+import '../../../../shared/widgets/native_ad_widget.dart';
 
 class PricesScreen extends ConsumerWidget {
   const PricesScreen({super.key});
@@ -37,17 +42,25 @@ class PricesScreen extends ConsumerWidget {
     );
   }
 
-  void _sharePrice({
+  Future<void> _sharePrice(
+    BuildContext context,
+    WidgetRef ref, {
     required String label,
     required double pricePerGram,
     required String currency,
     required double changePercent,
-  }) {
-    shareMetalPrice(
+    bool isGold = true,
+  }) async {
+    final config =
+        ref.read(appRemoteConfigProvider) ?? const AppRemoteConfig();
+    await shareMetalPrice(
+      context: context,
       label: label,
       pricePerGram: pricePerGram,
       currency: currency,
       changePercent: changePercent,
+      config: config,
+      isGold: isGold,
     );
   }
 
@@ -62,9 +75,6 @@ class PricesScreen extends ConsumerWidget {
     required double pricePerGram,
     PriceSide? side,
   }) async {
-    // Price alerts are a saved/data feature — require a real account.
-    if (!await requireAccount(context, 'price alerts')) return;
-    if (!context.mounted) return;
     CreateAlertSheet.show(
       context,
       draft: AlertDraft(
@@ -174,7 +184,14 @@ class PricesScreen extends ConsumerWidget {
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          const SyncAccountBanner(),
+          const DailyInsightCard(),
+          const SizedBox(height: 12),
           if (isLocal) ...[
+            if (localPrices != null) ...[
+              EgpSpreadCard(localPrices: localPrices),
+              const SizedBox(height: 16),
+            ],
             _buildBuySellToggle(context, ref, priceSide),
             const SizedBox(height: 16),
           ],
@@ -183,6 +200,8 @@ class PricesScreen extends ConsumerWidget {
           const WatchlistStrip(),
           if (ref.watch(watchlistProvider).isNotEmpty)
             const SizedBox(height: 16),
+          const NativeAdWidget(),
+          const SizedBox(height: 16),
           if (isLocal && localPrices != null)
             ..._buildLocalContent(context, ref, localPrices, priceSide)
           else if (marketState.globalData != null)
@@ -282,11 +301,12 @@ class PricesScreen extends ConsumerWidget {
           isWatchlisted: _isWatchlisted(ref, goldEntry),
           onToggleWatchlist: () =>
               _toggleWatchlist(context, ref, goldEntry),
-          onShare: () => _sharePrice(
+          onShare: () => _sharePrice(context, ref,
             label: goldEntry.label,
             pricePerGram: headline.priceFor(side),
             currency: 'EGP',
             changePercent: headline.changePercent,
+            isGold: true,
           ),
           onSetAlert: () => _openAlertSheet(
             context,
@@ -311,11 +331,12 @@ class PricesScreen extends ConsumerWidget {
           isWatchlisted: _isWatchlisted(ref, silverEntry),
           onToggleWatchlist: () =>
               _toggleWatchlist(context, ref, silverEntry),
-          onShare: () => _sharePrice(
+          onShare: () => _sharePrice(context, ref,
             label: silverEntry.label,
             pricePerGram: silverHeadline.priceFor(side),
             currency: 'EGP',
             changePercent: silverHeadline.changePercent,
+            isGold: false,
           ),
           onSetAlert: () => _openAlertSheet(
             context,
@@ -326,6 +347,8 @@ class PricesScreen extends ConsumerWidget {
             side: side,
           ),
         ).animate().slideX(begin: 1, duration: 600.ms),
+      const SizedBox(height: 16),
+      const NativeAdWidget(),
       const SizedBox(height: 24),
       _buildLocalKaratCard(context, ref, context.tr('prices.gold_prices_per_gram'), local.gold, side, isGold: true),
       const SizedBox(height: 16),
@@ -405,11 +428,12 @@ class PricesScreen extends ConsumerWidget {
             tooltip: context.tr('common.share'),
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.ios_share_rounded, size: 20),
-            onPressed: () => _sharePrice(
+            onPressed: () => _sharePrice(context, ref,
               label: entry.label,
               pricePerGram: price,
               currency: 'EGP',
               changePercent: row.changePercent,
+              isGold: isGold,
             ),
           ),
           if (canPin)
@@ -516,11 +540,12 @@ class PricesScreen extends ConsumerWidget {
           ref,
           const WatchlistEntry(metal: 'gold', karat: '24'),
         ),
-        onShare: () => _sharePrice(
+        onShare: () => _sharePrice(context, ref,
           label: context.tr('prices.gold_24k_label'),
           pricePerGram: goldPrice / 31.1034768,
           currency: currency,
           changePercent: goldDelta.changePercent,
+          isGold: true,
         ),
         onSetAlert: () => _openAlertSheet(
           context,
@@ -546,11 +571,12 @@ class PricesScreen extends ConsumerWidget {
           ref,
           const WatchlistEntry(metal: 'silver', karat: '999'),
         ),
-        onShare: () => _sharePrice(
+        onShare: () => _sharePrice(context, ref,
           label: context.tr('prices.silver_999_label'),
           pricePerGram: silverPrice / 31.1034768,
           currency: currency,
           changePercent: silverDelta.changePercent,
+          isGold: false,
         ),
         onSetAlert: () => _openAlertSheet(
           context,
@@ -560,6 +586,8 @@ class PricesScreen extends ConsumerWidget {
           pricePerGram: silverPrice / 31.1034768,
         ),
       ).animate().slideX(begin: 1, duration: 600.ms),
+      const SizedBox(height: 16),
+      const NativeAdWidget(),
       const SizedBox(height: 24),
       Card(
         child: Padding(
@@ -618,11 +646,12 @@ class PricesScreen extends ConsumerWidget {
         changePercent: gold.changePercent24h,
         isWatchlisted: _isWatchlisted(ref, goldEntry),
         onToggleWatchlist: () => _toggleWatchlist(context, ref, goldEntry),
-        onShare: () => _sharePrice(
+        onShare: () => _sharePrice(context, ref,
           label: goldEntry.label,
           pricePerGram: gold.pricePerGram,
           currency: gold.currency,
           changePercent: gold.changePercent24h,
+          isGold: true,
         ),
         onSetAlert: () => _openAlertSheet(
           context,
@@ -647,11 +676,12 @@ class PricesScreen extends ConsumerWidget {
           isWatchlisted: _isWatchlisted(ref, silverEntry),
           onToggleWatchlist: () =>
               _toggleWatchlist(context, ref, silverEntry),
-          onShare: () => _sharePrice(
+          onShare: () => _sharePrice(context, ref,
             label: silverEntry.label,
             pricePerGram: silver.pricePerGram,
             currency: silver.currency,
             changePercent: silver.changePercent24h,
+            isGold: false,
           ),
           onSetAlert: () => _openAlertSheet(
             context,
@@ -696,11 +726,12 @@ class PricesScreen extends ConsumerWidget {
             tooltip: context.tr('common.share'),
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.ios_share_rounded, size: 20),
-            onPressed: () => _sharePrice(
+            onPressed: () => _sharePrice(context, ref,
               label: entry.label,
               pricePerGram: karatPrice,
               currency: currency,
               changePercent: changePercent,
+              isGold: true,
             ),
           ),
           IconButton(

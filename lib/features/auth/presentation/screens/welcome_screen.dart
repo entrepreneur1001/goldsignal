@@ -3,7 +3,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/design/app_dimens.dart';
 import '../../../../shared/providers/auth_provider.dart';
-import '../../../dashboard/presentation/screens/dashboard_screen.dart';
+import '../../../onboarding/onboarding_nav.dart';
 import '../widgets/auth_scaffold.dart';
 import '../widgets/social_sign_in_buttons.dart';
 import 'sign_in_screen.dart';
@@ -19,13 +19,7 @@ class WelcomeScreen extends ConsumerWidget {
     try {
       final user = await ref.read(authControllerProvider.notifier).signInAsGuest();
       if (user != null && context.mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            settings: const RouteSettings(name: 'Dashboard'),
-            builder: (_) => const DashboardScreen(),
-          ),
-        );
+        await navigateToHome(context);
       }
     } catch (_) {
       if (context.mounted) {
@@ -83,15 +77,9 @@ class WelcomeScreen extends ConsumerWidget {
         ).animate().fadeIn(delay: 500.ms),
         const SizedBox(height: AppDimens.space16),
         SocialSignInButtons(
-          onSuccess: (user) {
+          onSuccess: (user) async {
             if (!context.mounted) return;
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                settings: const RouteSettings(name: 'Dashboard'),
-                builder: (_) => const DashboardScreen(),
-              ),
-            );
+            await navigateToHome(context);
           },
         ).animate().fadeIn(delay: 550.ms),
         const SizedBox(height: AppDimens.space24),

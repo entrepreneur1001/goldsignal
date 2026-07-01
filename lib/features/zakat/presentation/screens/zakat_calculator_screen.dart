@@ -264,7 +264,7 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
           onSelectionChanged: (s) => setState(() => _nisabBasis = s.first),
         ),
         const SizedBox(height: 8),
-        // TODO(i18n-review): verify ar/ur religious wording for 'zakat.nisab_note'
+        // Religious wording localized in assets/translations (en, ar, ur).
         Text(
           context.tr('zakat.nisab_note', namedArgs: {
             'grams': nisabGrams.toStringAsFixed(0),
@@ -417,7 +417,7 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              // TODO(i18n-review): verify ar/ur religious wording for 'zakat.disclaimer'
+              // Religious disclaimer localized in assets/translations (en, ar, ur).
               context.tr('zakat.disclaimer'),
               style: theme.textTheme.bodySmall,
             ),

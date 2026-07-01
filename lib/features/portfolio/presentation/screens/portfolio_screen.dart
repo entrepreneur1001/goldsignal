@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
-import '../../../../core/utils/currency_format.dart';
+import '../../../../core/config/app_remote_config.dart';
+import '../../../../core/utils/share_portfolio.dart';
+import '../../../../shared/providers/app_config_provider.dart';
 import '../../../../shared/design/app_colors.dart';
 import '../../../../shared/design/app_typography.dart';
 import '../../../../shared/models/portfolio_item.dart';
@@ -11,7 +13,10 @@ import '../../../../shared/widgets/animated_value.dart';
 import '../../../../shared/widgets/delta_pill.dart';
 import '../../../../shared/widgets/shimmer.dart';
 import '../../../../shared/widgets/vault_card.dart';
+import '../../../../shared/widgets/ad_list_builder.dart';
+import '../../../../shared/widgets/empty_state_with_ad.dart';
 import '../../../../shared/widgets/native_ad_widget.dart';
+import '../../../../core/utils/currency_format.dart';
 import '../../../../core/utils/currency_conversion.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
@@ -312,6 +317,28 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
                           ),
                         ),
                         IconButton(
+                          tooltip: context.tr('portfolio.share_performance'),
+                          icon: const Icon(Icons.ios_share_rounded),
+                          onPressed: () async {
+                            final total = _calculateTotalValue();
+                            if (total <= 0) return;
+                            final pl = _calculateTotalProfitLoss();
+                            final cost = total - pl;
+                            final plPercent =
+                                cost > 0 ? (pl / cost) * 100 : 0.0;
+                            final config = ref.read(appRemoteConfigProvider) ??
+                                const AppRemoteConfig();
+                            await sharePortfolioPerformance(
+                              context: context,
+                              totalValue: total,
+                              profitLoss: pl,
+                              profitLossPercent: plPercent,
+                              currency: ref.read(selectedCurrencyProvider),
+                              config: config,
+                            );
+                          },
+                        ),
+                        IconButton(
                           tooltip: context.tr('portfolio.savings_goals'),
                           icon: const Icon(Icons.savings_outlined),
                           onPressed: () => Navigator.of(context).push(
@@ -412,47 +439,25 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
             // Portfolio Items
             if (_items.isEmpty)
               SliverFillRemaining(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.inventory_2_outlined,
-                        size: 80,
-                        color: Colors.grey.withValues(alpha: 0.3),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        context.tr('portfolio.no_holdings'),
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        context.tr('portfolio.add_first'),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
+                hasScrollBody: false,
+                child: EmptyStateWithAd(
+                  icon: Icons.inventory_2_outlined,
+                  title: context.tr('portfolio.no_holdings'),
+                  message: context.tr('portfolio.add_first'),
                 ),
               )
             else
               SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                    // Blend a native ad after every 3rd holding.
-                    const interval = 3;
-                    const block = interval + 1;
-                    if (index % block == interval) {
+                    if (adListIndexIsAd(index, _items.length)) {
                       return const NativeAdWidget();
                     }
-                    final item = _items[index - (index ~/ block)];
-                    return _buildPortfolioItem(item);
+                    return _buildPortfolioItem(
+                      _items[adListContentIndex(index, _items.length)],
+                    );
                   },
-                  childCount: _items.length + _items.length ~/ 3,
+                  childCount: adListItemCount(_items.length),
                   addAutomaticKeepAlives: false,
                 ),
               ),
@@ -1018,8 +1023,10 @@ class _AddPortfolioItemDialogState
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: ChoiceChip(
-                          // TODO(i18n): data-driven karat label (e.g. "24K"), not localized
-                          label: Text('${karat}K'),
+                          label: Text(context.tr(
+                            'calculator.karat_label',
+                            namedArgs: {'karat': '$karat'},
+                          )),
                           selected: _selectedKarat == karat,
                           onSelected: (selected) {
                             if (selected) {

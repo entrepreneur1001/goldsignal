@@ -16,7 +16,12 @@
       "Bash(curl -s -L \"https://metalpriceapi.com/documentation\")",
       "Bash(curl -s -L \"https://metalpriceapi.com\")",
       "Bash(dart run:*)",
-      "Bash(ls /Users/mostafaradwan/Documents/apps/goldsignal/android/app/build.gradle*)"
+      "Bash(ls /Users/mostafaradwan/Documents/apps/goldsignal/android/app/build.gradle*)",
+      "Bash(git check-ignore:*)",
+      "Bash(keytool -list -printcert -jarfile build/app/outputs/bundle/release/app-release.aab)",
+      "Bash(keytool -printcert -jarfile build/app/outputs/bundle/release/app-release.aab)",
+      "Bash(PATH=__TRACKED_VAR__/.flutter_sdk/bin:__TRACKED_VAR__ flutter analyze lib/main.dart lib/core/analytics/analytics_service.dart lib/core/firebase/auth_service.dart lib/features/auth lib/features/dashboard lib/features/prices lib/features/chatbot lib/features/profile lib/features/portfolio lib/features/system lib/shared/widgets/alerts_nav_button.dart)",
+      "Bash(dart fix *)"
     ],
     "deny": [],
     "ask": [],

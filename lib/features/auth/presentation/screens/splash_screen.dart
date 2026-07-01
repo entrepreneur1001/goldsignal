@@ -6,7 +6,8 @@ import '../../../../core/config/app_remote_config.dart';
 import '../../../../core/firebase/auth_service.dart';
 import '../../../../shared/providers/app_config_provider.dart';
 import '../../../../shared/providers/app_info_provider.dart';
-import '../../../dashboard/presentation/screens/dashboard_screen.dart';
+import '../../../../core/utils/app_session.dart';
+import '../../../onboarding/onboarding_nav.dart';
 import '../../../system/presentation/screens/force_update_screen.dart';
 import '../../../system/presentation/screens/maintenance_screen.dart';
 import 'welcome_screen.dart';
@@ -62,17 +63,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     }
 
     final User? currentUser = _authService.currentUser;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        settings: RouteSettings(
-          name: currentUser != null ? 'Dashboard' : 'Welcome',
+    if (currentUser != null) {
+      await incrementSessionCount();
+      if (!mounted) return;
+      await navigateToHome(context);
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          settings: const RouteSettings(name: 'Welcome'),
+          builder: (_) => const WelcomeScreen(),
         ),
-        builder: (_) => currentUser != null
-            ? const DashboardScreen()
-            : const WelcomeScreen(),
-      ),
-    );
+      );
+    }
   }
 
   @override

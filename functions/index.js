@@ -321,6 +321,11 @@ exports.checkPriceAlerts = onSchedule(
     }
 
     logger.info(`Alert check complete: ${triggered} triggered`);
+
+    const watchlistTriggered = await processWatchlistMoveAlerts(ctx);
+    if (watchlistTriggered > 0) {
+      logger.info(`Watchlist move alerts: ${watchlistTriggered} sent`);
+    }
   },
 );
 
@@ -343,6 +348,7 @@ exports.refreshPricesScheduled = onSchedule(
       logger.warn('Scheduled price refresh produced no data');
       return;
     }
+    await updateDailyInsightCache(ctx);
     logger.info('Scheduled price refresh complete', {
       global: !!ctx.globalRates,
       local: !!ctx.localEgp,
@@ -565,6 +571,198 @@ function reengageMessage(nums, currency) {
   };
 }
 
+async function portfolioMarketValue(uid, ctx, currency) {
+  const snap = await db
+    .collection('users')
+    .doc(uid)
+    .collection('portfolio')
+    .get();
+  if (snap.empty) return null;
+
+  let total = 0;
+  for (const doc of snap.docs) {
+    const item = doc.data();
+    const metal = String(item.metal || 'Gold').toLowerCase();
+    const karat = String(item.karat || 24);
+    const weight = Number(item.weight) || 0;
+    let perGram;
+    if (currency === 'EGP' && ctx.localEgp) {
+      perGram = localPricePerGram(ctx.localEgp, metal, karat, 'buy');
+    } else {
+      perGram = globalPricePerGram(ctx.globalRates, metal, karat, currency);
+    }
+    if (perGram != null) total += perGram * weight;
+  }
+  return total > 0 ? total : null;
+}
+
+async function userHasActiveAlerts(uid) {
+  const snap = await db
+    .collection('users')
+    .doc(uid)
+    .collection('alerts')
+    .where('isActive', '==', true)
+    .limit(1)
+    .get();
+  return !snap.empty;
+}
+
+async function reengageMessageForUser(uid, data, ctx, currency) {
+  const nums = digestNumbers(ctx, currency);
+  const portfolioVal = await portfolioMarketValue(uid, ctx, currency);
+  if (portfolioVal != null) {
+    const pct = nums.goldPct;
+    const pctStr =
+      pct != null
+        ? ` (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}% today)`
+        : '';
+    return {
+      title: 'Your portfolio update',
+      body: `Your gold is worth ${formatDigestNum(portfolioVal)} ${currency} today${pctStr}.`,
+    };
+  }
+
+  if (data.isGuest === true && Number(data.calculatorUseCount) >= 3) {
+    return {
+      title: 'Save your calculations',
+      body: 'Create a free account to save your gold calculations across devices.',
+    };
+  }
+
+  const hasAlerts = await userHasActiveAlerts(uid);
+  if (!hasAlerts) {
+    return {
+      title: 'Set your first alert',
+      body: 'Get notified when gold hits your target price.',
+    };
+  }
+
+  return reengageMessage(nums, currency);
+}
+
+function watchlistEntryLabel(entry) {
+  const metal = entry.metal === 'silver' ? 'Silver' : 'Gold';
+  const k = entry.karat || '24';
+  return entry.metal === 'silver' ? `Silver ${k}` : `${metal} ${k}K`;
+}
+
+function resolveWatchlistQuote(entry, ctx, currency) {
+  if (currency === 'EGP' && ctx.localEgp) {
+    const map = entry.metal === 'gold' ? ctx.localEgp.gold : ctx.localEgp.silver;
+    const row = map?.[entry.karat];
+    if (!row) return null;
+    return {
+      pricePerGram: row.sellPerGram,
+      changePercent: row.changePercent ?? 0,
+    };
+  }
+  const perGram = globalPricePerGram(
+    ctx.globalRates,
+    entry.metal || 'gold',
+    entry.karat || '24',
+    currency,
+  );
+  const prev = globalPricePerGram(
+    ctx.prevRates,
+    entry.metal || 'gold',
+    entry.karat || '24',
+    currency,
+  );
+  return {
+    pricePerGram: perGram,
+    changePercent: changePercentFrom(perGram, prev) ?? 0,
+  };
+}
+
+async function processWatchlistMoveAlerts(ctx) {
+  const usersSnap = await db
+    .collection('users')
+    .where('watchlistAlerts.enabled', '==', true)
+    .get();
+  if (usersSnap.empty) return 0;
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const now = Date.now();
+  const ymd = `${new Date(now).getUTCFullYear()}-${pad(
+    new Date(now).getUTCMonth() + 1,
+  )}-${pad(new Date(now).getUTCDate())}`;
+
+  let sent = 0;
+  for (const userDoc of usersSnap.docs) {
+    const data = userDoc.data();
+    const wa = data.watchlistAlerts || {};
+    const token = data.fcmToken;
+    if (!token) continue;
+    if (wa.lastNotifiedYmd === ymd) continue;
+
+    const threshold = Number(wa.thresholdPercent) || 2;
+    const currency = wa.currency || data.digest?.currency || 'USD';
+    const entries = Array.isArray(wa.entries) ? wa.entries : [];
+    if (entries.length === 0) continue;
+
+    const movers = [];
+    for (const entry of entries) {
+      const quote = resolveWatchlistQuote(entry, ctx, currency);
+      if (!quote) continue;
+      const pct = quote.changePercent;
+      if (pct != null && Math.abs(pct) >= threshold) {
+        movers.push({
+          label: watchlistEntryLabel(entry),
+          pct,
+          price: quote.pricePerGram,
+        });
+      }
+    }
+    if (movers.length === 0) continue;
+
+    const top = movers.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct))[0];
+    const sign = top.pct >= 0 ? '+' : '';
+    const body =
+      `${top.label} moved ${sign}${top.pct.toFixed(1)}% (24h)` +
+      (top.price != null
+        ? ` — now ${formatDigestNum(top.price)} ${currency}/g`
+        : '') +
+      '.';
+
+    const ok = await sendAlertPush(
+      token,
+      'Watchlist price move',
+      body,
+      'watchlist_move',
+    );
+    if (ok) {
+      await userDoc.ref.set(
+        { watchlistAlerts: { lastNotifiedYmd: ymd } },
+        { merge: true },
+      );
+      sent += 1;
+    }
+  }
+  return sent;
+}
+
+async function updateDailyInsightCache(ctx) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const now = new Date();
+  const ymd = `${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(
+    now.getUTCDate(),
+  )}`;
+
+  const doc = await db.collection('metadata').doc('dailyInsight').get();
+  if (doc.exists && doc.data()?.ymd === ymd) return;
+
+  const nums = digestNumbers(ctx, 'USD');
+  let text = digestBody(nums, 'USD');
+  const ai = await aiDigestLine(nums, 'USD');
+  if (ai) text = ai;
+
+  await db.collection('metadata').doc('dailyInsight').set({
+    ymd,
+    text,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+}
+
 async function sendReEngagePush(token, title, body) {
   try {
     await messaging.send({
@@ -658,7 +856,12 @@ exports.sendReEngagement = onSchedule(
 
       const currency = data.digest?.currency || 'USD';
       const nums = digestNumbers(ctx, currency);
-      const { title, body } = reengageMessage(nums, currency);
+      const { title, body } = await reengageMessageForUser(
+        userDoc.id,
+        data,
+        ctx,
+        currency,
+      );
 
       const ok = await sendReEngagePush(token, title, body);
       if (!ok) {

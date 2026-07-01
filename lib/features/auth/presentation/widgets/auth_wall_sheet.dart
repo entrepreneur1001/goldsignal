@@ -8,13 +8,12 @@ import '../screens/sign_up_screen.dart';
 import 'social_sign_in_buttons.dart';
 
 /// Ensures the current user is a real (non-anonymous) account before a gated
-/// action proceeds. Returns true if already signed in, or if the user signs
-/// in / upgrades via the wall. Returns false if they dismiss it.
-Future<bool> requireAccount(BuildContext context, String feature) async {
+/// action proceeds. [featureKey] is a translation key under `auth.features.*`.
+Future<bool> requireAccount(BuildContext context, String featureKey) async {
   final user = FirebaseAuth.instance.currentUser;
   if (user != null && !user.isAnonymous) return true;
 
-  await AuthWallSheet.show(context, feature: feature);
+  await AuthWallSheet.show(context, featureKey: featureKey);
 
   final after = FirebaseAuth.instance.currentUser;
   return after != null && !after.isAnonymous;
@@ -23,17 +22,17 @@ Future<bool> requireAccount(BuildContext context, String feature) async {
 /// In-context "sign in to continue" sheet shown when a guest taps a data
 /// feature. Upgrades the anonymous user in place (same uid) on sign-up.
 class AuthWallSheet extends StatelessWidget {
-  const AuthWallSheet({super.key, required this.feature});
+  const AuthWallSheet({super.key, required this.featureKey});
 
-  /// Human-friendly feature name, e.g. "portfolio", "price alerts".
-  final String feature;
+  /// Key under `auth.features.*`, e.g. `portfolio`, `price_alerts`.
+  final String featureKey;
 
-  static Future<void> show(BuildContext context, {required String feature}) {
+  static Future<void> show(BuildContext context, {required String featureKey}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => AuthWallSheet(feature: feature),
+      builder: (_) => AuthWallSheet(featureKey: featureKey),
     );
   }
 
@@ -94,8 +93,12 @@ class AuthWallSheet extends StatelessWidget {
               ),
               const SizedBox(height: AppDimens.space8),
               Text(
-                // TODO(i18n): {feature} is passed in English at call sites
-                context.tr('auth.wall_message', namedArgs: {'feature': feature}),
+                context.tr(
+                  'auth.wall_message',
+                  namedArgs: {
+                    'feature': context.tr('auth.features.$featureKey'),
+                  },
+                ),
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium,
               ),

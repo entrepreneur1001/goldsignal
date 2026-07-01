@@ -27,6 +27,8 @@ import 'edit_profile_screen.dart';
 import '../../../../core/config/app_remote_config.dart';
 import '../../../../shared/providers/app_config_provider.dart';
 import '../../../../shared/providers/digest_provider.dart';
+import '../../../../shared/providers/watchlist_alerts_provider.dart';
+import '../../../../shared/widgets/native_ad_widget.dart';
 
 /// TermsFeed-hosted privacy policy for Gold Signal.
 final Uri _privacyPolicyUri = Uri.https(
@@ -331,6 +333,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               // Soft email-verification nudge (hidden for guests / verified users)
               const VerifyEmailBanner(),
 
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: NativeAdWidget(),
+              ),
+
               const Divider(),
 
               _buildSectionHeader(context.tr('profile.preferences')),
@@ -425,6 +432,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       namedArgs: {'currency': selectedCurrency}),
                 ),
                 onTap: () => WidgetSettingsSheet.show(context),
+              ),
+
+              ListTile(
+                leading: const Icon(Icons.star_outline),
+                title: Text(context.tr('profile.watchlist_alerts')),
+                subtitle: Text(context.tr('profile.watchlist_alerts_sub')),
+                trailing: Switch(
+                  value: ref.watch(watchlistAlertsProvider).enabled,
+                  onChanged: (v) => ref
+                      .read(watchlistAlertsProvider.notifier)
+                      .setEnabled(v),
+                ),
               ),
 
               ListTile(

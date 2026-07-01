@@ -3,7 +3,8 @@ import '../../../../shared/design/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/models/chat_conversation.dart';
 import '../../../../shared/providers/chat_history_provider.dart';
-import '../../../../shared/widgets/empty_state.dart';
+import '../../../../shared/widgets/ad_list_builder.dart';
+import '../../../../shared/widgets/empty_state_with_ad.dart';
 import '../../../../shared/widgets/native_ad_widget.dart';
 import 'package:easy_localization/easy_localization.dart';
 
@@ -42,22 +43,20 @@ class ChatHistoryScreen extends ConsumerWidget {
     );
   }
 
-  /// One native ad blended in after every [_adInterval] conversations.
-  static const int _adInterval = 3;
-
   Widget _buildList(List<ChatConversation> conversations) {
-    const block = _adInterval + 1; // conversations + 1 ad slot
-    final adCount = conversations.length ~/ _adInterval;
-    final itemCount = conversations.length + adCount;
+    final itemCount = adListItemCount(conversations.length);
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
       itemCount: itemCount,
       separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
-        if (index % block == _adInterval) return const NativeAdWidget();
-        final conversation = conversations[index - (index ~/ block)];
-        return _ConversationTile(conversation: conversation);
+        if (adListIndexIsAd(index, conversations.length)) {
+          return const NativeAdWidget();
+        }
+        return _ConversationTile(
+          conversation: conversations[adListContentIndex(index, conversations.length)],
+        );
       },
     );
   }
@@ -86,7 +85,7 @@ class ChatHistoryScreen extends ConsumerWidget {
   }
 
   Widget _buildEmpty(BuildContext context) {
-    return EmptyState(
+    return EmptyStateWithAd(
       icon: Icons.forum_outlined,
       title: context.tr('chat_history.empty_title'),
       message: context.tr('chat_history.empty_message'),

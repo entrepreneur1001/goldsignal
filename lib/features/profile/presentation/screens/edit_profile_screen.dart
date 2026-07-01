@@ -10,18 +10,34 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  // TODO(i18n): country names are stored profile values, not localized here.
-  static const _countries = [
-    'Saudi Arabia', 'United Arab Emirates', 'Egypt', 'Kuwait', 'Bahrain',
-    'Oman', 'Qatar', 'Jordan', 'Lebanon', 'Iraq', 'Pakistan', 'India',
-    'United States', 'United Kingdom', 'Other',
+  static const _countryKeys = [
+    'sa', 'ae', 'eg', 'kw', 'bh', 'om', 'qa', 'jo', 'lb', 'iq', 'pk', 'in',
+    'us', 'gb', 'other',
   ];
+
+  static const _legacyCountryToKey = {
+    'Saudi Arabia': 'sa',
+    'United Arab Emirates': 'ae',
+    'Egypt': 'eg',
+    'Kuwait': 'kw',
+    'Bahrain': 'bh',
+    'Oman': 'om',
+    'Qatar': 'qa',
+    'Jordan': 'jo',
+    'Lebanon': 'lb',
+    'Iraq': 'iq',
+    'Pakistan': 'pk',
+    'India': 'in',
+    'United States': 'us',
+    'United Kingdom': 'gb',
+    'Other': 'other',
+  };
 
   final AuthService _authService = AuthService();
   final _nameController = TextEditingController();
   final _cityController = TextEditingController();
 
-  String? _country;
+  String? _countryKey;
   DateTime? _dob;
   bool _loading = true;
   bool _saving = false;
@@ -39,6 +55,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
+  String? _normalizeCountry(String? stored) {
+    if (stored == null) return null;
+    if (_countryKeys.contains(stored)) return stored;
+    return _legacyCountryToKey[stored];
+  }
+
   Future<void> _load() async {
     final data = await _authService.loadProfile();
     if (!mounted) return;
@@ -50,7 +72,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final country = data?['country'] as String?;
     final dobRaw = data?['dob'] as String?;
     setState(() {
-      _country = _countries.contains(country) ? country : null;
+      _countryKey = _normalizeCountry(country);
       _dob = dobRaw != null ? DateTime.tryParse(dobRaw) : null;
       _loading = false;
     });
@@ -78,24 +100,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await _authService.updateProfile(
-        name: _nameController.text,
-        country: _country,
+        name: _nameController.text.trim(),
+        country: _countryKey,
         city: _cityController.text.trim().isEmpty
             ? null
             : _cityController.text.trim(),
         dob: _dob,
       );
       if (!mounted) return;
-      Navigator.pop(context, true);
       messenger.showSnackBar(
         SnackBar(content: Text(context.tr('success.profile_updated'))),
       );
-    } catch (_) {
+      Navigator.pop(context);
+    } catch (e) {
       if (!mounted) return;
-      setState(() => _saving = false);
       messenger.showSnackBar(
-        SnackBar(content: Text(context.tr('profile.save_failed'))),
+        SnackBar(content: Text(e.toString())),
       );
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -119,18 +142,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  initialValue: _country,
+                  initialValue: _countryKey,
                   isExpanded: true,
                   decoration: InputDecoration(
                     labelText: context.tr('profile.country'),
                     prefixIcon: const Icon(Icons.public),
                     border: const OutlineInputBorder(),
                   ),
-                  items: _countries
-                      .map((c) =>
-                          DropdownMenuItem(value: c, child: Text(c)))
+                  items: _countryKeys
+                      .map((key) => DropdownMenuItem(
+                            value: key,
+                            child: Text(context.tr('countries.$key')),
+                          ))
                       .toList(),
-                  onChanged: (v) => setState(() => _country = v),
+                  onChanged: (v) => setState(() => _countryKey = v),
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -153,24 +178,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                     child: Text(
                       _dob != null
-                          ? DateFormat('MMM d, yyyy').format(_dob!)
-                          : context.tr('profile.select_date'),
+                          ? MaterialLocalizations.of(context)
+                              .formatMediumDate(_dob!)
+                          : context.tr('profile.dob_hint'),
                     ),
                   ),
                 ),
                 const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _saving ? null : _save,
-                    child: _saving
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(context.tr('common.save')),
-                  ),
+                FilledButton(
+                  onPressed: _saving ? null : _save,
+                  child: _saving
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(context.tr('common.save')),
                 ),
               ],
             ),

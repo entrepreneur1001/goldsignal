@@ -4,6 +4,8 @@ import 'package:easy_localization/easy_localization.dart';
 import '../../../../core/analytics/analytics_service.dart';
 import '../../../../shared/models/price_alert.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
+import '../../../../shared/widgets/ad_list_builder.dart';
+import '../../../../shared/widgets/empty_state_with_ad.dart';
 import '../../../../shared/widgets/native_ad_widget.dart';
 import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
 import '../widgets/create_alert_sheet.dart';
@@ -60,7 +62,7 @@ class _AlertsScreenState extends ConsumerState<AlertsScreen> {
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () async {
-            if (!await requireAccount(context, 'price alerts')) return;
+            if (!await requireAccount(context, 'price_alerts')) return;
             if (context.mounted) CreateAlertSheet.show(context);
           },
           icon: const Icon(Icons.add_alert),
@@ -98,8 +100,7 @@ class _ActiveAlertsTab extends ConsumerWidget {
     final paused = state.pausedAlerts;
 
     if (active.isEmpty && snoozed.isEmpty && paused.isEmpty) {
-      return _buildEmpty(
-        context,
+      return EmptyStateWithAd(
         icon: Icons.notifications_off_outlined,
         title: context.tr('profile.no_active_alerts'),
         message: context.tr('alerts.empty_active_msg'),
@@ -110,17 +111,17 @@ class _ActiveAlertsTab extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
       children: [
         if (active.isNotEmpty) ...[
-          for (var i = 0; i < active.length; i++) ...[
+          for (var i = 0; i < adListItemCount(active.length); i++) ...[
             if (i > 0) const SizedBox(height: 8),
-            _ActiveAlertTile(
-              alert: active[i],
-              currentPrice: notifier.resolveCurrentPrice(active[i]),
-            ),
-            // Blend a native ad after every 3rd alert (not after the last).
-            if ((i + 1) % 3 == 0 && i != active.length - 1) ...[
-              const SizedBox(height: 8),
-              const NativeAdWidget(),
-            ],
+            if (adListIndexIsAd(i, active.length))
+              const NativeAdWidget()
+            else
+              _ActiveAlertTile(
+                alert: active[adListContentIndex(i, active.length)],
+                currentPrice: notifier.resolveCurrentPrice(
+                  active[adListContentIndex(i, active.length)],
+                ),
+              ),
           ],
         ],
         if (snoozed.isNotEmpty) ...[
@@ -159,8 +160,7 @@ class _HistoryTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (alerts.isEmpty) {
-      return _buildEmpty(
-        context,
+      return EmptyStateWithAd(
         icon: Icons.history,
         title: context.tr('alerts.empty_history_title'),
         message: context.tr('alerts.empty_history_msg'),
@@ -213,17 +213,19 @@ class _HistoryTab extends ConsumerWidget {
 
   /// History list with a native ad blended in after every 3 alerts.
   Widget _buildHistoryList(List<PriceAlert> alerts) {
-    const interval = 3;
-    const block = interval + 1; // alerts + 1 ad slot
-    final itemCount = alerts.length + alerts.length ~/ interval;
+    final itemCount = adListItemCount(alerts.length);
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 88),
       itemCount: itemCount,
       separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
-        if (index % block == interval) return const NativeAdWidget();
-        return _HistoryAlertTile(alert: alerts[index - (index ~/ block)]);
+        if (adListIndexIsAd(index, alerts.length)) {
+          return const NativeAdWidget();
+        }
+        return _HistoryAlertTile(
+          alert: alerts[adListContentIndex(index, alerts.length)],
+        );
       },
     );
   }
@@ -507,31 +509,4 @@ Widget? _buildLiveSubtitle(
     rolling24hPercent: rolling24h,
   );
   return text == null ? null : Text(text);
-}
-
-Widget _buildEmpty(
-  BuildContext context, {
-  required IconData icon,
-  required String title,
-  required String message,
-}) {
-  return Center(
-    child: Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 56, color: Colors.grey.shade400),
-          const SizedBox(height: 16),
-          Text(title, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
-      ),
-    ),
-  );
 }

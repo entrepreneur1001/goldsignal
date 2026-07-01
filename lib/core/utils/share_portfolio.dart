@@ -5,41 +5,45 @@ import '../analytics/analytics_service.dart';
 import '../config/app_remote_config.dart';
 import 'currency_format.dart';
 import 'share_links.dart';
-import '../../shared/widgets/metal_price_share_card.dart';
+import '../../shared/widgets/portfolio_share_card.dart';
 import '../../shared/widgets/share_card_capture.dart';
 
-/// Share a formatted live price as an image card plus store link.
-Future<void> shareMetalPrice({
+/// Share portfolio net worth and P/L as an image card.
+Future<void> sharePortfolioPerformance({
   required BuildContext context,
-  required String label,
-  required double pricePerGram,
+  required double totalValue,
+  required double profitLoss,
+  required double profitLossPercent,
   required String currency,
-  required double changePercent,
   required AppRemoteConfig config,
-  bool isGold = true,
 }) async {
+  if (totalValue <= 0) return;
+
   final languageCode = Localizations.localeOf(context).languageCode;
-  final sign = changePercent >= 0 ? '+' : '';
-  final pct = '$sign${changePercent.toStringAsFixed(2)}%';
-  final footer = shareMessageFooter(config, campaign: 'price_share');
+  final sign = profitLoss >= 0 ? '+' : '';
+  final footer = shareMessageFooter(config, campaign: 'portfolio_share');
   final text =
-      'GoldSignal — $label\n'
-      '${formatCurrency(pricePerGram, currency)}/g ($pct 24h)\n'
+      'GoldSignal — My Portfolio\n'
+      '${formatCurrency(totalValue, currency)} '
+      '($sign${profitLossPercent.toStringAsFixed(1)}% all-time)\n'
       '$footer';
 
-  final card = MetalPriceShareCard(
-    label: label,
-    pricePerGram: pricePerGram,
+  final card = PortfolioShareCard(
+    totalValue: totalValue,
+    profitLoss: profitLoss,
+    profitLossPercent: profitLossPercent,
     currency: currency,
-    changePercent: changePercent,
-    isGold: isGold,
     languageCode: languageCode,
   );
 
-  final bytes = await captureShareCard(context, card);
+  final bytes = await captureShareCard(
+    context,
+    card,
+    size: const Size(360, 220),
+  );
   await AnalyticsService.instance.logEvent(
     'share',
-    parameters: {'content_type': 'price', 'item_name': label},
+    parameters: {'content_type': 'portfolio'},
   );
 
   if (bytes != null) {
@@ -50,7 +54,7 @@ Future<void> shareMetalPrice({
           XFile.fromData(
             bytes,
             mimeType: 'image/png',
-            name: 'goldsignal_price.png',
+            name: 'goldsignal_portfolio.png',
           ),
         ],
       ),

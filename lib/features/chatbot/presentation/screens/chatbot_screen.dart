@@ -12,6 +12,8 @@ import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/providers/portfolio_provider.dart';
 import '../../../../shared/widgets/alerts_nav_button.dart';
+import '../../../../shared/widgets/ad_list_builder.dart';
+import '../../../../shared/widgets/native_ad_widget.dart';
 import '../../../../shared/models/metal_price.dart';
 import '../../../../shared/models/portfolio_item.dart';
 import '../../../../shared/models/chat_conversation.dart';
@@ -129,7 +131,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       return true;
     }
     if (!mounted) return false;
-    return requireAccount(context, 'AI chat history');
+    return requireAccount(context, 'ai_chat');
   }
 
   Future<void> _sendMessage() async {
@@ -337,8 +339,11 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
     final isDark = theme.brightness == Brightness.dark;
 
     final storedMessages = ref.watch(chatHistoryProvider).activeMessages;
-    final messages =
-        storedMessages.isEmpty ? [_welcomeMessage(context)] : storedMessages;
+    final showWelcome = storedMessages.isEmpty;
+    final adContentCount = showWelcome ? 0 : storedMessages.length;
+    final listItemCount =
+        (showWelcome ? 1 : adListItemCount(adContentCount)) +
+        (_isTyping ? 1 : 0);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -409,12 +414,23 @@ Total P/L: ${totalPLPercent >= 0 ? '+' : ''}${totalPLPercent.toStringAsFixed(1)}
               child: ListView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.all(16),
-                itemCount: messages.length + (_isTyping ? 1 : 0),
+                itemCount: listItemCount,
                 itemBuilder: (context, index) {
-                  if (index == messages.length && _isTyping) {
+                  if (_isTyping && index == listItemCount - 1) {
                     return _buildTypingIndicator();
                   }
-                  return _buildMessage(messages[index]);
+                  if (showWelcome) {
+                    return _buildMessage(_welcomeMessage(context));
+                  }
+                  if (adListIndexIsAd(index, adContentCount)) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: NativeAdWidget(),
+                    );
+                  }
+                  return _buildMessage(
+                    storedMessages[adListContentIndex(index, adContentCount)],
+                  );
                 },
               ),
             ),

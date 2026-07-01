@@ -14,6 +14,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'core/ads/ad_service.dart';
+import 'core/utils/app_session.dart';
 import 'core/analytics/analytics_service.dart';
 import 'core/firebase/firestore_user_service.dart';
 import 'core/notifications/alert_notification_service.dart';
@@ -156,6 +157,7 @@ class _GoldSignalAppState extends ConsumerState<GoldSignalApp>
     final appVersion = ref.read(packageInfoProvider).version;
 
     await AnalyticsService.instance.logAppOpen();
+    await incrementSessionCount();
     await AnalyticsService.instance.setUserProperty('currency', currency);
     await AnalyticsService.instance.setUserProperty('app_language', localeCode);
 

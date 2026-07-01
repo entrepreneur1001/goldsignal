@@ -1,3 +1,6 @@
+import '../../../../core/utils/app_session.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../../../../shared/design/app_colors.dart';
 import '../../../../core/utils/currency_format.dart';
@@ -8,6 +11,7 @@ import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/widgets/currency_selector.dart';
 import '../../../../shared/widgets/alerts_nav_button.dart';
+import '../../../../shared/widgets/native_ad_widget.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 class CalculatorScreen extends ConsumerStatefulWidget {
@@ -71,6 +75,20 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
     setState(() {
       _totalValue = karatPrice * weight * quantity;
     });
+    _syncCalculatorUse();
+  }
+
+  Future<void> _syncCalculatorUse() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+    final count = await incrementCalculatorUseCount();
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'calculatorUseCount': count,
+      }, SetOptions(merge: true));
+    } catch (_) {
+      // Non-fatal.
+    }
   }
   
   @override
@@ -193,9 +211,11 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                               ),
                             ),
                             child: Center(
-                              // TODO(i18n): data-driven karat label (e.g. "24K"), not localized
                               child: Text(
-                                '${karat}K',
+                                context.tr(
+                                  'calculator.karat_label',
+                                  namedArgs: {'karat': '$karat'},
+                                ),
                                 style: TextStyle(
                                   color: isSelected
                                       ? Colors.white
@@ -327,6 +347,9 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                   ),
                 ),
                 
+                const SizedBox(height: 24),
+                const NativeAdWidget(),
+
                 // Info Card
                 const SizedBox(height: 24),
                 Container(
@@ -357,6 +380,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 88),
               ],
             ),
           ),
@@ -391,7 +415,10 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
         _buildDetailRow(
             context.tr('calculator.weight'), '${weight.toStringAsFixed(2)} g'),
         const SizedBox(height: 8),
-        _buildDetailRow(context.tr('calculator.karat'), '${_selectedKarat}K'),
+        _buildDetailRow(
+          context.tr('calculator.karat'),
+          context.tr('calculator.karat_label', namedArgs: {'karat': '$_selectedKarat'}),
+        ),
         const SizedBox(height: 8),
         _buildDetailRow(context.tr('calculator.quantity'), quantity.toString()),
         const SizedBox(height: 8),

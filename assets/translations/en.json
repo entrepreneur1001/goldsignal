@@ -84,6 +84,7 @@
     "calculate": "Calculate",
     "grams": "Grams",
     "ounces": "Ounces",
+    "karat_label": "{karat}K",
     "screen_title": "Gold Calculator",
     "egypt_21k_note": "Showing 21K — the standard karat in Egypt's local market.",
     "local_note": "Using Egypt local {side} prices from iSagha",
@@ -239,7 +240,8 @@
     "purchase_price_label": "Purchase price per gram ({currency})",
     "purchase_date_label": "Purchase Date: {date}",
     "notes": "Notes (optional)",
-    "add": "Add"
+    "add": "Add",
+    "share_performance": "Share portfolio performance"
   },
   
   "jewelry": {
@@ -302,6 +304,8 @@
     "digest": "Daily Price Digest",
     "digest_on": "On · daily at {time}",
     "digest_off": "Off",
+    "watchlist_alerts": "Watchlist move alerts",
+    "watchlist_alerts_sub": "Notify when a pinned metal moves more than 2% in 24h",
     "data_privacy": "Data & Privacy",
     "privacy_policy": "Privacy Policy",
     "about": "About",
@@ -349,6 +353,7 @@
     "full_name": "Full name",
     "city": "City",
     "dob": "Date of birth",
+    "dob_hint": "Tap to select",
     "select_date": "Select date",
     "enter_name": "Please enter your name",
     "save_failed": "Could not save profile. Try again."
@@ -413,6 +418,12 @@
     "wall_title": "Create a free account",
     "wall_message": "Sign in to save your {feature} securely and sync it across your devices. It only takes a moment.",
     "not_now": "Not now",
+    "features": {
+      "portfolio": "portfolio",
+      "price_alerts": "price alerts",
+      "ai_chat": "AI chat",
+      "savings_goals": "savings goals"
+    },
     "continue_google": "Continue with Google",
     "continue_apple": "Continue with Apple",
     "google_failed": "Google sign-in failed. Please try again.",
@@ -492,6 +503,55 @@
     "something_wrong": "Something went wrong"
   },
   
+  "growth": {
+    "sync_banner_title": "Sync across devices",
+    "sync_banner_body": "Create a free account to save your portfolio, alerts, and preferences.",
+    "todays_move": "Today's Move",
+    "ask_ai_more": "Ask AI for more",
+    "egp_spread_title": "Jeweler buy/sell spread (21K)",
+    "spread_gap": "{pct}% of sell price",
+    "spread_narrow": "Spread is narrower than usual — may be a better time to buy from jewelers.",
+    "spread_wide": "Spread is wider than usual — selling to jewelers may fetch less.",
+    "spread_normal": "Spread is near its recent average.",
+    "spread_sell_buy": "Sell {sell} · Buy {buy} per gram"
+  },
+
+  "onboarding": {
+    "title": "Get started",
+    "currency_title": "Choose your currency",
+    "currency_body": "We'll show gold and silver prices in this currency. You can change it anytime in Profile.",
+    "watchlist_title": "Pin metals to watch",
+    "watchlist_body": "Select the prices you care about most. They'll appear at the top of Markets.",
+    "notify_title": "Stay in the loop",
+    "notify_body": "Enable notifications to get daily price digests and alert pop-ups.",
+    "notify_digest": "Daily price digest",
+    "notify_digest_sub": "Morning summary of gold & silver moves",
+    "notify_alerts": "Price alerts",
+    "notify_alerts_sub": "When your target price is hit",
+    "back": "Back",
+    "next": "Next",
+    "skip": "Skip for now",
+    "enable": "Enable & finish"
+  },
+
+  "countries": {
+    "sa": "Saudi Arabia",
+    "ae": "United Arab Emirates",
+    "eg": "Egypt",
+    "kw": "Kuwait",
+    "bh": "Bahrain",
+    "om": "Oman",
+    "qa": "Qatar",
+    "jo": "Jordan",
+    "lb": "Lebanon",
+    "iq": "Iraq",
+    "pk": "Pakistan",
+    "in": "India",
+    "us": "United States",
+    "gb": "United Kingdom",
+    "other": "Other"
+  },
+
   "success": {
     "alert_created": "Alert created successfully",
     "alert_deleted": "Alert deleted",
@@ -499,7 +559,6 @@
     "entry_saved": "Entry saved to portfolio",
     "copied": "Copied to clipboard"
   },
-  
   "common": {
     "ok": "OK",
     "cancel": "Cancel",

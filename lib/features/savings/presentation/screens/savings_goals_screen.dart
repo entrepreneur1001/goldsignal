@@ -6,7 +6,8 @@ import '../../../../shared/models/portfolio_item.dart';
 import '../../../../shared/models/savings_goal.dart';
 import '../../../../shared/providers/portfolio_provider.dart';
 import '../../../../shared/providers/savings_goals_provider.dart';
-import '../../../../shared/widgets/empty_state.dart';
+import '../../../../shared/widgets/ad_list_builder.dart';
+import '../../../../shared/widgets/empty_state_with_ad.dart';
 import '../../../../shared/widgets/native_ad_widget.dart';
 import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -31,7 +32,7 @@ class SavingsGoalsScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(context.tr('savings.title'))),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
-          if (!await requireAccount(context, 'savings goals')) return;
+          if (!await requireAccount(context, 'savings_goals')) return;
           if (context.mounted) _AddGoalSheet.show(context);
         },
         icon: const Icon(Icons.add),
@@ -43,29 +44,24 @@ class SavingsGoalsScreen extends ConsumerWidget {
     );
   }
 
-  /// Goals list with a native ad blended in after every [_adInterval] goals.
-  static const int _adInterval = 3;
-
   Widget _buildGoalsList(List<SavingsGoal> goals) {
-    const block = _adInterval + 1; // goals + 1 ad slot
-    final adCount = goals.length ~/ _adInterval;
-    final itemCount = goals.length + adCount;
+    final itemCount = adListItemCount(goals.length);
 
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
       itemCount: itemCount,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final isAd = index % block == _adInterval;
-        if (isAd) return const NativeAdWidget();
-        final goalIndex = index - (index ~/ block);
-        return _GoalCard(goal: goals[goalIndex]);
+        if (adListIndexIsAd(index, goals.length)) {
+          return const NativeAdWidget();
+        }
+        return _GoalCard(goal: goals[adListContentIndex(index, goals.length)]);
       },
     );
   }
 
   Widget _buildEmpty(BuildContext context) {
-    return EmptyState(
+    return EmptyStateWithAd(
       icon: Icons.savings_outlined,
       title: context.tr('savings.empty_title'),
       message: context.tr('savings.empty_msg'),

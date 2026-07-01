@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/design/app_dimens.dart';
 import '../../../../shared/providers/auth_provider.dart';
-import '../../../dashboard/presentation/screens/dashboard_screen.dart';
+import '../../../onboarding/onboarding_nav.dart';
 import '../widgets/auth_scaffold.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/social_sign_in_buttons.dart';
@@ -50,13 +50,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         // Reached from a gated action — pop back so it can continue.
         Navigator.pop(context, true);
       } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            settings: const RouteSettings(name: 'Dashboard'),
-            builder: (_) => const DashboardScreen(),
-          ),
-        );
+        await navigateToHome(context);
       }
     } catch (e) {
       if (mounted) {
@@ -151,18 +145,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         const SizedBox(height: AppDimens.space16),
         SocialSignInButtons(
           linkGuest: widget.linkGuest,
-          onSuccess: (user) {
+          onSuccess: (user) async {
             if (!context.mounted) return;
             if (widget.linkGuest) {
               Navigator.pop(context, true);
             } else {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  settings: const RouteSettings(name: 'Dashboard'),
-                  builder: (_) => const DashboardScreen(),
-                ),
-              );
+              await navigateToHome(context);
             }
           },
         ),
