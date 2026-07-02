@@ -46,7 +46,11 @@ class AppTypography {
       fontFeatures: _tabular,
       height: 1.05,
     );
-    final heading = _headingFont(languageCode, color: c.textPrimary);
+    final heading = _headingFont(
+      languageCode,
+      color: c.textPrimary,
+      fontWeight: FontWeight.w600,
+    );
     final body = _bodyFont(languageCode, color: c.textSecondary);
 
     return TextTheme(

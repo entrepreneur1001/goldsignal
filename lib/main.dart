@@ -13,6 +13,7 @@ import 'package:home_widget/home_widget.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'core/utils/font_bootstrap.dart';
 import 'core/ads/ad_service.dart';
 import 'core/utils/app_session.dart';
 import 'core/analytics/analytics_service.dart';
@@ -31,6 +32,9 @@ import 'features/profile/presentation/widgets/widget_settings_sheet.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  FontBootstrap.configure();
+  FontBootstrap.registerLicenses();
 
   // easy_localization storage for the persisted language selection.
   await EasyLocalization.ensureInitialized();
@@ -62,6 +66,7 @@ void main() async {
   await HomeWidgetService.instance.registerInteractivity();
   await AdService.instance.initialize();
   await AnalyticsService.instance.initialize();
+  await FontBootstrap.preload();
 
   final packageInfo = await PackageInfo.fromPlatform();
 

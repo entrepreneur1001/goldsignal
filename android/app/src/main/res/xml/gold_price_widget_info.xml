@@ -8,4 +8,5 @@
     android:initialLayout="@layout/gold_price_widget"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
+    android:label="@string/widget_name"
     android:description="@string/widget_description" />
