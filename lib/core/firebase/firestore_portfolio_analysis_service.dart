@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../ai/portfolio_analysis_fingerprint.dart';
+import '../crash/crash_reporter.dart';
 
 /// Cached AI portfolio analysis stored per user in Firestore.
 class PortfolioAnalysisCache {
@@ -74,12 +75,38 @@ class FirestorePortfolioAnalysisService {
       .doc('portfolioAnalysis');
 
   Future<PortfolioAnalysisCache?> load(String uid) async {
-    final snap = await _docRef(uid).get();
+    try {
+      return await _readDoc(uid, const GetOptions());
+    } on FirebaseException catch (e, st) {
+      reportNonFatal(e, st, reason: 'portfolio_analysis_load');
+      try {
+        return await _readDoc(
+          uid,
+          const GetOptions(source: Source.cache),
+        );
+      } on FirebaseException catch (e, st) {
+        reportNonFatal(e, st, reason: 'portfolio_analysis_load_cache');
+        return null;
+      }
+    }
+  }
+
+  Future<PortfolioAnalysisCache?> _readDoc(
+    String uid,
+    GetOptions options,
+  ) async {
+    final snap = await _docRef(uid).get(options);
     if (!snap.exists || snap.data() == null) return null;
     return PortfolioAnalysisCache.fromMap(snap.data()!);
   }
 
   Future<void> save(String uid, PortfolioAnalysisCache cache) async {
-    await _docRef(uid).set(cache.toMap(), SetOptions(merge: true));
+    try {
+      await _docRef(uid).set(cache.toMap(), SetOptions(merge: true));
+    } on FirebaseException catch (e, st) {
+      reportNonFatal(e, st, reason: 'portfolio_analysis_save');
+    } catch (e, st) {
+      reportNonFatal(e, st, reason: 'portfolio_analysis_save');
+    }
   }
 }

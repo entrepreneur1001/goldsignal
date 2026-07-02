@@ -84,7 +84,9 @@ class _PortfolioAnalyzerCardState extends ConsumerState<PortfolioAnalyzerCard> {
                 ),
               ],
             ),
-            if (analysis.isLoading) ...[
+            if (analysis.isLoading ||
+                (analysis.status == PortfolioAnalysisStatus.idle &&
+                    widget.hasHoldings)) ...[
               const SizedBox(height: 10),
               const LinearProgressIndicator(minHeight: 2),
               const SizedBox(height: 6),
@@ -100,6 +102,19 @@ class _PortfolioAnalyzerCardState extends ConsumerState<PortfolioAnalyzerCard> {
                 _errorMessage(context, analysis.errorMessage),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.error,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: TextButton.icon(
+                  onPressed: analysis.isLoading
+                      ? null
+                      : () => ref
+                          .read(portfolioAnalysisProvider.notifier)
+                          .retry(locale: locale),
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: Text(context.tr('common.retry')),
                 ),
               ),
             ] else if (analysis.expanded &&

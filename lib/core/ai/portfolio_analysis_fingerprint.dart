@@ -114,3 +114,25 @@ bool isPriceStale(
   return metalMoved(cached.goldChange24hPct, current.goldChange24hPct) ||
       metalMoved(cached.silverChange24hPct, current.silverChange24hPct);
 }
+
+/// Parses the trilingual JSON shape returned by the portfolio analysis prompt.
+Map<String, String> parseTrilingualAnalysisJson(String raw) {
+  var body = raw.trim();
+  if (body.startsWith('```')) {
+    body = body.replaceFirst(RegExp(r'^```(?:json)?\s*'), '');
+    body = body.replaceFirst(RegExp(r'\s*```$'), '');
+  }
+  final decoded = jsonDecode(body);
+  if (decoded is! Map) {
+    throw const FormatException('Expected JSON object');
+  }
+  final result = <String, String>{};
+  for (final key in ['en', 'ar', 'ur']) {
+    final value = decoded[key];
+    if (value != null) result[key] = value.toString();
+  }
+  if (result.isEmpty) {
+    throw const FormatException('Missing en/ar/ur fields');
+  }
+  return result;
+}

@@ -4,6 +4,7 @@ import '../../core/firebase/auth_service.dart';
 import 'chat_history_provider.dart';
 import 'portfolio_provider.dart';
 import 'price_alerts_provider.dart';
+import 'portfolio_analysis_provider.dart';
 import 'savings_goals_provider.dart';
 
 /// Single shared [AuthService] instance for the app.
@@ -102,5 +103,6 @@ class AuthController extends Notifier<AsyncValue<void>> {
     ref.invalidate(priceAlertsProvider);
     ref.invalidate(chatHistoryProvider);
     ref.invalidate(savingsGoalsProvider);
+    ref.invalidate(portfolioAnalysisProvider);
   }
 }

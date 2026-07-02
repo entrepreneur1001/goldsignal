@@ -16,12 +16,18 @@ import 'market_prices_provider.dart';
 import 'metal_price_provider.dart';
 import 'portfolio_provider.dart';
 
-const _prefsHashKey = 'portfolio_analysis_input_hash';
-const _prefsAnalysisPrefix = 'portfolio_analysis_text_';
-const _prefsSnapshotKey = 'portfolio_analysis_price_snapshot';
-const _prefsRefreshCountKey = 'portfolio_analysis_refresh_count';
-const _prefsRefreshYmdKey = 'portfolio_analysis_refresh_ymd';
+const _prefsHashKeyPrefix = 'portfolio_analysis_input_hash_';
+const _prefsAnalysisPrefixBase = 'portfolio_analysis_text_';
+const _prefsSnapshotKeyPrefix = 'portfolio_analysis_price_snapshot_';
+const _prefsRefreshCountKeyPrefix = 'portfolio_analysis_refresh_count_';
+const _prefsRefreshYmdKeyPrefix = 'portfolio_analysis_refresh_ymd_';
 const _maxDailyRefreshes = 5;
+
+String _prefsHashKey(String uid) => '$_prefsHashKeyPrefix$uid';
+String _prefsAnalysisPrefix(String uid) => '$_prefsAnalysisPrefixBase${uid}_';
+String _prefsSnapshotKey(String uid) => '$_prefsSnapshotKeyPrefix$uid';
+String _prefsRefreshCountKey(String uid) => '$_prefsRefreshCountKeyPrefix$uid';
+String _prefsRefreshYmdKey(String uid) => '$_prefsRefreshYmdKeyPrefix$uid';
 
 enum PortfolioAnalysisStatus {
   needsHoldings,
@@ -44,7 +50,9 @@ class PortfolioAnalysisState {
   final String? errorMessage;
   final bool expanded;
 
-  bool get isLoading => status == PortfolioAnalysisStatus.loading;
+  bool get isLoading =>
+      status == PortfolioAnalysisStatus.loading ||
+      status == PortfolioAnalysisStatus.idle;
 
   PortfolioAnalysisState copyWith({
     PortfolioAnalysisStatus? status,
@@ -89,6 +97,19 @@ class PortfolioAnalysisNotifier extends Notifier<PortfolioAnalysisState> {
 
   @override
   PortfolioAnalysisState build() {
+    ref.listen(authStateProvider, (prev, next) {
+      final uid = next.asData?.value?.uid;
+      final prevUid = prev?.asData?.value?.uid;
+      if (uid == null && prevUid != null) {
+        state = const PortfolioAnalysisState(
+          status: PortfolioAnalysisStatus.needsHoldings,
+        );
+        return;
+      }
+      if (uid != null) {
+        Future.microtask(() => loadIfNeeded(locale: _pendingLocale));
+      }
+    });
     ref.listen(portfolioProvider, (_, next) {
       final items = next.asData?.value;
       if (items != null) {
@@ -107,7 +128,10 @@ class PortfolioAnalysisNotifier extends Notifier<PortfolioAnalysisState> {
   }
 
   Future<void> refresh({String locale = 'en'}) async {
-    final allowed = await _canForceRefresh();
+    final uid = ref.read(authStateProvider).asData?.value?.uid;
+    if (uid == null) return;
+
+    final allowed = await _canForceRefresh(uid);
     if (!allowed) {
       state = state.copyWith(
         status: PortfolioAnalysisStatus.error,
@@ -115,8 +139,12 @@ class PortfolioAnalysisNotifier extends Notifier<PortfolioAnalysisState> {
       );
       return;
     }
-    await _recordForceRefresh();
+    await _recordForceRefresh(uid);
     AnalyticsService.instance.logEvent('portfolio_analysis_refresh');
+    await loadIfNeeded(force: true, locale: locale);
+  }
+
+  Future<void> retry({String locale = 'en'}) async {
     await loadIfNeeded(force: true, locale: locale);
   }
 
@@ -124,7 +152,8 @@ class PortfolioAnalysisNotifier extends Notifier<PortfolioAnalysisState> {
     if (_loadInFlight) return;
 
     final uid = ref.read(authStateProvider).asData?.value?.uid;
-    final items = ref.read(portfolioProvider).asData?.value ?? const <PortfolioItem>[];
+    final items =
+        ref.read(portfolioProvider).asData?.value ?? const <PortfolioItem>[];
 
     if (items.isEmpty) {
       state = const PortfolioAnalysisState(
@@ -135,61 +164,69 @@ class PortfolioAnalysisNotifier extends Notifier<PortfolioAnalysisState> {
 
     if (uid == null) {
       state = const PortfolioAnalysisState(
-        status: PortfolioAnalysisStatus.needsHoldings,
-      );
-      return;
-    }
-
-    final currency = ref.read(selectedCurrencyProvider);
-    final inputHash = computePortfolioInputHash(items, currency);
-    final priceSnapshot = _currentPriceSnapshot(currency);
-
-    if (!force) {
-      final localText = await _loadLocalCache(inputHash, priceSnapshot, locale);
-      if (localText != null) {
-        AnalyticsService.instance.logEvent('portfolio_analysis_cache_hit');
-        state = PortfolioAnalysisState(
-          status: PortfolioAnalysisStatus.ready,
-          text: localText,
-        );
-        return;
-      }
-
-      final remote = await ref
-          .read(firestorePortfolioAnalysisServiceProvider)
-          .load(uid);
-      if (remote != null &&
-          remote.inputHash == inputHash &&
-          !isPriceStale(remote.priceSnapshot, priceSnapshot)) {
-        final text = remote.textForLocale(locale);
-        if (text.isNotEmpty) {
-          await _saveLocalCache(inputHash, remote.analysis, remote.priceSnapshot);
-          AnalyticsService.instance.logEvent('portfolio_analysis_cache_hit');
-          state = PortfolioAnalysisState(
-            status: PortfolioAnalysisStatus.ready,
-            text: text,
-          );
-          return;
-        }
-      }
-    }
-
-    if (ApiConfig.groqApiKey.isEmpty) {
-      state = state.copyWith(
-        status: PortfolioAnalysisStatus.error,
-        errorMessage: 'missing_api_key',
-        clearError: false,
+        status: PortfolioAnalysisStatus.idle,
       );
       return;
     }
 
     _loadInFlight = true;
-    state = state.copyWith(
-      status: PortfolioAnalysisStatus.loading,
-      clearError: true,
-    );
-
     try {
+      final currency = ref.read(selectedCurrencyProvider);
+      final inputHash = computePortfolioInputHash(items, currency);
+      final priceSnapshot = _currentPriceSnapshot(currency);
+
+      if (!force) {
+        final localText =
+            await _loadLocalCache(uid, inputHash, priceSnapshot, locale);
+        if (localText != null) {
+          AnalyticsService.instance.logEvent('portfolio_analysis_cache_hit');
+          state = PortfolioAnalysisState(
+            status: PortfolioAnalysisStatus.ready,
+            text: localText,
+            expanded: state.expanded,
+          );
+          return;
+        }
+
+        final remote = await ref
+            .read(firestorePortfolioAnalysisServiceProvider)
+            .load(uid);
+        if (remote != null &&
+            remote.inputHash == inputHash &&
+            !isPriceStale(remote.priceSnapshot, priceSnapshot)) {
+          final text = remote.textForLocale(locale);
+          if (text.isNotEmpty) {
+            await _saveLocalCache(
+              uid,
+              inputHash,
+              remote.analysis,
+              remote.priceSnapshot,
+            );
+            AnalyticsService.instance.logEvent('portfolio_analysis_cache_hit');
+            state = PortfolioAnalysisState(
+              status: PortfolioAnalysisStatus.ready,
+              text: text,
+              expanded: state.expanded,
+            );
+            return;
+          }
+        }
+      }
+
+      if (ApiConfig.groqApiKey.isEmpty) {
+        state = state.copyWith(
+          status: PortfolioAnalysisStatus.error,
+          errorMessage: 'missing_api_key',
+          clearError: false,
+        );
+        return;
+      }
+
+      state = state.copyWith(
+        status: PortfolioAnalysisStatus.loading,
+        clearError: true,
+      );
+
       final analysis = await _generateAnalysis(items, currency, priceSnapshot);
       final cache = PortfolioAnalysisCache(
         inputHash: inputHash,
@@ -198,8 +235,8 @@ class PortfolioAnalysisNotifier extends Notifier<PortfolioAnalysisState> {
         portfolioItemCount: items.length,
       );
 
+      await _saveLocalCache(uid, inputHash, analysis, priceSnapshot);
       await ref.read(firestorePortfolioAnalysisServiceProvider).save(uid, cache);
-      await _saveLocalCache(inputHash, analysis, priceSnapshot);
 
       AnalyticsService.instance.logEvent('portfolio_analysis_generated');
 
@@ -248,7 +285,7 @@ class PortfolioAnalysisNotifier extends Notifier<PortfolioAnalysisState> {
     final inputHash = computePortfolioInputHash(items, currency);
     final priceSnapshot = _currentPriceSnapshot(currency);
     final localText =
-        await _loadLocalCache(inputHash, priceSnapshot, languageCode);
+        await _loadLocalCache(uid, inputHash, priceSnapshot, languageCode);
     if (localText != null && localText.isNotEmpty) {
       state = state.copyWith(text: localText);
       return;
@@ -322,40 +359,20 @@ Respond with ONLY valid JSON (no markdown fences) in this exact shape:
       'Analyze my portfolio and return the trilingual JSON.',
     );
     final raw = response.choices.first.message.content.trim();
-    return _parseTrilingualJson(raw);
-  }
-
-  Map<String, String> _parseTrilingualJson(String raw) {
-    var body = raw.trim();
-    if (body.startsWith('```')) {
-      body = body.replaceFirst(RegExp(r'^```(?:json)?\s*'), '');
-      body = body.replaceFirst(RegExp(r'\s*```$'), '');
-    }
-    final decoded = jsonDecode(body);
-    if (decoded is! Map) {
-      throw const FormatException('Expected JSON object');
-    }
-    final result = <String, String>{};
-    for (final key in ['en', 'ar', 'ur']) {
-      final value = decoded[key];
-      if (value != null) result[key] = value.toString();
-    }
-    if (result.isEmpty) {
-      throw const FormatException('Missing en/ar/ur fields');
-    }
-    return result;
+    return parseTrilingualAnalysisJson(raw);
   }
 
   Future<String?> _loadLocalCache(
+    String uid,
     String inputHash,
     PortfolioPriceSnapshot snapshot,
     String locale,
   ) async {
     final prefs = await SharedPreferences.getInstance();
-    final cachedHash = prefs.getString(_prefsHashKey);
+    final cachedHash = prefs.getString(_prefsHashKey(uid));
     if (cachedHash != inputHash) return null;
 
-    final snapshotJson = prefs.getString(_prefsSnapshotKey);
+    final snapshotJson = prefs.getString(_prefsSnapshotKey(uid));
     if (snapshotJson != null) {
       final cachedSnapshot = PortfolioPriceSnapshot.fromMap(
         jsonDecode(snapshotJson) as Map<String, dynamic>,
@@ -363,43 +380,47 @@ Respond with ONLY valid JSON (no markdown fences) in this exact shape:
       if (isPriceStale(cachedSnapshot, snapshot)) return null;
     }
 
-    return prefs.getString('$_prefsAnalysisPrefix$locale') ??
-        prefs.getString('${_prefsAnalysisPrefix}en');
+    return prefs.getString('${_prefsAnalysisPrefix(uid)}$locale') ??
+        prefs.getString('${_prefsAnalysisPrefix(uid)}en');
   }
 
   Future<void> _saveLocalCache(
+    String uid,
     String inputHash,
     Map<String, String> analysis,
     PortfolioPriceSnapshot snapshot,
   ) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_prefsHashKey, inputHash);
-    await prefs.setString(_prefsSnapshotKey, jsonEncode(snapshot.toMap()));
+    await prefs.setString(_prefsHashKey(uid), inputHash);
+    await prefs.setString(_prefsSnapshotKey(uid), jsonEncode(snapshot.toMap()));
     for (final entry in analysis.entries) {
-      await prefs.setString('$_prefsAnalysisPrefix${entry.key}', entry.value);
+      await prefs.setString(
+        '${_prefsAnalysisPrefix(uid)}${entry.key}',
+        entry.value,
+      );
     }
   }
 
-  Future<bool> _canForceRefresh() async {
+  Future<bool> _canForceRefresh(String uid) async {
     final prefs = await SharedPreferences.getInstance();
     final ymd = _todayYmd();
-    final storedYmd = prefs.getString(_prefsRefreshYmdKey);
+    final storedYmd = prefs.getString(_prefsRefreshYmdKey(uid));
     if (storedYmd != ymd) return true;
-    final count = prefs.getInt(_prefsRefreshCountKey) ?? 0;
+    final count = prefs.getInt(_prefsRefreshCountKey(uid)) ?? 0;
     return count < _maxDailyRefreshes;
   }
 
-  Future<void> _recordForceRefresh() async {
+  Future<void> _recordForceRefresh(String uid) async {
     final prefs = await SharedPreferences.getInstance();
     final ymd = _todayYmd();
-    final storedYmd = prefs.getString(_prefsRefreshYmdKey);
+    final storedYmd = prefs.getString(_prefsRefreshYmdKey(uid));
     if (storedYmd != ymd) {
-      await prefs.setString(_prefsRefreshYmdKey, ymd);
-      await prefs.setInt(_prefsRefreshCountKey, 1);
+      await prefs.setString(_prefsRefreshYmdKey(uid), ymd);
+      await prefs.setInt(_prefsRefreshCountKey(uid), 1);
       return;
     }
-    final count = prefs.getInt(_prefsRefreshCountKey) ?? 0;
-    await prefs.setInt(_prefsRefreshCountKey, count + 1);
+    final count = prefs.getInt(_prefsRefreshCountKey(uid)) ?? 0;
+    await prefs.setInt(_prefsRefreshCountKey(uid), count + 1);
   }
 
   String _todayYmd() {
