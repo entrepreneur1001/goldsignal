@@ -9,6 +9,7 @@ import '../../core/firebase/firestore_price_history_service.dart';
 import '../../core/storage/price_history_service.dart';
 import '../../core/api/metalpriceapi_service.dart';
 import '../../core/widget/home_widget_service.dart';
+import '../local_market/local_market_config.dart';
 import '../models/local_market_prices.dart';
 import '../models/metal_price.dart';
 import 'currency_provider.dart';
@@ -37,7 +38,7 @@ final goodreturnsScraperProvider = Provider<GoodreturnsPriceScraper>((ref) {
 
 final isLocalMarketProvider = Provider<bool>((ref) {
   final currency = ref.watch(selectedCurrencyProvider);
-  return currency == 'EGP' || currency == 'INR';
+  return LocalMarketConfig.isLocalCurrency(currency);
 });
 
 final priceSideProvider = NotifierProvider<PriceSideNotifier, PriceSide>(() {
@@ -212,6 +213,18 @@ class MarketPricesController extends Notifier<MarketPricesState> {
     }
 
     ref.read(localMarketPricesProvider.notifier).update(local);
+    try {
+      await ref.read(priceHistoryServiceProvider).recordLocalSnapshot(local);
+    } catch (e, st) {
+      reportNonFatal(e, st, reason: 'recordLocalSnapshot failed');
+    }
+    try {
+      await ref
+          .read(firestorePriceHistoryServiceProvider)
+          .tryRecordHourlyLocal(local);
+    } catch (e, st) {
+      reportNonFatal(e, st, reason: 'tryRecordHourlyLocal failed');
+    }
   }
 
   Future<void> _refreshGlobal(String currency) async {
@@ -244,7 +257,7 @@ class MarketPricesController extends Notifier<MarketPricesState> {
 
   void applyCurrentPrices() {
     final currency = ref.read(selectedCurrencyProvider);
-    if (currency == 'EGP' || currency == 'INR') {
+    if (LocalMarketConfig.isLocalCurrency(currency)) {
       final local = ref.read(localMarketPricesProvider);
       if (local != null) {
         _pushLocalToMetalProviders(local, ref.read(priceSideProvider));
@@ -326,7 +339,7 @@ class MarketPricesController extends Notifier<MarketPricesState> {
       ));
     }
 
-    if (local.isEgypt) {
+    if (LocalMarketConfig.hasLocalSilver(local.currency)) {
       final silver999 = local.silverKarat('999');
       if (silver999 != null) {
         final perGram = silver999.priceFor(side);
@@ -373,37 +386,56 @@ double? activeGoldKaratPrice({
 
 String buildLocalMarketPrompt(LocalMarketPrices local, PriceSide side) {
   final buffer = StringBuffer();
-  buffer.writeln('Egypt local market prices (${side.name} prices):');
-  for (final row in local.gold) {
-    final label = row.karat == 'gold_pound' ? 'Gold Pound' : '${row.karat}K';
-    buffer.writeln(
-      '- Gold $label: sell ${row.sellPerGram.toStringAsFixed(2)} EGP/g, '
-      'buy ${row.buyPerGram.toStringAsFixed(2)} EGP/g, '
-      'gap ${row.globalGapSell.toStringAsFixed(2)} EGP',
-    );
-  }
-  for (final row in local.silver) {
-    if (row.karat == 'silver_pound') {
+  final unit = local.currency;
+  final marketLabel = local.isIndia ? 'India' : 'Egypt';
+
+  if (LocalMarketConfig.hasBuySellSide(local.currency)) {
+    buffer.writeln('$marketLabel local market prices (${side.name} prices):');
+    for (final row in local.gold) {
+      final label = row.karat == 'gold_pound' ? 'Gold Pound' : '${row.karat}K';
       buffer.writeln(
-        '- Silver Pound: sell ${row.sellPerGram.toStringAsFixed(2)} EGP, '
-        'buy ${row.buyPerGram.toStringAsFixed(2)} EGP',
-      );
-    } else {
-      buffer.writeln(
-        '- Silver ${row.karat}: sell ${row.sellPerGram.toStringAsFixed(2)} EGP/g, '
-        'buy ${row.buyPerGram.toStringAsFixed(2)} EGP/g',
+        '- Gold $label: sell ${row.sellPerGram.toStringAsFixed(2)} $unit/g, '
+        'buy ${row.buyPerGram.toStringAsFixed(2)} $unit/g, '
+        'gap ${row.globalGapSell.toStringAsFixed(2)} $unit',
       );
     }
-  }
-  if (local.globalGoldOunceUsd != null) {
-    buffer.writeln(
-      'Global gold ounce reference: \$${local.globalGoldOunceUsd!.toStringAsFixed(2)}',
-    );
-  }
-  for (final fx in local.fxRates) {
-    buffer.writeln(
-      '- ${fx.code}/EGP: sell ${fx.sell.toStringAsFixed(2)}, buy ${fx.buy.toStringAsFixed(2)}',
-    );
+    for (final row in local.silver) {
+      if (row.karat == 'silver_pound') {
+        buffer.writeln(
+          '- Silver Pound: sell ${row.sellPerGram.toStringAsFixed(2)} $unit, '
+          'buy ${row.buyPerGram.toStringAsFixed(2)} $unit',
+        );
+      } else {
+        buffer.writeln(
+          '- Silver ${row.karat}: sell ${row.sellPerGram.toStringAsFixed(2)} $unit/g, '
+          'buy ${row.buyPerGram.toStringAsFixed(2)} $unit/g',
+        );
+      }
+    }
+    if (local.globalGoldOunceUsd != null) {
+      buffer.writeln(
+        'Global gold ounce reference: \$${local.globalGoldOunceUsd!.toStringAsFixed(2)}',
+      );
+    }
+    for (final fx in local.fxRates) {
+      buffer.writeln(
+        '- ${fx.code}/$unit: sell ${fx.sell.toStringAsFixed(2)}, buy ${fx.buy.toStringAsFixed(2)}',
+      );
+    }
+  } else {
+    buffer.writeln('$marketLabel local market prices (indicative, excl. GST):');
+    for (final row in local.gold) {
+      buffer.writeln(
+        '- Gold ${row.karat}K: ${row.sellPerGram.toStringAsFixed(2)} $unit/g '
+        '(${row.changePercent >= 0 ? '+' : ''}${row.changePercent.toStringAsFixed(2)}% today)',
+      );
+    }
+    for (final row in local.silver) {
+      buffer.writeln(
+        '- Silver ${row.karat}: ${row.sellPerGram.toStringAsFixed(2)} $unit/g '
+        '(${row.changePercent >= 0 ? '+' : ''}${row.changePercent.toStringAsFixed(2)}% today)',
+      );
+    }
   }
   return buffer.toString();
 }

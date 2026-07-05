@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../shared/local_market/local_market_config.dart';
 import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/models/price_alert.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
@@ -66,7 +67,9 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
     _metal = defaults.metal;
     _karat = defaults.karat;
     _currency = defaults.currency;
-    _side = defaults.currency == 'EGP' ? defaults.side : null;
+    _side = LocalMarketConfig.hasBuySellSide(defaults.currency)
+        ? defaults.side
+        : null;
     if (defaults.currentPerGram != null) {
       _targetController.text = defaults.currentPerGram!.toStringAsFixed(2);
     }
@@ -80,9 +83,9 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
 
   List<String> get _karatOptions {
     if (_metal == 'gold') {
-      return ['24', '22', '21', '18'];
+      return LocalMarketConfig.goldKarats(_currency);
     }
-    return _currency == 'EGP' ? ['999', '925', '900', '800'] : ['999'];
+    return LocalMarketConfig.silverKarats(_currency);
   }
 
   PriceAlert get _previewAlert => PriceAlert(
@@ -90,7 +93,9 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
         metal: _metal,
         karat: _karat,
         currency: _currency,
-        side: _currency == 'EGP' ? (_side ?? PriceSide.sell) : null,
+        side: LocalMarketConfig.hasBuySellSide(_currency)
+            ? (_side ?? PriceSide.sell)
+            : null,
         type: _type,
         condition: _condition,
         targetValue: 0,
@@ -229,7 +234,7 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
               );
             }).toList(),
           ),
-          if (_currency == 'EGP') ...[
+          if (LocalMarketConfig.hasBuySellSide(_currency)) ...[
             const SizedBox(height: 12),
             SegmentedButton<PriceSide>(
               segments: [
@@ -317,8 +322,10 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
           ],
           const SizedBox(height: 8),
           Text(
-            _currency == 'EGP'
-                ? context.tr('alerts.egp_note')
+            LocalMarketConfig.isLocalCurrency(_currency)
+                ? (_currency == 'INR'
+                    ? context.tr('alerts.local_note_india')
+                    : context.tr('alerts.egp_note'))
                 : context.tr('alerts.global_note',
                     namedArgs: {'currency': _currency}),
             style: Theme.of(context).textTheme.bodySmall,

@@ -7,6 +7,7 @@ import '../../core/crash/crash_reporter.dart';
 import '../../core/firebase/firestore_price_alerts_service.dart';
 import '../../core/notifications/alert_notification_service.dart';
 import '../../core/notifications/push_messaging_service.dart';
+import '../local_market/local_market_config.dart';
 import '../models/local_market_prices.dart';
 import '../models/price_alert.dart';
 import 'currency_provider.dart';
@@ -155,7 +156,7 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
       metal: metal,
       karat: karat,
       currency: currency,
-      side: currency == 'EGP' ? (side ?? PriceSide.sell) : null,
+      side: LocalMarketConfig.hasBuySellSide(currency) ? (side ?? PriceSide.sell) : null,
       type: type,
       condition: condition,
       targetValue: targetValue,
@@ -170,7 +171,7 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
       metal: metal,
       karat: karat,
       currency: currency,
-      side: currency == 'EGP' ? (side ?? PriceSide.sell) : null,
+      side: LocalMarketConfig.hasBuySellSide(currency) ? (side ?? PriceSide.sell) : null,
       type: type,
       condition: condition,
       targetValue: targetValue,
@@ -418,10 +419,10 @@ class AlertDraft {
 
 final alertFormDefaultsProvider = Provider<AlertFormDefaults>((ref) {
   final currency = ref.watch(selectedCurrencyProvider);
-  final isLocal = currency == 'EGP';
+  final isLocal = LocalMarketConfig.isLocalCurrency(currency);
   final side = ref.watch(priceSideProvider);
   const metal = 'gold';
-  final karat = isLocal ? '21' : '24';
+  final karat = LocalMarketConfig.defaultGoldKaratStr(currency);
 
   final current = ref.read(priceAlertsProvider.notifier).resolveCurrentPrice(
         PriceAlert(
@@ -429,7 +430,7 @@ final alertFormDefaultsProvider = Provider<AlertFormDefaults>((ref) {
           metal: metal,
           karat: karat,
           currency: currency,
-          side: isLocal ? side : null,
+          side: isLocal && LocalMarketConfig.hasBuySellSide(currency) ? side : null,
           condition: AlertCondition.above,
           targetValue: 0,
           createdAt: DateTime.now(),

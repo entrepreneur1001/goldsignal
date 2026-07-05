@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../local_market/local_market_config.dart';
 import 'currency_provider.dart';
 import 'market_prices_provider.dart';
 import 'metal_price_provider.dart';
@@ -86,7 +87,7 @@ class DailyInsightNotifier extends Notifier<DailyInsight> {
 
   String _buildLocalInsight() {
     final currency = ref.read(selectedCurrencyProvider);
-    final isLocal = currency == 'EGP';
+    final isLocal = LocalMarketConfig.isLocalCurrency(currency);
     final global = ref.read(marketPricesControllerProvider).globalData;
 
     double? goldPct;
@@ -95,12 +96,12 @@ class DailyInsightNotifier extends Notifier<DailyInsight> {
 
     if (isLocal) {
       final local = ref.read(localMarketPricesProvider);
-      final row = local?.goldKarat('21');
+      final row = local?.headlineGold;
       if (row != null) {
         goldPct = row.changePercent;
         goldPerGram = row.sellPerGram;
       }
-      final silverRow = local?.silverKarat('999');
+      final silverRow = local?.headlineSilver;
       silverPct = silverRow?.changePercent;
     } else if (global != null) {
       final api = ref.read(metalPriceApiProvider);

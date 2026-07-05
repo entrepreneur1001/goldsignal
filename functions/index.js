@@ -4,6 +4,7 @@ const admin = require('firebase-admin');
 const {
   fetchAndUpdateGlobalPrices,
   fetchAndUpdateLocalEgp,
+  fetchAndUpdateLocalInr,
   loadPriceContextFromFirestore,
 } = require('./price_fetchers');
 
@@ -49,10 +50,27 @@ function changePercentFrom(current, baseline) {
   return ((current - baseline) / baseline) * 100;
 }
 
+function isLocalCurrency(currency) {
+  return currency === 'EGP' || currency === 'INR';
+}
+
+function localDocFor(currency, ctx) {
+  if (currency === 'EGP') return ctx.localEgp;
+  if (currency === 'INR') return ctx.localInr;
+  return null;
+}
+
+function headlineGoldKarat(currency) {
+  if (currency === 'EGP') return '21';
+  if (currency === 'INR') return '22';
+  return '24';
+}
+
 function resolveRolling24hPercent(alert, ctx) {
-  if (alert.currency === 'EGP') {
+  if (isLocalCurrency(alert.currency)) {
+    const local = localDocFor(alert.currency, ctx);
     const map =
-      alert.metal === 'gold' ? ctx.localEgp?.gold : ctx.localEgp?.silver;
+      alert.metal === 'gold' ? local?.gold : local?.silver;
     const row = map?.[alert.karat];
     return row?.changePercent ?? null;
   }
@@ -131,9 +149,9 @@ function triggerMessage(alert, current, ctx) {
 }
 
 function resolvePrice(alert, ctx) {
-  if (alert.currency === 'EGP') {
+  if (isLocalCurrency(alert.currency)) {
     return localPricePerGram(
-      ctx.localEgp,
+      localDocFor(alert.currency, ctx),
       alert.metal,
       alert.karat,
       alert.side || 'sell',
@@ -172,9 +190,10 @@ async function sendAlertPush(fcmToken, title, body, alertId) {
 }
 
 async function refreshPrices() {
-  const [globalResult, localResult] = await Promise.allSettled([
+  const [globalResult, localEgpResult, localInrResult] = await Promise.allSettled([
     fetchAndUpdateGlobalPrices(db),
     fetchAndUpdateLocalEgp(db),
+    fetchAndUpdateLocalInr(db),
   ]);
 
   if (globalResult.status === 'fulfilled') {
@@ -183,10 +202,16 @@ async function refreshPrices() {
     logger.warn('Global price fetch failed', globalResult.reason);
   }
 
-  if (localResult.status === 'fulfilled' && localResult.value) {
+  if (localEgpResult.status === 'fulfilled' && localEgpResult.value) {
     logger.info('EGP local prices updated from iSagha');
-  } else if (localResult.status === 'rejected') {
-    logger.warn('EGP local price fetch failed', localResult.reason);
+  } else if (localEgpResult.status === 'rejected') {
+    logger.warn('EGP local price fetch failed', localEgpResult.reason);
+  }
+
+  if (localInrResult.status === 'fulfilled' && localInrResult.value) {
+    logger.info('INR local prices updated from Goodreturns');
+  } else if (localInrResult.status === 'rejected') {
+    logger.warn('INR local price fetch failed', localInrResult.reason);
   }
 
   const ctx = await loadPriceContextFromFirestore(db);
@@ -195,9 +220,13 @@ async function refreshPrices() {
       globalResult.status === 'fulfilled' ? globalResult.value : ctx.globalRates,
     prevRates: ctx.prevRates,
     localEgp:
-      localResult.status === 'fulfilled' && localResult.value
-        ? localResult.value
+      localEgpResult.status === 'fulfilled' && localEgpResult.value
+        ? localEgpResult.value
         : ctx.localEgp,
+    localInr:
+      localInrResult.status === 'fulfilled' && localInrResult.value
+        ? localInrResult.value
+        : ctx.localInr,
   };
 }
 
@@ -249,7 +278,7 @@ exports.checkPriceAlerts = onSchedule(
       logger.info(`Reactivated ${reactivated} snoozed alerts`);
     }
 
-    if (!ctx.globalRates && !ctx.localEgp) {
+    if (!ctx.globalRates && !ctx.localEgp && !ctx.localInr) {
       logger.warn('No price data available for alert check');
       return;
     }
@@ -344,14 +373,15 @@ exports.refreshPricesScheduled = onSchedule(
   },
   async () => {
     const ctx = await refreshPrices();
-    if (!ctx.globalRates && !ctx.localEgp) {
+    if (!ctx.globalRates && !ctx.localEgp && !ctx.localInr) {
       logger.warn('Scheduled price refresh produced no data');
       return;
     }
     await updateDailyInsightCache(ctx);
     logger.info('Scheduled price refresh complete', {
       global: !!ctx.globalRates,
-      local: !!ctx.localEgp,
+      localEgp: !!ctx.localEgp,
+      localInr: !!ctx.localInr,
     });
   },
 );
@@ -366,9 +396,11 @@ function formatDigestNum(n) {
 
 /// Per-gram gold & silver + 24h gold change for the user's currency.
 function digestNumbers(ctx, currency) {
-  if (currency === 'EGP' && ctx.localEgp) {
-    const g = ctx.localEgp.gold && ctx.localEgp.gold['21'];
-    const s = ctx.localEgp.silver && ctx.localEgp.silver['999'];
+  const local = localDocFor(currency, ctx);
+  if (isLocalCurrency(currency) && local) {
+    const goldKarat = headlineGoldKarat(currency);
+    const g = local.gold && local.gold[goldKarat];
+    const s = local.silver && local.silver['999'];
     return {
       goldPerGram: g ? g.sellPerGram : null,
       silverPerGram: s ? s.sellPerGram : null,
@@ -470,7 +502,7 @@ exports.sendDailyDigest = onSchedule(
   },
   async () => {
     const ctx = await loadPriceContextFromFirestore(db);
-    if (!ctx.globalRates && !ctx.localEgp) {
+    if (!ctx.globalRates && !ctx.localEgp && !ctx.localInr) {
       logger.warn('Digest: no price data available');
       return;
     }
@@ -586,8 +618,13 @@ async function portfolioMarketValue(uid, ctx, currency) {
     const karat = String(item.karat || 24);
     const weight = Number(item.weight) || 0;
     let perGram;
-    if (currency === 'EGP' && ctx.localEgp) {
-      perGram = localPricePerGram(ctx.localEgp, metal, karat, 'buy');
+    if (isLocalCurrency(currency) && localDocFor(currency, ctx)) {
+      perGram = localPricePerGram(
+        localDocFor(currency, ctx),
+        metal,
+        karat,
+        currency === 'EGP' ? 'buy' : 'sell',
+      );
     } else {
       perGram = globalPricePerGram(ctx.globalRates, metal, karat, currency);
     }
@@ -647,8 +684,9 @@ function watchlistEntryLabel(entry) {
 }
 
 function resolveWatchlistQuote(entry, ctx, currency) {
-  if (currency === 'EGP' && ctx.localEgp) {
-    const map = entry.metal === 'gold' ? ctx.localEgp.gold : ctx.localEgp.silver;
+  const local = localDocFor(currency, ctx);
+  if (isLocalCurrency(currency) && local) {
+    const map = entry.metal === 'gold' ? local.gold : local.silver;
     const row = map?.[entry.karat];
     if (!row) return null;
     return {
@@ -804,7 +842,7 @@ exports.sendReEngagement = onSchedule(
     }
 
     const ctx = await loadPriceContextFromFirestore(db);
-    if (!ctx.globalRates && !ctx.localEgp) {
+    if (!ctx.globalRates && !ctx.localEgp && !ctx.localInr) {
       logger.warn('Re-engagement: no price data available');
       return;
     }

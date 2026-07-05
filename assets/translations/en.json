@@ -150,6 +150,7 @@
     "baseline_note": "Baseline is set to the current price when you save",
     "use_24h_note": "Uses the same 24h change shown on the Prices screen",
     "egp_note": "Uses Egypt local market prices",
+    "local_note_india": "Uses India local market prices (indicative, excl. GST)",
     "global_note": "Uses global spot prices in {currency}",
     "auto_repeat": "Auto-repeat",
     "auto_repeat_sub": "Re-arm this alert automatically after it triggers",
@@ -215,6 +216,7 @@
     "savings_goals": "Savings goals",
     "zakat_calculator": "Zakat calculator",
     "local_value_note": "Valued at Egypt local buy prices",
+    "local_value_note_india": "Valued at India local market prices (indicative)",
     "items_count": {
       "one": "{} item",
       "other": "{} items"
@@ -315,7 +317,7 @@
     "notif_disable_in_settings_title": "Turn off in Settings",
     "notif_disable_in_settings_body": "To disable notifications, use your device Settings for GoldSignal.",
     "open_settings": "Open Settings",
-    "currency_local_sub": "{currency} — Egypt local market",
+    "currency_local_sub": "{currency} — local market",
     "price_side": "Price Side",
     "price_side_sell": "Sell — price when buying from jeweler",
     "price_side_buy": "Buy — price when selling to jeweler",
@@ -358,6 +360,7 @@
     "widget_silver_karat": "Silver purity",
     "widget_preview": "Preview: {label} — {price} {currency}/g · 24h {change}",
     "widget_egp_note": "EGP uses local market prices and your buy/sell side setting.",
+    "widget_inr_note": "INR uses local gold and silver market rates (indicative).",
     "widget_global_note": "Uses global spot prices in {currency}.",
     "widget_add_home": "Add to home screen",
     "widget_add_manual": "Add widget: long-press home screen → Widgets → GoldSignal",

@@ -1,4 +1,5 @@
 import 'package:hive_flutter/hive_flutter.dart';
+import '../../shared/local_market/local_market_config.dart';
 import '../../shared/models/local_market_prices.dart';
 import '../../shared/models/price_snapshot.dart';
 import '../api/metalpriceapi_service.dart';
@@ -31,8 +32,8 @@ class PriceHistoryService {
         box,
         PriceSnapshot(
           timestamp: ts,
-          currency: 'EGP',
-          source: 'isagha',
+          currency: local.currency,
+          source: local.source,
           metal: 'gold',
           karat: row.karat,
           sellPerGram: row.sellPerGram,
@@ -48,8 +49,8 @@ class PriceHistoryService {
         box,
         PriceSnapshot(
           timestamp: ts,
-          currency: 'EGP',
-          source: 'isagha',
+          currency: local.currency,
+          source: local.source,
           metal: 'silver',
           karat: row.karat,
           sellPerGram: row.sellPerGram,
@@ -170,7 +171,7 @@ class PriceHistoryService {
   }
 
   String _defaultSource(String currency) =>
-      currency == 'EGP' ? 'isagha' : 'livepriceofgold';
+      LocalMarketConfig.historySource(currency);
 
   /// 24h change % for the global market computed from recorded snapshots.
   /// Per-gram and karat-invariant, so '24'/'999' is fine. Returns null if there

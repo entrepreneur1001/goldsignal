@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/widget/home_widget_service.dart';
+import '../../../../shared/local_market/local_market_config.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/providers/widget_preferences_provider.dart';
@@ -111,10 +112,12 @@ class _WidgetSettingsSheetState extends ConsumerState<WidgetSettingsSheet> {
             ],
             const SizedBox(height: 12),
             Text(
-              currency == 'EGP'
+              LocalMarketConfig.hasBuySellSide(currency)
                   ? context.tr('profile.widget_egp_note')
-                  : context.tr('profile.widget_global_note',
-                      namedArgs: {'currency': currency}),
+                  : LocalMarketConfig.isLocalCurrency(currency)
+                      ? context.tr('profile.widget_inr_note')
+                      : context.tr('profile.widget_global_note',
+                          namedArgs: {'currency': currency}),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 12),

@@ -7,6 +7,7 @@ import '../../../../shared/providers/auth_provider.dart';
 import '../../../../shared/design/app_colors.dart';
 import '../../../../shared/design/app_typography.dart';
 import '../../../../shared/providers/app_info_provider.dart';
+import '../../../../shared/local_market/local_market_config.dart';
 import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
@@ -194,6 +195,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final theme = Theme.of(context);
     final selectedCurrency = ref.watch(selectedCurrencyProvider);
     final isLocal = ref.watch(isLocalMarketProvider);
+    final hasBuySell =
+        LocalMarketConfig.hasBuySellSide(ref.watch(selectedCurrencyProvider));
     final priceSide = ref.watch(priceSideProvider);
     final packageInfo = ref.watch(packageInfoProvider);
 
@@ -409,7 +412,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 onTap: _showLanguageSelector,
               ),
 
-              if (isLocal)
+              if (hasBuySell)
                 ListTile(
                   leading: const Icon(Icons.swap_horiz),
                   title: Text(context.tr('profile.price_side')),

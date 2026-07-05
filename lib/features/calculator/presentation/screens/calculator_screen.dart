@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
+import '../../../../shared/local_market/local_market_config.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/widgets/currency_selector.dart';
 import '../../../../shared/widgets/alerts_nav_button.dart';
@@ -29,14 +30,13 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
   double _totalValue = 0.0;
 
   List<int> _karatOptionsFor(String currency) {
-    if (currency == 'INR') return [24, 22, 18];
-    return [24, 22, 21, 18];
+    return LocalMarketConfig.goldKarats(currency)
+        .map((k) => int.parse(k))
+        .toList();
   }
 
   int _defaultKaratFor(String currency) {
-    if (currency == 'EGP') return 21;
-    if (currency == 'INR') return 22;
-    return 24;
+    return LocalMarketConfig.defaultGoldKarat(currency);
   }
 
   @override

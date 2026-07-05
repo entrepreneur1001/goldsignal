@@ -9,6 +9,7 @@ import '../../../../core/utils/api_config.dart';
 import '../../../../shared/design/app_colors.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
+import '../../../../shared/local_market/local_market_config.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/providers/portfolio_provider.dart';
 import '../../../../shared/widgets/alerts_nav_button.dart';
@@ -210,13 +211,20 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
 
   String _buildSystemPrompt(MetalPrice? gold, MetalPrice? silver, String currency) {
     String priceContext = '';
-    final isLocal = currency == 'EGP';
+    final isLocal = LocalMarketConfig.isLocalCurrency(currency);
     final local = ref.read(localMarketPricesProvider);
     final side = ref.read(priceSideProvider);
 
     if (isLocal && local != null) {
       priceContext += buildLocalMarketPrompt(local, side);
-      priceContext += " Headline 21K gold ${side.name} price: ${local.headlineGold?.priceFor(side).toStringAsFixed(2) ?? 'N/A'} EGP/g. ";
+      final headlineKarat = local.headlineGoldKarat;
+      priceContext +=
+          ' Headline ${headlineKarat}K gold ${LocalMarketConfig.hasBuySellSide(currency) ? side.name : 'indicative'} price: ${local.headlineGold?.priceFor(side).toStringAsFixed(2) ?? 'N/A'} $currency/g. ';
+      final silver = local.headlineSilver;
+      if (silver != null) {
+        priceContext +=
+            'Silver 999: ${silver.sellPerGram.toStringAsFixed(2)} $currency/g. ';
+      }
     } else {
       if (gold != null) {
         priceContext += 'Current gold price: $currency ${gold.pricePerOunce.toStringAsFixed(2)}/oz ($currency ${gold.pricePerGram.toStringAsFixed(2)}/g). ';

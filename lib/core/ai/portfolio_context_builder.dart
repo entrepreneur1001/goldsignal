@@ -1,4 +1,5 @@
 import '../../core/utils/currency_conversion.dart';
+import '../../shared/local_market/local_market_config.dart';
 import '../../shared/models/local_market_prices.dart';
 import '../../shared/models/metal_price.dart';
 import '../../shared/models/portfolio_item.dart';
@@ -15,7 +16,7 @@ String buildPortfolioContext({
 }) {
   if (items.isEmpty) return 'User has no portfolio holdings yet.';
 
-  final isLocal = currency == 'EGP';
+  final isLocal = LocalMarketConfig.isLocalCurrency(currency);
 
   try {
     double purchaseInDisplay(PortfolioItem item) {
@@ -88,15 +89,22 @@ String buildMarketPriceContext({
   required LocalMarketPrices? local,
   required PriceSide side,
 }) {
-  final isLocal = currency == 'EGP';
+  final isLocal = LocalMarketConfig.isLocalCurrency(currency);
   final buffer = StringBuffer();
 
   if (isLocal && local != null) {
     buffer.write(buildLocalMarketPrompt(local, side));
+    final headlineKarat = local.headlineGoldKarat;
     buffer.write(
-      ' Headline 21K gold ${side.name} price: '
-      '${local.headlineGold?.priceFor(side).toStringAsFixed(2) ?? 'N/A'} EGP/g. ',
+      ' Headline ${headlineKarat}K gold ${LocalMarketConfig.hasBuySellSide(currency) ? side.name : 'indicative'} price: '
+      '${local.headlineGold?.priceFor(side).toStringAsFixed(2) ?? 'N/A'} $currency/g. ',
     );
+    final silver = local.headlineSilver;
+    if (silver != null) {
+      buffer.write(
+        'Silver 999: ${silver.sellPerGram.toStringAsFixed(2)} $currency/g. ',
+      );
+    }
   } else {
     if (gold != null) {
       buffer.write(

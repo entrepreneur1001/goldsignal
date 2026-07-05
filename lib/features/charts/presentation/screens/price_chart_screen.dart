@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../../../core/ads/ad_service.dart';
 import '../../../../core/utils/currency_format.dart';
+import '../../../../shared/local_market/local_market_config.dart';
 import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/models/price_snapshot.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
@@ -18,6 +19,7 @@ class PriceChartScreen extends ConsumerWidget {
     final query = ref.watch(chartQueryProvider);
     final chartState = ref.watch(chartDataProvider);
     final isLocal = ref.watch(isLocalMarketProvider);
+    final hasBuySell = LocalMarketConfig.hasBuySellSide(query.currency);
     final theme = Theme.of(context);
 
     return PopScope(
@@ -49,7 +51,7 @@ class PriceChartScreen extends ConsumerWidget {
           const SizedBox(height: 12),
           _buildKaratSelector(ref, query, isLocal),
           const SizedBox(height: 12),
-          if (isLocal) ...[
+          if (hasBuySell) ...[
             _buildSideToggle(context, ref, query.side),
             const SizedBox(height: 12),
           ],
@@ -101,8 +103,10 @@ class PriceChartScreen extends ConsumerWidget {
 
   Widget _buildKaratSelector(WidgetRef ref, ChartQuery query, bool isLocal) {
     final karats = query.metal == 'gold'
-        ? (isLocal ? ['24', '22', '21', '18'] : ['24', '22', '21', '18'])
-        : (isLocal ? ['999', '925', '900', '800'] : ['999']);
+        ? LocalMarketConfig.goldKarats(query.currency)
+        : (isLocal
+            ? LocalMarketConfig.silverKarats(query.currency)
+            : const ['999']);
 
     return Wrap(
       spacing: 8,

@@ -3,6 +3,8 @@ const admin = require('firebase-admin');
 
 const OUNCE_TO_GRAM = 31.1034768;
 const ISAGHA_URL = 'https://market.isagha.com/prices';
+const GOODRETURNS_GOLD_URL = 'https://www.goodreturns.in/gold-rates/';
+const GOODRETURNS_SILVER_URL = 'https://www.goodreturns.in/silver-rates/';
 const LIVE_GOLD_URL = 'https://www.livepriceofgold.com/usa-gold-price.html';
 const LIVE_FX_URL = 'https://www.livepriceofgold.com/exchange-rate';
 const CURRENCY_SELECTORS = {
@@ -243,6 +245,137 @@ async function writeLocalEgpPrices(db, gold, silver) {
   return data;
 }
 
+async function writeLocalInrPrices(db, gold, silver) {
+  if (Object.keys(gold).length === 0 && Object.keys(silver).length === 0) {
+    return null;
+  }
+
+  const data = {
+    marketType: 'local',
+    currency: 'INR',
+    source: 'goodreturns',
+    gold,
+    silver,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  await db.collection('prices').doc('local_INR').set(data);
+  return data;
+}
+
+function parseInrPrice(raw) {
+  const cleaned = String(raw)
+    .replaceAll('\u20b9', '')
+    .replaceAll('₹', '')
+    .replaceAll(',', '')
+    .trim();
+  if (!cleaned) return null;
+  const value = Number.parseFloat(cleaned);
+  return Number.isFinite(value) ? value : null;
+}
+
+function parseParentheticalChange(raw) {
+  const match = String(raw).match(/\(([+\-]?\d[\d,]*)\)/);
+  if (!match) return 0;
+  const value = Number.parseFloat(match[1].replaceAll(',', ''));
+  return Number.isFinite(value) ? value : 0;
+}
+
+function changePercentFromDelta(price, delta) {
+  if (price == null || delta == null) return 0;
+  const previous = price - delta;
+  if (previous === 0) return 0;
+  return (delta / previous) * 100;
+}
+
+function parseGoodreturnsGold(goldHtml) {
+  const gold = {};
+  const jsMatch = goldHtml.match(/currentMetalPrices\s*=\s*\{([^}]+)\}/);
+  if (jsMatch) {
+    for (const karat of ['24', '22', '18']) {
+      const priceMatch = jsMatch[1].match(new RegExp(`'${karat}'\\s*:\\s*(\\d+)`));
+      if (priceMatch) {
+        const price = Number.parseInt(priceMatch[1], 10);
+        gold[karat] = {
+          sellPerGram: price,
+          buyPerGram: price,
+          changePercent: 0,
+        };
+      }
+    }
+  }
+
+  if (Object.keys(gold).length < 3) {
+    const $ = cheerio.load(goldHtml);
+    for (const karat of ['24', '22', '18']) {
+      const price = parseInrPrice($(`#${karat}K-price`).text());
+      if (price != null) {
+        gold[karat] = {
+          sellPerGram: price,
+          buyPerGram: price,
+          changePercent: 0,
+        };
+      }
+    }
+  }
+
+  const $ = cheerio.load(goldHtml);
+  const cells = $('tbody.tablebody tr').first().find('td');
+  if (cells.length >= 3) {
+    if (gold['24']) {
+      const delta = parseParentheticalChange($(cells[1]).text());
+      gold['24'].changePercent = changePercentFromDelta(gold['24'].sellPerGram, delta);
+    }
+    if (gold['22']) {
+      const delta = parseParentheticalChange($(cells[2]).text());
+      gold['22'].changePercent = changePercentFromDelta(gold['22'].sellPerGram, delta);
+    }
+  }
+
+  return gold;
+}
+
+function parseGoodreturnsSilver(silverHtml) {
+  const $ = cheerio.load(silverHtml);
+  const price = parseInrPrice($('#silver-1g-price').text());
+  if (price == null) return {};
+
+  const cells = $('tbody.tablebody tr').first().find('td');
+  const kgDelta = cells.length >= 4 ? parseParentheticalChange($(cells[3]).text()) : 0;
+  const gramDelta = kgDelta / 1000;
+
+  return {
+    999: {
+      sellPerGram: price,
+      buyPerGram: price,
+      changePercent: changePercentFromDelta(price, gramDelta),
+    },
+  };
+}
+
+async function scrapeGoodreturnsIndia() {
+  const inHeaders = {
+    ...FETCH_HEADERS,
+    'Accept-Language': 'en-IN,en;q=0.9',
+  };
+  const [goldHtml, silverHtml] = await Promise.all([
+    fetchHtml(GOODRETURNS_GOLD_URL, inHeaders),
+    fetchHtml(GOODRETURNS_SILVER_URL, inHeaders),
+  ]);
+
+  const gold = parseGoodreturnsGold(goldHtml);
+  const silver = parseGoodreturnsSilver(silverHtml);
+
+  if (!gold['22']) {
+    throw new Error('Missing 22K gold price from Goodreturns');
+  }
+  if (!silver['999']) {
+    throw new Error('Missing silver per-gram price from Goodreturns');
+  }
+
+  return { gold, silver };
+}
+
 async function scrapeIsaghaLocal() {
   const html = await fetchHtml(ISAGHA_URL);
   const $ = cheerio.load(html);
@@ -269,17 +402,24 @@ async function fetchAndUpdateLocalEgp(db) {
   return writeLocalEgpPrices(db, gold, silver);
 }
 
+async function fetchAndUpdateLocalInr(db) {
+  const { gold, silver } = await scrapeGoodreturnsIndia();
+  return writeLocalInrPrices(db, gold, silver);
+}
+
 async function loadPriceContextFromFirestore(db) {
-  const [latestSnap, localSnap] = await Promise.all([
+  const [latestSnap, localEgpSnap, localInrSnap] = await Promise.all([
     db.collection('prices').doc('latest').get(),
     db.collection('prices').doc('local_EGP').get(),
+    db.collection('prices').doc('local_INR').get(),
   ]);
 
   const latest = latestSnap.exists ? latestSnap.data() : null;
   return {
     globalRates: latest?.rates ?? null,
     prevRates: latest?.prevRates ?? null,
-    localEgp: localSnap.exists ? localSnap.data() : null,
+    localEgp: localEgpSnap.exists ? localEgpSnap.data() : null,
+    localInr: localInrSnap.exists ? localInrSnap.data() : null,
   };
 }
 
@@ -287,5 +427,6 @@ module.exports = {
   OUNCE_TO_GRAM,
   fetchAndUpdateGlobalPrices,
   fetchAndUpdateLocalEgp,
+  fetchAndUpdateLocalInr,
   loadPriceContextFromFirestore,
 };

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../local_market/local_market_config.dart';
 import '../models/local_market_prices.dart';
 import '../models/price_snapshot.dart';
 import 'currency_provider.dart';
@@ -58,27 +59,31 @@ class ChartQueryNotifier extends Notifier<ChartQuery> {
   @override
   ChartQuery build() {
     final currency = ref.watch(selectedCurrencyProvider);
-    final isLocal = currency == 'EGP';
+    final isLocal = LocalMarketConfig.isLocalCurrency(currency);
     return ChartQuery(
       currency: currency,
       metal: 'gold',
-      karat: isLocal ? '21' : '24',
+      karat: isLocal
+          ? LocalMarketConfig.defaultGoldKaratStr(currency)
+          : '24',
       range: ChartRange.days7,
       side: ref.watch(priceSideProvider),
     );
   }
 
   void setMetal(String metal) {
-    final isLocal = state.currency == 'EGP';
-    // Valid karats per metal/market, mirroring the chart UI's karat selector.
+    final currency = state.currency;
+    final isLocal = LocalMarketConfig.isLocalCurrency(currency);
     final validKarats = metal == 'gold'
-        ? const ['24', '22', '21', '18']
-        : (isLocal ? const ['999', '925', '900', '800'] : const ['999']);
-    // Keep the current karat if it's valid for the new metal, otherwise reset
-    // to a sensible default (silver has no '24'/'21', so it would match nothing).
+        ? LocalMarketConfig.goldKarats(currency)
+        : (isLocal
+            ? LocalMarketConfig.silverKarats(currency)
+            : const ['999']);
     final karat = validKarats.contains(state.karat)
         ? state.karat
-        : (metal == 'gold' ? (isLocal ? '21' : '24') : '999');
+        : (metal == 'gold'
+            ? LocalMarketConfig.defaultGoldKaratStr(currency)
+            : LocalMarketConfig.defaultSilverKarat(currency));
     state = ChartQuery(
       currency: state.currency,
       metal: metal,
@@ -116,7 +121,9 @@ class ChartQueryNotifier extends Notifier<ChartQuery> {
     state = ChartQuery(
       currency: currency,
       metal: state.metal,
-      karat: currency == 'EGP' ? '21' : '24',
+      karat: LocalMarketConfig.isLocalCurrency(currency)
+          ? LocalMarketConfig.defaultGoldKaratStr(currency)
+          : '24',
       range: state.range,
       side: state.side,
     );
@@ -169,7 +176,7 @@ class ChartDataNotifier extends Notifier<ChartState> {
           (hivePoints.length < 2 || firestorePoints.length >= hivePoints.length);
 
       if (points.length < 2) {
-        if (query.currency == 'EGP') {
+        if (LocalMarketConfig.isLocalCurrency(query.currency)) {
           final local = ref.read(localMarketPricesProvider);
           if (local != null) {
             points = history.seedFromLocalPrices(
@@ -249,7 +256,8 @@ class ChartDataNotifier extends Notifier<ChartState> {
             side: query.side,
           );
       partial = _mergeChartPoints(partial, firestorePartial);
-      if (partial.length < 2 && query.currency != 'EGP') {
+      if (partial.length < 2 &&
+          !LocalMarketConfig.isLocalCurrency(query.currency)) {
         partial = history.seedFromCachedPrices(
           api: ref.read(metalPriceApiProvider),
           currency: query.currency,

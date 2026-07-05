@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 
+import '../../shared/local_market/local_market_config.dart';
 import '../../shared/models/local_market_prices.dart';
 import '../../shared/models/metal_price.dart';
 import '../../shared/models/portfolio_item.dart';
@@ -75,11 +76,11 @@ PortfolioPriceSnapshot buildPriceSnapshot({
   required MetalPrice? silver,
   required LocalMarketPrices? local,
 }) {
-  final isLocal = currency == 'EGP';
+  final isLocal = LocalMarketConfig.isLocalCurrency(currency);
 
   if (isLocal && local != null) {
-    final goldRow = local.goldKarat('21');
-    final silverRow = local.silverKarat('999');
+    final goldRow = local.headlineGold;
+    final silverRow = local.headlineSilver;
     return PortfolioPriceSnapshot(
       goldChange24hPct: goldRow?.changePercent,
       silverChange24hPct: silverRow?.changePercent,

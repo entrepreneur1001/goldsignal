@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/crash/crash_reporter.dart';
+import '../local_market/local_market_config.dart';
 import '../models/local_market_prices.dart';
 import '../models/watchlist_entry.dart';
 import 'currency_provider.dart';
@@ -75,7 +76,7 @@ final watchlistQuotesProvider = Provider<List<WatchlistQuote>>((ref) {
   if (entries.isEmpty) return const [];
 
   final currency = ref.watch(selectedCurrencyProvider);
-  final isLocal = currency == 'EGP';
+  final isLocal = LocalMarketConfig.isLocalCurrency(currency);
   final side = ref.watch(priceSideProvider);
   final quotes = <WatchlistQuote>[];
 

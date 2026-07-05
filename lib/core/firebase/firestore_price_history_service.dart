@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../shared/local_market/local_market_config.dart';
 import '../../shared/models/local_market_prices.dart';
 import '../../shared/models/price_snapshot.dart';
 import '../api/metalpriceapi_service.dart';
@@ -116,8 +117,8 @@ class FirestorePriceHistoryService {
 
     await _createHourlyDoc(
       marketType: 'local',
-      currency: 'EGP',
-      source: 'isagha',
+      currency: local.currency,
+      source: local.source,
       gold: gold,
       silver: silver,
     );
@@ -169,7 +170,8 @@ class FirestorePriceHistoryService {
   }) async {
     if (FirebaseAuth.instance.currentUser == null) return [];
 
-    final marketType = currency == 'EGP' ? 'local' : 'global';
+    final marketType =
+        LocalMarketConfig.isLocalCurrency(currency) ? 'local' : 'global';
     final startBucket = _hourBucket(
       DateTime.now().subtract(Duration(days: range.days)),
     );

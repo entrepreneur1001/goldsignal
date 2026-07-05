@@ -5,15 +5,17 @@ import 'package:flutter/widgets.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../api/goodreturns_price_scraper.dart';
 import '../api/isagha_price_scraper.dart';
 import '../crash/crash_reporter.dart';
+import '../../shared/local_market/local_market_config.dart';
 import '../../shared/models/local_market_prices.dart';
 import '../../shared/providers/widget_preferences_provider.dart';
 
 /// Background entry point invoked when the widget's refresh button is tapped.
 ///
 /// Runs in a separate isolate, so it cannot touch the app's Riverpod state.
-/// For the local (EGP) market it performs a real scrape and re-pushes the
+/// For local markets (EGP/INR) it performs a real scrape and re-pushes the
 /// board; the global market relies on the Firebase/Hive stack and is left to
 /// the next in-app refresh (OS still updates the widget every ~30 min).
 @pragma('vm:entry-point')
@@ -23,14 +25,21 @@ Future<void> widgetRefreshCallback(Uri? uri) async {
     WidgetsFlutterBinding.ensureInitialized();
     final prefs = await SharedPreferences.getInstance();
     final currency = prefs.getString('selected_currency') ?? 'USD';
-    if (currency != 'EGP') return;
+    if (!LocalMarketConfig.isLocalCurrency(currency)) return;
 
     final side =
         prefs.getString('price_side') == 'buy' ? PriceSide.buy : PriceSide.sell;
-    final goldKarat = prefs.getString('widget_gold_karat') ?? '21';
-    final silverKarat = prefs.getString('widget_silver_karat') ?? '999';
+    final goldKarat = prefs.getString('widget_gold_karat') ??
+        defaultKaratFor(metal: 'gold', currency: currency);
+    final silverKarat = prefs.getString('widget_silver_karat') ??
+        defaultKaratFor(metal: 'silver', currency: currency);
 
-    final local = await IsaghaPriceScraper().fetchLatestPrices();
+    final LocalMarketPrices local;
+    if (currency == 'INR') {
+      local = await GoodreturnsPriceScraper().fetchLatestPrices();
+    } else {
+      local = await IsaghaPriceScraper().fetchLatestPrices();
+    }
 
     WidgetMetalRow? rowFor(String metal, String karat) {
       final row =
@@ -48,7 +57,7 @@ Future<void> widgetRefreshCallback(Uri? uri) async {
     await HomeWidgetService.instance.initialize();
     await HomeWidgetService.instance.updateBoard(
       WidgetBoardData(
-        currency: 'EGP',
+        currency: currency,
         updatedAt: local.updatedAt,
         gold: rowFor('gold', goldKarat),
         silver: rowFor('silver', silverKarat),

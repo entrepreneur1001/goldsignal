@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../local_market/local_market_config.dart';
 import 'currency_provider.dart';
 import 'market_prices_provider.dart';
 import 'metal_price_provider.dart';
@@ -106,9 +107,9 @@ List<String> karatOptionsFor({
   required String currency,
 }) {
   if (metal == 'gold') {
-    return ['24', '22', '21', '18'];
+    return LocalMarketConfig.goldKarats(currency);
   }
-  return currency == 'EGP' ? ['999', '925', '900', '800'] : ['999'];
+  return LocalMarketConfig.silverKarats(currency);
 }
 
 String defaultKaratFor({
@@ -116,9 +117,9 @@ String defaultKaratFor({
   required String currency,
 }) {
   if (metal == 'silver') {
-    return '999';
+    return LocalMarketConfig.defaultSilverKarat(currency);
   }
-  return currency == 'EGP' ? '21' : '24';
+  return LocalMarketConfig.defaultGoldKaratStr(currency);
 }
 
 String widgetLabelFor({
@@ -224,7 +225,7 @@ final widgetBoardProvider = Provider<WidgetBoardData?>((ref) {
 WidgetBoardData? _resolveWidgetBoard(Ref ref) {
   final prefs = ref.read(widgetPreferencesProvider);
   final currency = ref.read(selectedCurrencyProvider);
-  final isLocal = currency == 'EGP';
+  final isLocal = LocalMarketConfig.isLocalCurrency(currency);
   final side = ref.read(priceSideProvider);
 
   if (isLocal) {

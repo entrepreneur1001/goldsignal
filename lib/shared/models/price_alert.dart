@@ -1,3 +1,4 @@
+import '../local_market/local_market_config.dart';
 import 'local_market_prices.dart';
 
 enum AlertType { price, percentChange, percentChange24h }
@@ -39,7 +40,7 @@ class PriceAlert {
     this.triggeredPrice,
   });
 
-  bool get isLocal => currency == 'EGP';
+  bool get isLocal => LocalMarketConfig.isLocalCurrency(currency);
   bool get isPercentChange =>
       type == AlertType.percentChange || type == AlertType.percentChange24h;
   bool get isPercent24h => type == AlertType.percentChange24h;
@@ -53,7 +54,10 @@ class PriceAlert {
   String get label {
     final metalLabel = metal == 'gold' ? 'Gold' : 'Silver';
     final karatLabel = metal == 'gold' ? '${karat}K' : karat;
-    final sideLabel = isLocal && side != null ? ' (${side!.name})' : '';
+    final sideLabel =
+        isLocal && side != null && LocalMarketConfig.hasBuySellSide(currency)
+            ? ' (${side!.name})'
+            : '';
 
     if (isPercentChange) {
       final dir = condition == AlertCondition.above ? 'up' : 'down';

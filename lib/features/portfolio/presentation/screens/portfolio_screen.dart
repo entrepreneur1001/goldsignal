@@ -376,7 +376,11 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          context.tr('portfolio.local_value_note'),
+                          context.tr(
+                            ref.read(selectedCurrencyProvider) == 'INR'
+                                ? 'portfolio.local_value_note_india'
+                                : 'portfolio.local_value_note',
+                          ),
                           style: const TextStyle(fontSize: 12),
                         ),
                       ),

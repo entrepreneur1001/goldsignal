@@ -11,6 +11,7 @@ import '../../../../shared/models/metal_price.dart';
 import '../../../../shared/models/watchlist_entry.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
+import '../../../../shared/local_market/local_market_config.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
 import '../../../../shared/providers/watchlist_provider.dart';
@@ -295,7 +296,9 @@ class PricesScreen extends ConsumerWidget {
   ) {
     final headline = local.headlineGold;
     final headlineKarat = local.headlineGoldKarat;
+    final silverHeadline = local.headlineSilver;
     final goldEntry = WatchlistEntry(metal: 'gold', karat: headlineKarat);
+    const silverEntry = WatchlistEntry(metal: 'silver', karat: '999');
 
     return [
       Padding(
@@ -335,6 +338,37 @@ class PricesScreen extends ConsumerWidget {
             karat: headlineKarat,
             currency: local.currency,
             pricePerGram: headline.priceFor(side),
+          ),
+        ).animate().slideX(begin: -1, duration: 600.ms),
+      const SizedBox(height: 16),
+      if (silverHeadline != null)
+        PriceCard(
+          metal: context.tr('prices.silver_999'),
+          icon: Icons.paid,
+          color: const Color(0xFFC0C0C0),
+          pricePerOunce: silverHeadline.priceFor(side) * 31.1034768,
+          pricePerGram: silverHeadline.priceFor(side),
+          currency: local.currency,
+          change24h: silverHeadline.change,
+          changePercent: silverHeadline.changePercent,
+          isWatchlisted: _isWatchlisted(ref, silverEntry),
+          onToggleWatchlist: () =>
+              _toggleWatchlist(context, ref, silverEntry),
+          onShare: () => _sharePrice(
+            context,
+            ref,
+            label: silverEntry.label,
+            pricePerGram: silverHeadline.priceFor(side),
+            currency: local.currency,
+            changePercent: silverHeadline.changePercent,
+            isGold: false,
+          ),
+          onSetAlert: () => _openAlertSheet(
+            context,
+            metal: 'silver',
+            karat: '999',
+            currency: local.currency,
+            pricePerGram: silverHeadline.priceFor(side),
           ),
         ).animate().slideX(begin: -1, duration: 600.ms),
       const SizedBox(height: 24),
@@ -713,7 +747,7 @@ class PricesScreen extends ConsumerWidget {
     MetalPrice? silver, {
     PriceSide? side,
   }) {
-    final goldKarat = gold.currency == 'EGP' ? '21' : '24';
+    final goldKarat = LocalMarketConfig.defaultGoldKaratStr(gold.currency);
     final goldEntry = WatchlistEntry(metal: 'gold', karat: goldKarat);
     const silverEntry = WatchlistEntry(metal: 'silver', karat: '999');
 

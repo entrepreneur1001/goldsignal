@@ -5,7 +5,8 @@ import 'package:html/parser.dart' as html_parser;
 import '../../shared/models/local_market_prices.dart';
 
 class GoodreturnsPriceScraper {
-  static const _url = 'https://www.goodreturns.in/gold-rates/';
+  static const _goldUrl = 'https://www.goodreturns.in/gold-rates/';
+  static const _silverUrl = 'https://www.goodreturns.in/silver-rates/';
   static const _cacheKey = 'india_latest';
 
   final Dio _dio;
@@ -28,13 +29,21 @@ class GoodreturnsPriceScraper {
   }
 
   Future<LocalMarketPrices> fetchLatestPrices() async {
-    final response = await _dio.get<String>(_url);
-    final html = response.data;
-    if (html == null || html.isEmpty) {
-      throw const FormatException('Empty response from Goodreturns');
+    final responses = await Future.wait([
+      _dio.get<String>(_goldUrl),
+      _dio.get<String>(_silverUrl),
+    ]);
+
+    final goldHtml = responses[0].data;
+    final silverHtml = responses[1].data;
+    if (goldHtml == null || goldHtml.isEmpty) {
+      throw const FormatException('Empty response from Goodreturns gold page');
+    }
+    if (silverHtml == null || silverHtml.isEmpty) {
+      throw const FormatException('Empty response from Goodreturns silver page');
     }
 
-    final prices = _parseKaratPrices(html);
+    final prices = _parseKaratPrices(goldHtml);
     if (prices['22'] == null) {
       throw const FormatException('Missing 22K gold price from Goodreturns');
     }
@@ -44,7 +53,7 @@ class GoodreturnsPriceScraper {
       );
     }
 
-    final changes = _parseDailyChanges(html);
+    final changes = _parseGoldDailyChanges(goldHtml);
     final gold = _karatsInOrder
         .where((k) => prices[k] != null)
         .map((karat) {
@@ -63,12 +72,32 @@ class GoodreturnsPriceScraper {
         })
         .toList();
 
+    final silverPerGram = _parseSilverPerGram(silverHtml);
+    if (silverPerGram == null) {
+      throw const FormatException('Missing silver per-gram price from Goodreturns');
+    }
+    final silverChange = _parseSilverDailyChange(silverHtml);
+    final silverPrevious = silverPerGram - silverChange;
+    final silverChangePercent = silverPrevious != 0
+        ? (silverChange / silverPrevious) * 100
+        : 0.0;
+
+    final silver = [
+      LocalKaratPrice(
+        karat: '999',
+        sellPerGram: silverPerGram,
+        buyPerGram: silverPerGram,
+        change: silverChange,
+        changePercent: silverChangePercent,
+      ),
+    ];
+
     final result = LocalMarketPrices(
       country: 'IN',
       currency: 'INR',
       source: 'goodreturns',
       gold: gold,
-      silver: const [],
+      silver: silver,
       updatedAt: DateTime.now(),
     );
 
@@ -120,7 +149,7 @@ class GoodreturnsPriceScraper {
     return prices;
   }
 
-  Map<String, double> _parseDailyChanges(String html) {
+  Map<String, double> _parseGoldDailyChanges(String html) {
     final document = html_parser.parse(html);
     final rows = document.querySelectorAll('tbody.tablebody tr');
     if (rows.isEmpty) return {};
@@ -134,12 +163,32 @@ class GoodreturnsPriceScraper {
     };
   }
 
+  double? _parseSilverPerGram(String html) {
+    final document = html_parser.parse(html);
+    final span = document.querySelector('#silver-1g-price');
+    if (span == null) return null;
+    return _parseInrPrice(span.text);
+  }
+
+  double _parseSilverDailyChange(String html) {
+    final document = html_parser.parse(html);
+    final rows = document.querySelectorAll('tbody.tablebody tr');
+    if (rows.isEmpty) return 0;
+
+    final cells = rows.first.querySelectorAll('td');
+    if (cells.length < 4) return 0;
+
+    final kgChange = _parseChangeSpan(cells[3]);
+    return kgChange / 1000;
+  }
+
   double _parseChangeSpan(Element cell) {
     final span = cell.querySelector('span');
     if (span == null) return 0;
-    final match = RegExp(r'\(([+\-]?\d+)\)').firstMatch(span.text);
+    final match = RegExp(r'\(([+\-]?\d[\d,]*)\)').firstMatch(span.text);
     if (match == null) return 0;
-    return double.parse(match.group(1)!);
+    final raw = match.group(1)!.replaceAll(',', '');
+    return double.tryParse(raw) ?? 0;
   }
 
   double? _parseInrPrice(String raw) {
