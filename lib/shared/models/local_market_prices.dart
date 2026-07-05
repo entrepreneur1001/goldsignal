@@ -91,6 +91,7 @@ class LocalMarketPrices {
   final String country;
   final String currency;
   final String source;
+  final String? city;
   final List<LocalKaratPrice> gold;
   final List<LocalKaratPrice> silver;
   final double? globalGoldOunceUsd;
@@ -101,6 +102,7 @@ class LocalMarketPrices {
     required this.country,
     required this.currency,
     required this.source,
+    this.city,
     required this.gold,
     required this.silver,
     this.globalGoldOunceUsd,
@@ -109,6 +111,7 @@ class LocalMarketPrices {
   });
 
   bool get isEgypt => country == 'EG' && currency == 'EGP';
+  bool get isIndia => country == 'IN' && currency == 'INR';
 
   LocalKaratPrice? goldKarat(String karat) {
     for (final item in gold) {
@@ -132,14 +135,18 @@ class LocalMarketPrices {
     return silverKarat('$purity')?.priceFor(side);
   }
 
-  LocalKaratPrice? get headlineGold => goldKarat('21');
+  LocalKaratPrice? get headlineGold =>
+      isIndia ? goldKarat('22') : goldKarat('21');
   LocalKaratPrice? get headlineSilver => silverKarat('999');
+
+  String get headlineGoldKarat => isIndia ? '22' : '21';
 
   factory LocalMarketPrices.fromJson(Map<String, dynamic> json) {
     return LocalMarketPrices(
       country: json['country'] as String? ?? 'EG',
       currency: json['currency'] as String? ?? 'EGP',
       source: json['source'] as String? ?? 'isagha',
+      city: json['city'] as String?,
       gold: (json['gold'] as List<dynamic>? ?? [])
           .map((e) => LocalKaratPrice.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -158,6 +165,7 @@ class LocalMarketPrices {
         'country': country,
         'currency': currency,
         'source': source,
+        'city': city,
         'gold': gold.map((e) => e.toJson()).toList(),
         'silver': silver.map((e) => e.toJson()).toList(),
         'globalGoldOunceUsd': globalGoldOunceUsd,

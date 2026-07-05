@@ -187,11 +187,9 @@ class PricesScreen extends ConsumerWidget {
           const SyncAccountBanner(),
           const DailyInsightCard(),
           const SizedBox(height: 12),
-          if (isLocal) ...[
-            if (localPrices != null) ...[
-              EgpSpreadCard(localPrices: localPrices),
-              const SizedBox(height: 16),
-            ],
+          if (isLocal && localPrices != null && localPrices.isEgypt) ...[
+            EgpSpreadCard(localPrices: localPrices),
+            const SizedBox(height: 16),
             _buildBuySellToggle(context, ref, priceSide),
             const SizedBox(height: 16),
           ],
@@ -283,6 +281,82 @@ class PricesScreen extends ConsumerWidget {
     LocalMarketPrices local,
     PriceSide side,
   ) {
+    if (local.isIndia) {
+      return _buildIndiaLocalContent(context, ref, local, side);
+    }
+    return _buildEgyptLocalContent(context, ref, local, side);
+  }
+
+  List<Widget> _buildIndiaLocalContent(
+    BuildContext context,
+    WidgetRef ref,
+    LocalMarketPrices local,
+    PriceSide side,
+  ) {
+    final headline = local.headlineGold;
+    final headlineKarat = local.headlineGoldKarat;
+    final goldEntry = WatchlistEntry(metal: 'gold', karat: headlineKarat);
+
+    return [
+      Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Text(
+          context.tr('prices.goodreturns_source'),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.outline,
+              ),
+        ),
+      ),
+      if (headline != null)
+        PriceCard(
+          metal: context.tr('prices.gold_22k'),
+          icon: Icons.monetization_on,
+          color: const Color(0xFFFFD700),
+          pricePerOunce: headline.priceFor(side) * 31.1034768,
+          pricePerGram: headline.priceFor(side),
+          currency: local.currency,
+          change24h: headline.change,
+          changePercent: headline.changePercent,
+          isWatchlisted: _isWatchlisted(ref, goldEntry),
+          onToggleWatchlist: () =>
+              _toggleWatchlist(context, ref, goldEntry),
+          onShare: () => _sharePrice(
+            context,
+            ref,
+            label: goldEntry.label,
+            pricePerGram: headline.priceFor(side),
+            currency: local.currency,
+            changePercent: headline.changePercent,
+            isGold: true,
+          ),
+          onSetAlert: () => _openAlertSheet(
+            context,
+            metal: 'gold',
+            karat: headlineKarat,
+            currency: local.currency,
+            pricePerGram: headline.priceFor(side),
+          ),
+        ).animate().slideX(begin: -1, duration: 600.ms),
+      const SizedBox(height: 24),
+      _buildLocalKaratCard(
+        context,
+        ref,
+        context.tr('prices.gold_prices_per_gram'),
+        local.gold,
+        side,
+        isGold: true,
+        currency: local.currency,
+        showGap: false,
+      ),
+    ];
+  }
+
+  List<Widget> _buildEgyptLocalContent(
+    BuildContext context,
+    WidgetRef ref,
+    LocalMarketPrices local,
+    PriceSide side,
+  ) {
     final headline = local.headlineGold;
     final silverHeadline = local.headlineSilver;
     const goldEntry = WatchlistEntry(metal: 'gold', karat: '21');
@@ -296,7 +370,7 @@ class PricesScreen extends ConsumerWidget {
           color: const Color(0xFFFFD700),
           pricePerOunce: headline.priceFor(side) * 31.1034768,
           pricePerGram: headline.priceFor(side),
-          currency: 'EGP',
+          currency: local.currency,
           change24h: headline.change,
           changePercent: headline.changePercent,
           isWatchlisted: _isWatchlisted(ref, goldEntry),
@@ -305,7 +379,7 @@ class PricesScreen extends ConsumerWidget {
           onShare: () => _sharePrice(context, ref,
             label: goldEntry.label,
             pricePerGram: headline.priceFor(side),
-            currency: 'EGP',
+            currency: local.currency,
             changePercent: headline.changePercent,
             isGold: true,
           ),
@@ -313,7 +387,7 @@ class PricesScreen extends ConsumerWidget {
             context,
             metal: 'gold',
             karat: '21',
-            currency: 'EGP',
+            currency: local.currency,
             pricePerGram: headline.priceFor(side),
             side: side,
           ),
@@ -326,7 +400,7 @@ class PricesScreen extends ConsumerWidget {
           color: const Color(0xFFC0C0C0),
           pricePerOunce: silverHeadline.priceFor(side) * 31.1034768,
           pricePerGram: silverHeadline.priceFor(side),
-          currency: 'EGP',
+          currency: local.currency,
           change24h: silverHeadline.change,
           changePercent: silverHeadline.changePercent,
           isWatchlisted: _isWatchlisted(ref, silverEntry),
@@ -335,7 +409,7 @@ class PricesScreen extends ConsumerWidget {
           onShare: () => _sharePrice(context, ref,
             label: silverEntry.label,
             pricePerGram: silverHeadline.priceFor(side),
-            currency: 'EGP',
+            currency: local.currency,
             changePercent: silverHeadline.changePercent,
             isGold: false,
           ),
@@ -343,7 +417,7 @@ class PricesScreen extends ConsumerWidget {
             context,
             metal: 'silver',
             karat: '999',
-            currency: 'EGP',
+            currency: local.currency,
             pricePerGram: silverHeadline.priceFor(side),
             side: side,
           ),
@@ -366,6 +440,8 @@ class PricesScreen extends ConsumerWidget {
     List<LocalKaratPrice> rows,
     PriceSide side, {
     required bool isGold,
+    String currency = 'EGP',
+    bool showGap = true,
   }) {
     return Card(
       child: Padding(
@@ -376,7 +452,15 @@ class PricesScreen extends ConsumerWidget {
             Text(title, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 16),
             for (final row in rows)
-              _buildLocalKaratRow(context, ref, row, side, isGold: isGold),
+              _buildLocalKaratRow(
+                context,
+                ref,
+                row,
+                side,
+                isGold: isGold,
+                currency: currency,
+                showGap: showGap,
+              ),
           ],
         ),
       ),
@@ -389,6 +473,8 @@ class PricesScreen extends ConsumerWidget {
     LocalKaratPrice row,
     PriceSide side, {
     required bool isGold,
+    String currency = 'EGP',
+    bool showGap = true,
   }) {
     final label = _karatLabel(context, row.karat);
     final price = row.priceFor(side);
@@ -406,7 +492,7 @@ class PricesScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-                if (gap > 0)
+                if (showGap && gap > 0)
                   Text(
                     context.tr('prices.gap_vs_global',
                         namedArgs: {'gap': gap.toStringAsFixed(2)}),
@@ -418,7 +504,7 @@ class PricesScreen extends ConsumerWidget {
             ),
           ),
           Text(
-            'EGP ${price.toStringAsFixed(2)}',
+            '$currency ${price.toStringAsFixed(2)}',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -430,7 +516,7 @@ class PricesScreen extends ConsumerWidget {
             onPressed: () => _sharePrice(context, ref,
               label: entry.label,
               pricePerGram: price,
-              currency: 'EGP',
+              currency: currency,
               changePercent: row.changePercent,
               isGold: isGold,
             ),

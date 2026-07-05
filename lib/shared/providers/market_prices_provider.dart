@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/api/isagha_price_scraper.dart';
+import '../../core/api/goodreturns_price_scraper.dart';
 import '../../core/crash/crash_reporter.dart';
 import '../../core/firebase/firestore_price_history_service.dart';
 import '../../core/storage/price_history_service.dart';
@@ -30,8 +31,13 @@ final isaghaScraperProvider = Provider<IsaghaPriceScraper>((ref) {
   return IsaghaPriceScraper();
 });
 
+final goodreturnsScraperProvider = Provider<GoodreturnsPriceScraper>((ref) {
+  return GoodreturnsPriceScraper();
+});
+
 final isLocalMarketProvider = Provider<bool>((ref) {
-  return ref.watch(selectedCurrencyProvider) == 'EGP';
+  final currency = ref.watch(selectedCurrencyProvider);
+  return currency == 'EGP' || currency == 'INR';
 });
 
 final priceSideProvider = NotifierProvider<PriceSideNotifier, PriceSide>(() {
@@ -141,7 +147,9 @@ class MarketPricesController extends Notifier<MarketPricesState> {
     try {
       final currency = ref.read(selectedCurrencyProvider);
       if (currency == 'EGP') {
-        await _refreshLocal();
+        await _refreshLocalEgypt();
+      } else if (currency == 'INR') {
+        await _refreshLocalIndia();
       } else {
         await _refreshGlobal(currency);
       }
@@ -164,7 +172,7 @@ class MarketPricesController extends Notifier<MarketPricesState> {
     }
   }
 
-  Future<void> _refreshLocal() async {
+  Future<void> _refreshLocalEgypt() async {
     final scraper = ref.read(isaghaScraperProvider);
     LocalMarketPrices? local;
 
@@ -190,6 +198,20 @@ class MarketPricesController extends Notifier<MarketPricesState> {
     }
     // Note: the shared `prices/local_EGP` cache is written server-side by the
     // Cloud Function (refreshPricesScheduled); clients no longer write it.
+  }
+
+  Future<void> _refreshLocalIndia() async {
+    final scraper = ref.read(goodreturnsScraperProvider);
+    LocalMarketPrices? local;
+
+    try {
+      local = await scraper.fetchLatestPrices();
+    } catch (_) {
+      local = scraper.getCachedPrices();
+      if (local == null) rethrow;
+    }
+
+    ref.read(localMarketPricesProvider.notifier).update(local);
   }
 
   Future<void> _refreshGlobal(String currency) async {
@@ -222,18 +244,18 @@ class MarketPricesController extends Notifier<MarketPricesState> {
 
   void applyCurrentPrices() {
     final currency = ref.read(selectedCurrencyProvider);
-    if (currency != 'EGP') {
-      final global = state.globalData ?? ref.read(metalPriceApiProvider).getCachedPrices();
-      if (global != null) {
-        _pushGlobalToMetalProviders(global, currency);
+    if (currency == 'EGP' || currency == 'INR') {
+      final local = ref.read(localMarketPricesProvider);
+      if (local != null) {
+        _pushLocalToMetalProviders(local, ref.read(priceSideProvider));
       }
       _updateHomeWidget();
       return;
     }
 
-    final local = ref.read(localMarketPricesProvider);
-    if (local != null) {
-      _pushLocalToMetalProviders(local, ref.read(priceSideProvider));
+    final global = state.globalData ?? ref.read(metalPriceApiProvider).getCachedPrices();
+    if (global != null) {
+      _pushGlobalToMetalProviders(global, currency);
     }
     _updateHomeWidget();
   }
@@ -290,32 +312,34 @@ class MarketPricesController extends Notifier<MarketPricesState> {
   }
 
   void _pushLocalToMetalProviders(LocalMarketPrices local, PriceSide side) {
-    final gold21 = local.goldKarat('21');
-    if (gold21 != null) {
-      final perGram = gold21.priceFor(side);
+    final headline = local.headlineGold;
+    if (headline != null) {
+      final perGram = headline.priceFor(side);
       ref.read(metalPriceProvider.notifier).updatePrice(MetalPrice(
         metal: 'Gold',
         pricePerOunce: perGram * _ounceToGram,
         pricePerGram: perGram,
-        currency: 'EGP',
+        currency: local.currency,
         timestamp: local.updatedAt,
-        change24h: gold21.change,
-        changePercent24h: gold21.changePercent,
+        change24h: headline.change,
+        changePercent24h: headline.changePercent,
       ));
     }
 
-    final silver999 = local.silverKarat('999');
-    if (silver999 != null) {
-      final perGram = silver999.priceFor(side);
-      ref.read(silverPriceProvider.notifier).updatePrice(MetalPrice(
-        metal: 'Silver',
-        pricePerOunce: perGram * _ounceToGram,
-        pricePerGram: perGram,
-        currency: 'EGP',
-        timestamp: local.updatedAt,
-        change24h: silver999.change,
-        changePercent24h: silver999.changePercent,
-      ));
+    if (local.isEgypt) {
+      final silver999 = local.silverKarat('999');
+      if (silver999 != null) {
+        final perGram = silver999.priceFor(side);
+        ref.read(silverPriceProvider.notifier).updatePrice(MetalPrice(
+          metal: 'Silver',
+          pricePerOunce: perGram * _ounceToGram,
+          pricePerGram: perGram,
+          currency: local.currency,
+          timestamp: local.updatedAt,
+          change24h: silver999.change,
+          changePercent24h: silver999.changePercent,
+        ));
+      }
     }
   }
 }
@@ -349,7 +373,7 @@ double? activeGoldKaratPrice({
 
 String buildLocalMarketPrompt(LocalMarketPrices local, PriceSide side) {
   final buffer = StringBuffer();
-  buffer.writeln('Egypt local market prices from iSagha (${side.name} prices):');
+  buffer.writeln('Egypt local market prices (${side.name} prices):');
   for (final row in local.gold) {
     final label = row.karat == 'gold_pound' ? 'Gold Pound' : '${row.karat}K';
     buffer.writeln(

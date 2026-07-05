@@ -28,14 +28,21 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
   int _selectedKarat = 24;
   double _totalValue = 0.0;
 
-  final List<int> _karatOptions = [24, 22, 21, 18];
+  List<int> _karatOptionsFor(String currency) {
+    if (currency == 'INR') return [24, 22, 18];
+    return [24, 22, 21, 18];
+  }
+
+  int _defaultKaratFor(String currency) {
+    if (currency == 'EGP') return 21;
+    if (currency == 'INR') return 22;
+    return 24;
+  }
 
   @override
   void initState() {
     super.initState();
-    // Default to 24K globally; Egypt's local market conventionally uses 21K.
-    _selectedKarat =
-        ref.read(selectedCurrencyProvider) == 'EGP' ? 21 : 24;
+    _selectedKarat = _defaultKaratFor(ref.read(selectedCurrencyProvider));
   }
 
   @override
@@ -95,16 +102,27 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
   Widget build(BuildContext context) {
     final isLocal = ref.watch(isLocalMarketProvider);
     final priceSide = ref.watch(priceSideProvider);
+    final currency = ref.watch(selectedCurrencyProvider);
+    final karatOptions = _karatOptionsFor(currency);
 
     ref.listen(selectedCurrencyProvider, (prev, next) {
-      if (next == 'EGP' && _selectedKarat == 24) {
-        setState(() => _selectedKarat = 21);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(context.tr('calculator.egypt_21k_note')),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+      final options = _karatOptionsFor(next);
+      final defaultKarat = _defaultKaratFor(next);
+      if (!options.contains(_selectedKarat) || next == 'EGP' || next == 'INR') {
+        if (_selectedKarat != defaultKarat) {
+          setState(() => _selectedKarat = defaultKarat);
+          if (next == 'EGP' || next == 'INR') {
+            final noteKey = next == 'EGP'
+                ? 'calculator.egypt_21k_note'
+                : 'calculator.india_22k_note';
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(context.tr(noteKey)),
+                duration: const Duration(seconds: 3),
+              ),
+            );
+          }
+        }
       }
       _calculateValue();
     });
@@ -161,12 +179,13 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      // TODO(i18n-review): verify ar/ur wording for 'calculator.local_note'
-                      context.tr('calculator.local_note', namedArgs: {
-                        'side': priceSide.name == 'sell'
-                            ? context.tr('charts.sell')
-                            : context.tr('charts.buy'),
-                      }),
+                      currency == 'INR'
+                          ? context.tr('calculator.local_note_india')
+                          : context.tr('calculator.local_note', namedArgs: {
+                              'side': priceSide.name == 'sell'
+                                  ? context.tr('charts.sell')
+                                  : context.tr('charts.buy'),
+                            }),
                       style: theme.textTheme.bodySmall,
                     ),
                   ),
@@ -181,7 +200,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                 ),
                 const SizedBox(height: 12),
                 Row(
-                  children: _karatOptions.map((karat) {
+                  children: karatOptions.map((karat) {
                     final isSelected = _selectedKarat == karat;
                     return Expanded(
                       child: Padding(
