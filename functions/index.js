@@ -203,13 +203,21 @@ async function refreshPrices() {
   }
 
   if (localEgpResult.status === 'fulfilled' && localEgpResult.value) {
-    logger.info('EGP local prices updated from iSagha');
+    if (localEgpResult.value.skippedWrite) {
+      logger.info('EGP local prices unchanged — skipped Firestore write');
+    } else {
+      logger.info('EGP local prices updated from iSagha');
+    }
   } else if (localEgpResult.status === 'rejected') {
     logger.warn('EGP local price fetch failed', localEgpResult.reason);
   }
 
   if (localInrResult.status === 'fulfilled' && localInrResult.value) {
-    logger.info('INR local prices updated from Goodreturns');
+    if (localInrResult.value.skippedWrite) {
+      logger.info('INR local prices unchanged — skipped Firestore write');
+    } else {
+      logger.info('INR local prices updated from Goodreturns');
+    }
   } else if (localInrResult.status === 'rejected') {
     logger.warn('INR local price fetch failed', localInrResult.reason);
   }
@@ -228,6 +236,22 @@ async function refreshPrices() {
         ? localInrResult.value
         : ctx.localInr,
   };
+}
+
+function utcYmd(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(
+    date.getUTCDate(),
+  )}`;
+}
+
+/// Cached Groq one-liner from metadata/dailyInsight (at most one call/day).
+async function loadCachedDailyInsightAiLine() {
+  const doc = await db.collection('metadata').doc('dailyInsight').get();
+  if (!doc.exists) return null;
+  const data = doc.data();
+  if (data?.ymd !== utcYmd()) return null;
+  return data?.aiLine ?? null;
 }
 
 async function processDueReactivations(ctx) {
@@ -266,12 +290,13 @@ exports.checkPriceAlerts = onSchedule(
     schedule: 'every 60 minutes',
     timeZone: 'UTC',
     retryCount: 0,
-    memory: '256MiB',
+    memory: '128MiB',
     timeoutSeconds: 120,
     maxInstances: 1,
   },
   async () => {
-    const ctx = await refreshPrices();
+    // Read server-maintained cache only — refreshPricesScheduled keeps prices fresh.
+    const ctx = await loadPriceContextFromFirestore(db);
 
     const reactivated = await processDueReactivations(ctx);
     if (reactivated > 0) {
@@ -360,11 +385,11 @@ exports.checkPriceAlerts = onSchedule(
 
 // Keeps the shared price cache fresh. This is now the ONLY writer of the
 // `prices/*` documents — clients read them but no longer write (Firestore
-// rules deny client writes). Runs more often than the hourly alert check so
-// the in-app data stays current.
+// rules deny client writes). Global spot refreshes every 30 min; local
+// EGP/INR markets refresh at most once per hour when unchanged.
 exports.refreshPricesScheduled = onSchedule(
   {
-    schedule: 'every 15 minutes',
+    schedule: 'every 30 minutes',
     timeZone: 'UTC',
     retryCount: 0,
     memory: '256MiB',
@@ -496,7 +521,7 @@ exports.sendDailyDigest = onSchedule(
     schedule: 'every 30 minutes',
     timeZone: 'UTC',
     retryCount: 0,
-    memory: '256MiB',
+    memory: '128MiB',
     timeoutSeconds: 120,
     maxInstances: 1,
   },
@@ -516,6 +541,9 @@ exports.sendDailyDigest = onSchedule(
       logger.info('Digest: no subscribers');
       return;
     }
+
+    // Reuse the single daily Groq line from metadata/dailyInsight (not per user).
+    const cachedAiLine = await loadCachedDailyInsightAiLine();
 
     const now = Date.now();
     const pad = (n) => String(n).padStart(2, '0');
@@ -545,8 +573,7 @@ exports.sendDailyDigest = onSchedule(
       if (nums.goldPerGram == null) continue;
 
       let body = digestBody(nums, currency);
-      const ai = await aiDigestLine(nums, currency);
-      if (ai) body = `${ai}\n${body}`;
+      if (cachedAiLine) body = `${cachedAiLine}\n${body}`;
 
       const ok = await sendDigestPush(token, 'GoldSignal daily digest', body);
       if (ok) {
@@ -780,23 +807,21 @@ async function processWatchlistMoveAlerts(ctx) {
 }
 
 async function updateDailyInsightCache(ctx) {
-  const pad = (n) => String(n).padStart(2, '0');
-  const now = new Date();
-  const ymd = `${now.getUTCFullYear()}-${pad(now.getUTCMonth() + 1)}-${pad(
-    now.getUTCDate(),
-  )}`;
+  const ymd = utcYmd();
 
   const doc = await db.collection('metadata').doc('dailyInsight').get();
   if (doc.exists && doc.data()?.ymd === ymd) return;
 
   const nums = digestNumbers(ctx, 'USD');
-  let text = digestBody(nums, 'USD');
-  const ai = await aiDigestLine(nums, 'USD');
-  if (ai) text = ai;
+  const priceBody = digestBody(nums, 'USD');
+  const aiLine = await aiDigestLine(nums, 'USD');
+  const text = aiLine || priceBody;
 
   await db.collection('metadata').doc('dailyInsight').set({
     ymd,
     text,
+    aiLine: aiLine ?? null,
+    priceBody,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 }
@@ -830,7 +855,7 @@ exports.sendReEngagement = onSchedule(
     schedule: 'every 24 hours',
     timeZone: 'UTC',
     retryCount: 0,
-    memory: '256MiB',
+    memory: '128MiB',
     timeoutSeconds: 300,
     maxInstances: 1,
   },

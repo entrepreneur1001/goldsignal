@@ -30,6 +30,29 @@ const FETCH_HEADERS = {
   'Accept-Language': 'ar-EG,ar;q=0.9,en;q=0.8',
 };
 
+/** Local EGP/INR markets update less frequently than global spot. */
+const LOCAL_REFRESH_MAX_AGE_MS = 60 * 60 * 1000;
+
+function stableHash(value) {
+  return JSON.stringify(value);
+}
+
+function docUpdatedAtMs(data) {
+  const updatedAt = data?.updatedAt;
+  if (!updatedAt) return null;
+  if (typeof updatedAt.toDate === 'function') return updatedAt.toDate().getTime();
+  if (updatedAt instanceof Date) return updatedAt.getTime();
+  return null;
+}
+
+async function isPriceDocStale(db, docId, maxAgeMs) {
+  const snap = await db.collection('prices').doc(docId).get();
+  if (!snap.exists) return true;
+  const updatedMs = docUpdatedAtMs(snap.data());
+  if (updatedMs == null) return true;
+  return Date.now() - updatedMs > maxAgeMs;
+}
+
 async function fetchHtml(url, headers = FETCH_HEADERS) {
   const response = await fetch(url, { headers });
   if (!response.ok) {
@@ -216,6 +239,11 @@ async function writeGlobalPrices(db, apiResponse) {
     prevRates = existingData.rates;
   }
 
+  const nextHash = stableHash(apiResponse.rates);
+  if (existingData?.rates && stableHash(existingData.rates) === nextHash) {
+    return { rates: existingData.rates, prevRates, skippedWrite: true };
+  }
+
   await docRef.set({
     rates: apiResponse.rates,
     prevRates,
@@ -225,11 +253,24 @@ async function writeGlobalPrices(db, apiResponse) {
     source: apiResponse.source ?? 'cloud_function',
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
+  return { rates: apiResponse.rates, prevRates, skippedWrite: false };
 }
 
 async function writeLocalEgpPrices(db, gold, silver) {
   if (Object.keys(gold).length === 0 && Object.keys(silver).length === 0) {
     return null;
+  }
+
+  const docRef = db.collection('prices').doc('local_EGP');
+  const existing = await docRef.get();
+  const existingData = existing.exists ? existing.data() : null;
+  const nextHash = stableHash({ gold, silver });
+  if (
+    existingData?.gold &&
+    existingData?.silver &&
+    stableHash({ gold: existingData.gold, silver: existingData.silver }) === nextHash
+  ) {
+    return { ...existingData, skippedWrite: true };
   }
 
   const data = {
@@ -241,13 +282,25 @@ async function writeLocalEgpPrices(db, gold, silver) {
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
 
-  await db.collection('prices').doc('local_EGP').set(data);
+  await docRef.set(data);
   return data;
 }
 
 async function writeLocalInrPrices(db, gold, silver) {
   if (Object.keys(gold).length === 0 && Object.keys(silver).length === 0) {
     return null;
+  }
+
+  const docRef = db.collection('prices').doc('local_INR');
+  const existing = await docRef.get();
+  const existingData = existing.exists ? existing.data() : null;
+  const nextHash = stableHash({ gold, silver });
+  if (
+    existingData?.gold &&
+    existingData?.silver &&
+    stableHash({ gold: existingData.gold, silver: existingData.silver }) === nextHash
+  ) {
+    return { ...existingData, skippedWrite: true };
   }
 
   const data = {
@@ -259,7 +312,7 @@ async function writeLocalInrPrices(db, gold, silver) {
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
 
-  await db.collection('prices').doc('local_INR').set(data);
+  await docRef.set(data);
   return data;
 }
 
@@ -393,16 +446,24 @@ async function scrapeIsaghaLocal() {
 async function fetchAndUpdateGlobalPrices(db) {
   const apiResponse = await scrapeLivePriceOfGold();
   apiResponse.source = 'scraper';
-  await writeGlobalPrices(db, apiResponse);
-  return apiResponse.rates;
+  const result = await writeGlobalPrices(db, apiResponse);
+  return result.rates;
 }
 
-async function fetchAndUpdateLocalEgp(db) {
+async function fetchAndUpdateLocalEgp(db, { force = false } = {}) {
+  if (!force && !(await isPriceDocStale(db, 'local_EGP', LOCAL_REFRESH_MAX_AGE_MS))) {
+    const snap = await db.collection('prices').doc('local_EGP').get();
+    return snap.exists ? snap.data() : null;
+  }
   const { gold, silver } = await scrapeIsaghaLocal();
   return writeLocalEgpPrices(db, gold, silver);
 }
 
-async function fetchAndUpdateLocalInr(db) {
+async function fetchAndUpdateLocalInr(db, { force = false } = {}) {
+  if (!force && !(await isPriceDocStale(db, 'local_INR', LOCAL_REFRESH_MAX_AGE_MS))) {
+    const snap = await db.collection('prices').doc('local_INR').get();
+    return snap.exists ? snap.data() : null;
+  }
   const { gold, silver } = await scrapeGoodreturnsIndia();
   return writeLocalInrPrices(db, gold, silver);
 }
@@ -425,6 +486,7 @@ async function loadPriceContextFromFirestore(db) {
 
 module.exports = {
   OUNCE_TO_GRAM,
+  LOCAL_REFRESH_MAX_AGE_MS,
   fetchAndUpdateGlobalPrices,
   fetchAndUpdateLocalEgp,
   fetchAndUpdateLocalInr,

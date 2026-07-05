@@ -52,8 +52,8 @@ class MetalPriceApiService {
 
   /// How fresh the server-maintained shared cache must be for the client to
   /// use it directly instead of scraping. Slightly above the Cloud Function's
-  /// 15-minute refresh cadence to tolerate run-time jitter.
-  static const _sharedCacheMaxAge = Duration(seconds: 20);
+  /// 30-minute refresh cadence to tolerate run-time jitter.
+  static const _sharedCacheMaxAge = Duration(minutes: 32);
 
   /// Return cached prices from Hive instantly (any age). Returns null if empty.
   MetalPricesResponse? getCachedPrices() {
@@ -73,7 +73,7 @@ class MetalPriceApiService {
   /// Cloud Function is the sole writer of the shared price documents.
   Future<MetalPricesResponse> fetchFreshPrices() async {
     try {
-      // --- Primary: server-maintained shared cache (~15 min refresh) ---
+      // --- Primary: server-maintained shared cache (~30 min refresh) ---
       final shared = await _firestoreService.getCachedPrices(
         'latest',
         maxAge: _sharedCacheMaxAge,

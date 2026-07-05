@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/firebase/firestore_price_service.dart';
 import '../../core/api/isagha_price_scraper.dart';
 import '../../core/api/goodreturns_price_scraper.dart';
 import '../../core/crash/crash_reporter.dart';
@@ -26,6 +27,10 @@ final priceHistoryServiceProvider = Provider<PriceHistoryService>((ref) {
 final firestorePriceHistoryServiceProvider =
     Provider<FirestorePriceHistoryService>((ref) {
   return FirestorePriceHistoryService();
+});
+
+final firestorePriceServiceProvider = Provider<FirestorePriceService>((ref) {
+  return FirestorePriceService();
 });
 
 final isaghaScraperProvider = Provider<IsaghaPriceScraper>((ref) {
@@ -174,14 +179,19 @@ class MarketPricesController extends Notifier<MarketPricesState> {
   }
 
   Future<void> _refreshLocalEgypt() async {
+    final firestore = ref.read(firestorePriceServiceProvider);
     final scraper = ref.read(isaghaScraperProvider);
     LocalMarketPrices? local;
 
-    try {
-      local = await scraper.fetchLatestPrices();
-    } catch (_) {
-      local = scraper.getCachedPrices();
-      if (local == null) rethrow;
+    local = await firestore.getCachedLocalMarketPrices('EGP');
+    if (local == null) {
+      try {
+        local = await scraper.fetchLatestPrices();
+      } catch (_) {
+        local = await firestore.getStaleLocalMarketPrices('EGP') ??
+            scraper.getCachedPrices();
+        if (local == null) rethrow;
+      }
     }
 
     ref.read(localMarketPricesProvider.notifier).update(local);
@@ -202,14 +212,19 @@ class MarketPricesController extends Notifier<MarketPricesState> {
   }
 
   Future<void> _refreshLocalIndia() async {
+    final firestore = ref.read(firestorePriceServiceProvider);
     final scraper = ref.read(goodreturnsScraperProvider);
     LocalMarketPrices? local;
 
-    try {
-      local = await scraper.fetchLatestPrices();
-    } catch (_) {
-      local = scraper.getCachedPrices();
-      if (local == null) rethrow;
+    local = await firestore.getCachedLocalMarketPrices('INR');
+    if (local == null) {
+      try {
+        local = await scraper.fetchLatestPrices();
+      } catch (_) {
+        local = await firestore.getStaleLocalMarketPrices('INR') ??
+            scraper.getCachedPrices();
+        if (local == null) rethrow;
+      }
     }
 
     ref.read(localMarketPricesProvider.notifier).update(local);
