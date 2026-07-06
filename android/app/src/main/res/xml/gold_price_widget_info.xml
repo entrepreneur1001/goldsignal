@@ -6,6 +6,7 @@
     android:targetCellHeight="2"
     android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/gold_price_widget"
+    android:previewLayout="@layout/gold_price_widget"
     android:resizeMode="horizontal|vertical"
     android:widgetCategory="home_screen"
     android:label="@string/widget_name"

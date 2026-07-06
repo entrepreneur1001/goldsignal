@@ -114,6 +114,7 @@ class HomeWidgetService {
         name: _widgetName,
         androidName: _widgetName,
         iOSName: _widgetName,
+        qualifiedAndroidName: _qualifiedAndroidName,
       );
     } catch (e, st) {
       reportNonFatal(e, st, reason: 'HomeWidget.updateBoard failed');
