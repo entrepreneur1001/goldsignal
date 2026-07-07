@@ -263,7 +263,6 @@ class PriceHistoryService {
     final current = api.getCachedPrices();
     if (current == null) return [];
 
-    final previous = api.getPreviousPrices();
     final points = <ChartDataPoint>[];
 
     double? valueFrom(MetalPricesResponse response) {
@@ -278,10 +277,31 @@ class PriceHistoryService {
       return ounce / _ounceToGram;
     }
 
-    if (previous != null) {
-      final prevValue = valueFrom(previous);
-      if (prevValue != null) {
-        points.add(ChartDataPoint(date: previous.timestamp, value: prevValue));
+    double? previousValueFromServerBaseline() {
+      final ounce = metal == 'gold'
+          ? current.goldPreviousIn(currency)
+          : current.silverPreviousIn(currency);
+      if (ounce == null) return null;
+      if (metal == 'gold') {
+        final purity = (int.tryParse(karat) ?? 24) / 24;
+        return (ounce / _ounceToGram) * purity;
+      }
+      return ounce / _ounceToGram;
+    }
+
+    final serverPrev = previousValueFromServerBaseline();
+    if (serverPrev != null) {
+      points.add(ChartDataPoint(
+        date: current.timestamp.subtract(const Duration(hours: 24)),
+        value: serverPrev,
+      ));
+    } else {
+      final previous = api.getPreviousPrices();
+      if (previous != null) {
+        final prevValue = valueFrom(previous);
+        if (prevValue != null) {
+          points.add(ChartDataPoint(date: previous.timestamp, value: prevValue));
+        }
       }
     }
 

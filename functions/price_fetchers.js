@@ -22,6 +22,8 @@ const CURRENCY_SELECTORS = {
   CNY: 'USDCNY',
   INR: 'USDINR',
   PKR: 'USDPKR',
+  CAD: 'USDCAD',
+  AUD: 'USDAUD',
   TRY: 'USDTL',
 };
 
