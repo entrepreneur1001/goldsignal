@@ -116,6 +116,55 @@ bool isPriceStale(
       metalMoved(cached.silverChange24hPct, current.silverChange24hPct);
 }
 
+/// Escapes control characters that appear unescaped inside JSON string
+/// literals. LLMs routinely emit raw newlines within string values, which
+/// [jsonDecode] rejects; whitespace between tokens is left untouched.
+String _escapeControlCharsInStrings(String input) {
+  final buffer = StringBuffer();
+  var inString = false;
+  var escaped = false;
+  for (final code in input.runes) {
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        buffer.writeCharCode(code);
+        continue;
+      }
+      if (code == 0x5C) {
+        // backslash
+        escaped = true;
+        buffer.writeCharCode(code);
+        continue;
+      }
+      if (code == 0x22) {
+        // closing quote
+        inString = false;
+        buffer.writeCharCode(code);
+        continue;
+      }
+      if (code < 0x20) {
+        switch (code) {
+          case 0x0A:
+            buffer.write(r'\n');
+          case 0x0D:
+            buffer.write(r'\r');
+          case 0x09:
+            buffer.write(r'\t');
+          default:
+            // Drop other control characters; they carry no content.
+            break;
+        }
+        continue;
+      }
+      buffer.writeCharCode(code);
+    } else {
+      if (code == 0x22) inString = true;
+      buffer.writeCharCode(code);
+    }
+  }
+  return buffer.toString();
+}
+
 /// Parses the trilingual JSON shape returned by the portfolio analysis prompt.
 Map<String, String> parseTrilingualAnalysisJson(String raw) {
   var body = raw.trim();
@@ -123,7 +172,13 @@ Map<String, String> parseTrilingualAnalysisJson(String raw) {
     body = body.replaceFirst(RegExp(r'^```(?:json)?\s*'), '');
     body = body.replaceFirst(RegExp(r'\s*```$'), '');
   }
-  final decoded = jsonDecode(body);
+  // Tolerate prose around the payload: keep only the outermost {...}.
+  final start = body.indexOf('{');
+  final end = body.lastIndexOf('}');
+  if (start >= 0 && end > start) {
+    body = body.substring(start, end + 1);
+  }
+  final decoded = jsonDecode(_escapeControlCharsInStrings(body));
   if (decoded is! Map) {
     throw const FormatException('Expected JSON object');
   }

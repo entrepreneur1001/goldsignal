@@ -119,5 +119,44 @@ void main() {
         throwsFormatException,
       );
     });
+
+    test('escapes raw newlines inside string values', () {
+      final result = parseTrilingualAnalysisJson(
+        '{"en":"First paragraph.\n\nSecond paragraph.",\n"ar":"سطر\nآخر","ur":"پہلا\nدوسرا"}',
+      );
+      expect(result['en'], 'First paragraph.\n\nSecond paragraph.');
+      expect(result['ar'], 'سطر\nآخر');
+      expect(result['ur'], 'پہلا\nدوسرا');
+    });
+
+    test('handles tabs and carriage returns inside strings', () {
+      final result = parseTrilingualAnalysisJson(
+        '{"en":"col1\tcol2\r\nnext"}',
+      );
+      expect(result['en'], 'col1\tcol2\r\nnext');
+    });
+
+    test('keeps already-escaped sequences intact', () {
+      final result = parseTrilingualAnalysisJson(
+        r'{"en":"line one\nline two \"quoted\""}',
+      );
+      expect(result['en'], 'line one\nline two "quoted"');
+    });
+
+    test('ignores prose around the JSON object', () {
+      final result = parseTrilingualAnalysisJson(
+        'Here is your analysis:\n{"en":"Hi","ar":"أهلا","ur":"ہیلو"}\nHope this helps!',
+      );
+      expect(result['en'], 'Hi');
+    });
+
+    test('throws on truncated JSON', () {
+      expect(
+        () => parseTrilingualAnalysisJson(
+          '{"en":"complete","ar":"مقطوع في المنتص',
+        ),
+        throwsFormatException,
+      );
+    });
   });
 }

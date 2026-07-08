@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/ai/portfolio_analysis_fingerprint.dart';
 import '../../core/ai/portfolio_context_builder.dart';
 import '../../core/analytics/analytics_service.dart';
+import '../../core/crash/crash_reporter.dart';
 import '../../core/firebase/firestore_portfolio_analysis_service.dart';
 import '../../core/utils/api_config.dart';
 import '../models/portfolio_item.dart';
@@ -245,12 +246,14 @@ class PortfolioAnalysisNotifier extends Notifier<PortfolioAnalysisState> {
         text: cache.textForLocale(locale),
         expanded: state.expanded,
       );
-    } on GroqException catch (e) {
+    } on GroqException catch (e, st) {
+      reportNonFatal(e, st, reason: 'portfolio_analysis_generate');
       state = state.copyWith(
         status: PortfolioAnalysisStatus.error,
         errorMessage: e.message,
       );
-    } catch (e) {
+    } catch (e, st) {
+      reportNonFatal(e, st, reason: 'portfolio_analysis_generate');
       state = state.copyWith(
         status: PortfolioAnalysisStatus.error,
         errorMessage: e.toString(),
@@ -331,7 +334,9 @@ class PortfolioAnalysisNotifier extends Notifier<PortfolioAnalysisState> {
       apiKey: ApiConfig.groqApiKey,
       configuration: Configuration(
         model: 'llama-3.3-70b-versatile',
-        maxCompletionTokens: 1800,
+        // The trilingual payload needs ~3000 tokens; a tighter cap truncates
+        // the JSON mid-string and the parse fails.
+        maxCompletionTokens: 10000,
         temperature: 0.6,
       ),
     );
@@ -352,7 +357,8 @@ Cover briefly:
 - Practical next steps (DCA, rebalancing ideas, zakat awareness if relevant)
 
 Respond with ONLY valid JSON (no markdown fences) in this exact shape:
-{"en":"English analysis (3-5 short paragraphs or bullets)","ar":"Arabic translation","ur":"Urdu translation"}''';
+{"en":"English analysis (3-5 short paragraphs or bullets)","ar":"Arabic translation","ur":"Urdu translation"}
+Output the JSON on a single line; escape line breaks inside strings as \\n.''';
 
     groq.setCustomInstructionsWith(systemPrompt);
     final response = await groq.sendMessage(
