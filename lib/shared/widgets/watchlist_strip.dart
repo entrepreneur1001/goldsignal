@@ -77,7 +77,7 @@ class _WatchlistTile extends ConsumerWidget {
             label: quote.entry.label,
             pricePerGram: quote.pricePerGram,
             currency: quote.currency,
-            changePercent: quote.changePercent,
+            changePercent: quote.changePercent ?? 0,
             config: config,
             isGold: quote.entry.metal == 'gold',
           );

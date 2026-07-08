@@ -116,11 +116,15 @@ class FirestorePriceService {
     return raw.entries.map((entry) {
       final karat = entry.key as String;
       final row = Map<String, dynamic>.from(entry.value as Map);
+      final sell = (row['sellPerGram'] as num).toDouble();
+      final pct = (row['changePercent'] as num?)?.toDouble() ?? 0;
       return LocalKaratPrice(
         karat: karat,
-        sellPerGram: (row['sellPerGram'] as num).toDouble(),
+        sellPerGram: sell,
         buyPerGram: (row['buyPerGram'] as num).toDouble(),
-        changePercent: (row['changePercent'] as num?)?.toDouble() ?? 0,
+        changePercent: pct,
+        change: (row['change'] as num?)?.toDouble() ??
+            (pct != 0 ? sell - sell / (1 + pct / 100) : 0),
       );
     }).toList();
   }

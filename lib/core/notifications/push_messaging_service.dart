@@ -33,31 +33,33 @@ class PushMessagingService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FirestorePriceAlertsService _firestoreAlerts =
       FirestorePriceAlertsService();
-  bool _initialized = false;
+  bool _listenersInitialized = false;
   PriceAlertPushCallback? onPriceAlertReceived;
 
   Future<void> initialize() async {
-    if (_initialized || kIsWeb) return;
+    if (kIsWeb) return;
 
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    if (!_listenersInitialized) {
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-    await _messaging.setForegroundNotificationPresentationOptions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+      await _messaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
 
-    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleOpenedMessage);
+      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+      FirebaseMessaging.onMessageOpenedApp.listen(_handleOpenedMessage);
 
-    final initial = await _messaging.getInitialMessage();
-    if (initial != null) {
-      _handleOpenedMessage(initial);
+      final initial = await _messaging.getInitialMessage();
+      if (initial != null) {
+        _handleOpenedMessage(initial);
+      }
+
+      _messaging.onTokenRefresh.listen(_persistToken);
+      _listenersInitialized = true;
     }
 
-    _messaging.onTokenRefresh.listen(_persistToken);
-
-    _initialized = true;
     await refreshToken();
   }
 

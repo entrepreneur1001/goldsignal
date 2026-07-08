@@ -282,18 +282,15 @@ class PriceAlertsNotifier extends Notifier<PriceAlertsState> {
         api.getCachedPrices();
     if (global == null) return null;
 
-    final currentOunce = alert.metal == 'gold'
-        ? global.goldPriceIn(alert.currency)
-        : global.silverPriceIn(alert.currency);
-    if (currentOunce == null) return null;
-
-    final delta = api.computeChange(
-      current: currentOunce,
-      previousPrice: (prev) => alert.metal == 'gold'
-          ? prev.goldPriceIn(alert.currency)
-          : prev.silverPriceIn(alert.currency),
+    final delta = api.change24hFor(
+      response: global,
+      metal: alert.metal,
+      currency: alert.currency,
+      historyPercent: ref
+          .read(priceHistoryServiceProvider)
+          .globalChange24hPercent(currency: alert.currency, metal: alert.metal),
     );
-    return delta.changePercent;
+    return delta?.changePercent;
   }
 
   bool _isTriggered(PriceAlert alert, double? current) {

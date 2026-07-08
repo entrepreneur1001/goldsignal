@@ -10,6 +10,7 @@ import '../../../../shared/models/price_snapshot.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/providers/price_history_provider.dart';
 import '../../../../shared/widgets/alerts_nav_button.dart';
+import '../../chart_span_label.dart';
 
 class PriceChartScreen extends ConsumerWidget {
   const PriceChartScreen({super.key});
@@ -67,7 +68,7 @@ class PriceChartScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           if (chartState.points.isNotEmpty)
-            _buildSummary(context, chartState.points, query.currency),
+            _buildSummary(context, chartState.points, query.currency, query.range),
           if (chartState.error != null) ...[
             const SizedBox(height: 12),
             Text(
@@ -279,6 +280,7 @@ class PriceChartScreen extends ConsumerWidget {
     BuildContext context,
     List<ChartDataPoint> points,
     String currency,
+    ChartRange selectedRange,
   ) {
     final firstPoint = points.first;
     final lastPoint = points.last;
@@ -287,6 +289,12 @@ class PriceChartScreen extends ConsumerWidget {
     final change = last - first;
     final changePct = first != 0 ? (change / first) * 100 : 0.0;
     final isUp = change >= 0;
+    final span = lastPoint.date.difference(firstPoint.date);
+    final spanLabel = formatChartChangeSpanLabel(span);
+    final selectedDuration = Duration(days: selectedRange.days);
+    final isPartialRange =
+        selectedDuration.inMilliseconds > 0 &&
+        span < selectedDuration * 0.6;
     final firstDay = DateTime(
       firstPoint.date.year,
       firstPoint.date.month,
@@ -315,7 +323,7 @@ class PriceChartScreen extends ConsumerWidget {
                 ),
                 _summaryItem(
                   context,
-                  context.tr('charts.change'),
+                  context.tr('charts.change_over', namedArgs: {'span': spanLabel}),
                   '${formatCurrency(change, currency, showSign: true)} (${isUp ? '+' : ''}${changePct.toStringAsFixed(2)}%)',
                   color: isUp ? Colors.green : Colors.red,
                 ),
@@ -331,6 +339,17 @@ class PriceChartScreen extends ConsumerWidget {
               const SizedBox(height: 8),
               Text(
                 context.tr('charts.flat'),
+                style: Theme.of(context).textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
+            if (isPartialRange && !isFlatSameDay) ...[
+              const SizedBox(height: 8),
+              Text(
+                context.tr(
+                  'charts.partial_range',
+                  namedArgs: {'span': formatChartSpanCaption(span)},
+                ),
                 style: Theme.of(context).textTheme.bodySmall,
                 textAlign: TextAlign.center,
               ),

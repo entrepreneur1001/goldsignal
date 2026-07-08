@@ -58,7 +58,17 @@ class GoodreturnsPriceScraper {
         .where((k) => prices[k] != null)
         .map((karat) {
           final price = prices[karat]!;
-          final change = changes[karat] ?? 0.0;
+          var change = changes[karat] ?? 0.0;
+          if (karat == '18' && change == 0) {
+            final change24 = changes['24'] ?? 0.0;
+            final price24 = prices['24'];
+            if (price24 != null && change24 != 0) {
+              final prev24 = price24 - change24;
+              final pct24 =
+                  prev24 != 0 ? (change24 / prev24) * 100 : 0.0;
+              change = price - price / (1 + pct24 / 100);
+            }
+          }
           final previous = price - change;
           final changePercent =
               previous != 0 ? (change / previous) * 100 : 0.0;

@@ -44,8 +44,8 @@ class WidgetMetalRow {
   final String metal; // 'gold' | 'silver'
   final String label;
   final double pricePerGram;
-  final double changeValue;
-  final double changePercent;
+  final double? changeValue;
+  final double? changePercent;
 
   const WidgetMetalRow({
     required this.metal,
@@ -55,18 +55,20 @@ class WidgetMetalRow {
     required this.changePercent,
   });
 
-  bool get isPositive => changePercent >= 0;
+  bool get isPositive => (changePercent ?? 0) >= 0;
 
   String get formattedPrice => _formatNumber(pricePerGram, decimals: 2);
 
   String get formattedChange {
-    final sign = changeValue > 0 ? '+' : '';
-    return '$sign${_formatNumber(changeValue, decimals: 2)}';
+    if (changeValue == null) return '—';
+    final sign = changeValue! > 0 ? '+' : '';
+    return '$sign${_formatNumber(changeValue!, decimals: 2)}';
   }
 
   String get formattedChangePercent {
+    if (changePercent == null) return '—';
     final sign = isPositive ? '+' : '';
-    return '$sign${changePercent.toStringAsFixed(2)}%';
+    return '$sign${changePercent!.toStringAsFixed(2)}%';
   }
 }
 
@@ -283,8 +285,10 @@ WidgetBoardData? _resolveWidgetBoard(Ref ref) {
       metal: metal,
       label: widgetLabelFor(metal: metal, karat: karat),
       pricePerGram: perGram,
-      changeValue: (delta.change / _ounceToGram) * purity,
-      changePercent: delta.changePercent,
+      changeValue: delta == null
+          ? null
+          : (delta.change / _ounceToGram) * purity,
+      changePercent: delta?.changePercent,
     );
   }
 

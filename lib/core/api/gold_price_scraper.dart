@@ -46,7 +46,6 @@ class GoldPriceScraper {
 
     final goldHtml = results[0].data as String;
     final goldSilver = _parseGoldSilverPrices(goldHtml);
-    final opens = _parseGoldSilverOpens(goldHtml); // day's open = 24h baseline
     final exchangeRates = _parseExchangeRates(results[1].data as String);
 
     // Validate critical data
@@ -57,12 +56,6 @@ class GoldPriceScraper {
       throw FormatException('Too few exchange rates scraped: ${exchangeRates.length}');
     }
 
-    // Carry the day's open as `prevRates` (same FX as current → the change %
-    // matches the gold/silver spot daily change shown on the source). The
-    // 24h-change logic uses this as the baseline (see change24hFor).
-    final Map<String, double>? prevRates =
-        opens.isEmpty ? null : {...opens, ...exchangeRates};
-
     return {
       'success': true,
       'base': 'USD',
@@ -71,29 +64,7 @@ class GoldPriceScraper {
         ...goldSilver,
         ...exchangeRates,
       },
-      'prevRates': ?prevRates,
     };
-  }
-
-  /// Reads the `data-open` attribute (the trading-day open) for gold & silver
-  /// spot — used as the previous baseline for the 24h change.
-  Map<String, double> _parseGoldSilverOpens(String html) {
-    final document = html_parser.parse(html);
-    final opens = <String, double>{};
-
-    final goldOpen = _cleanPrice(
-        document.querySelector('[data-price="XAUUSD"]')?.attributes['data-open'] ?? '');
-    if (goldOpen != null && goldOpen > 500 && goldOpen < 50000) {
-      opens['USDXAU'] = goldOpen;
-    }
-
-    final silverOpen = _cleanPrice(
-        document.querySelector('[data-price="XAGUSD"]')?.attributes['data-open'] ?? '');
-    if (silverOpen != null && silverOpen > 5 && silverOpen < 500) {
-      opens['USDXAG'] = silverOpen;
-    }
-
-    return opens;
   }
 
   Map<String, double> _parseGoldSilverPrices(String html) {

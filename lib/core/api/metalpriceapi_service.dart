@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -105,6 +106,51 @@ class MetalPriceApiService {
 
   static const _prevBaselineHours = 20;
 
+  /// Minimum/maximum age for a baseline snapshot to count as a 24h reference.
+  static const baselineMinHours = 12;
+  static const baselineMaxHours = 48;
+
+  /// Returns true when [baselineAt] is absent (legacy docs) or 12–48h old.
+  static bool isBaselineAgeValid(DateTime? baselineAt, [DateTime? now]) {
+    if (baselineAt == null) return true;
+    final hours = (now ?? DateTime.now()).difference(baselineAt).inHours;
+    return hours >= baselineMinHours && hours <= baselineMaxHours;
+  }
+
+  /// Pure tier selection for 24h change. Null = no trustworthy baseline.
+  static ({double change, double changePercent})? select24hChange({
+    required double current,
+    double? serverPrev,
+    DateTime? serverPrevAt,
+    double? historyPercent,
+    double? hivePrev,
+    DateTime? hivePrevAt,
+    DateTime? now,
+  }) {
+    final checkTime = now ?? DateTime.now();
+
+    if (serverPrev != null &&
+        serverPrev != 0 &&
+        isBaselineAgeValid(serverPrevAt, checkTime)) {
+      final delta = current - serverPrev;
+      return (change: delta, changePercent: (delta / serverPrev) * 100);
+    }
+
+    if (historyPercent != null) {
+      final prev = current / (1 + historyPercent / 100);
+      return (change: current - prev, changePercent: historyPercent);
+    }
+
+    if (hivePrev != null &&
+        hivePrev != 0 &&
+        isBaselineAgeValid(hivePrevAt, checkTime)) {
+      final delta = current - hivePrev;
+      return (change: delta, changePercent: (delta / hivePrev) * 100);
+    }
+
+    return null;
+  }
+
   /// Save current cache as previous (for 24h change), then write new data.
   /// Previous baseline is only rotated when the outgoing cache is old enough,
   /// so change reflects ~24h movement instead of the last refresh delta.
@@ -166,6 +212,11 @@ class MetalPriceApiService {
 
   /// Convert Firestore document format back to API response format.
   Map<String, dynamic> _firestoreToApiFormat(Map<String, dynamic> firestoreData) {
+    dynamic prevRatesAt = firestoreData['prevRatesAt'];
+    if (prevRatesAt is Timestamp) {
+      prevRatesAt = prevRatesAt.toDate().toIso8601String();
+    }
+
     return {
       'success': firestoreData['success'] ?? true,
       'base': firestoreData['base'] ?? 'USD',
@@ -173,6 +224,7 @@ class MetalPriceApiService {
       'rates': firestoreData['rates'],
       // Keep the server's 24h baseline so the change can be computed reliably.
       'prevRates': firestoreData['prevRates'],
+      'prevRatesAt': prevRatesAt,
     };
   }
 
@@ -180,7 +232,9 @@ class MetalPriceApiService {
   /// 1) server-maintained `prevRates` baseline carried on [response],
   /// 2) [historyPercent] computed from the app's recorded price history,
   /// 3) the local Hive `prev_v2` baseline (for scrape-sourced data).
-  ({double change, double changePercent}) change24hFor({
+  ///
+  /// Returns null when no baseline in the 12–48h window exists.
+  ({double change, double changePercent})? change24hFor({
     required MetalPricesResponse response,
     required String metal, // 'gold' | 'silver'
     required String currency,
@@ -189,27 +243,25 @@ class MetalPriceApiService {
     final isGold = metal == 'gold';
     final current =
         isGold ? response.goldPriceIn(currency) : response.silverPriceIn(currency);
-    if (current == null) return (change: 0.0, changePercent: 0.0);
+    if (current == null) return null;
 
-    // 1) Server baseline.
     final serverPrev =
         isGold ? response.goldPreviousIn(currency) : response.silverPreviousIn(currency);
-    if (serverPrev != null && serverPrev != 0) {
-      final delta = current - serverPrev;
-      return (change: delta, changePercent: (delta / serverPrev) * 100);
-    }
 
-    // 2) Recorded-history baseline (client-side, no backend needed).
-    if (historyPercent != null && historyPercent.abs() > 0.0001) {
-      final prev = current / (1 + historyPercent / 100);
-      return (change: current - prev, changePercent: historyPercent);
-    }
+    final hivePrevResponse = getPreviousPrices();
+    final hivePrev = hivePrevResponse == null
+        ? null
+        : (isGold
+            ? hivePrevResponse.goldPriceIn(currency)
+            : hivePrevResponse.silverPriceIn(currency));
 
-    // 3) Local Hive baseline.
-    return computeChange(
+    return select24hChange(
       current: current,
-      previousPrice: (prev) =>
-          isGold ? prev.goldPriceIn(currency) : prev.silverPriceIn(currency),
+      serverPrev: serverPrev,
+      serverPrevAt: response.previousRatesAt,
+      historyPercent: historyPercent,
+      hivePrev: hivePrev,
+      hivePrevAt: getPreviousPricesTime(),
     );
   }
 
@@ -241,6 +293,13 @@ class MetalPriceApiService {
       return MetalPricesResponse.fromJson(prevData['data']);
     }
     return null;
+  }
+
+  /// Timestamp of the Hive `prev_v2` baseline, if present.
+  DateTime? getPreviousPricesTime() {
+    final prevData = _cacheBox.get('prev_v2_$_cacheKey');
+    if (prevData == null) return null;
+    return _cacheEntryTime(prevData);
   }
 
   // Get historical prices
@@ -430,12 +489,16 @@ class MetalPricesResponse {
   /// `prevRates`). Used as the reliable 24h baseline when present.
   final Map<String, double>? previousRates;
 
+  /// When [previousRates] was last rotated (Firestore `prevRatesAt`).
+  final DateTime? previousRatesAt;
+
   MetalPricesResponse({
     required this.success,
     required this.base,
     required this.timestamp,
     required this.rates,
     this.previousRates,
+    this.previousRatesAt,
   });
 
   static Map<String, double>? _parseRates(dynamic raw) {
@@ -445,6 +508,16 @@ class MetalPricesResponse {
       if (value is num) out[key.toString()] = value.toDouble();
     });
     return out.isEmpty ? null : out;
+  }
+
+  static DateTime? _parseDateTime(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is String) return DateTime.tryParse(raw);
+    if (raw is num) {
+      final ms = raw > 1e12 ? raw.toInt() : (raw * 1000).toInt();
+      return DateTime.fromMillisecondsSinceEpoch(ms);
+    }
+    return null;
   }
 
   factory MetalPricesResponse.fromJson(Map json) {
@@ -458,6 +531,7 @@ class MetalPricesResponse {
           : DateTime.now(),
       rates: rates,
       previousRates: _parseRates(json['prevRates']),
+      previousRatesAt: _parseDateTime(json['prevRatesAt']),
     );
   }
 

@@ -142,7 +142,7 @@ WatchlistQuote? _resolveEntry(
   return WatchlistQuote(
     entry: entry,
     pricePerGram: perGram,
-    changePercent: delta.changePercent,
+    changePercent: delta?.changePercent,
     currency: currency,
   );
 }

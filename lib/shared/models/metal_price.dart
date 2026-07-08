@@ -4,8 +4,8 @@ class MetalPrice {
   final double pricePerGram;
   final String currency;
   final DateTime timestamp;
-  final double change24h;
-  final double changePercent24h;
+  final double? change24h;
+  final double? changePercent24h;
   
   MetalPrice({
     required this.metal,
@@ -13,8 +13,8 @@ class MetalPrice {
     required this.pricePerGram,
     required this.currency,
     required this.timestamp,
-    required this.change24h,
-    required this.changePercent24h,
+    this.change24h,
+    this.changePercent24h,
   });
   
   factory MetalPrice.fromJson(Map<String, dynamic> json) {
@@ -27,8 +27,8 @@ class MetalPrice {
       timestamp: json['timestamp'] != null
           ? DateTime.parse(json['timestamp'])
           : DateTime.now(),
-      change24h: (json['change24h'] ?? 0.0).toDouble(),
-      changePercent24h: (json['changePercent24h'] ?? 0.0).toDouble(),
+      change24h: (json['change24h'] as num?)?.toDouble(),
+      changePercent24h: (json['changePercent24h'] as num?)?.toDouble(),
     );
   }
   
@@ -57,11 +57,20 @@ class MetalPrice {
     return pricePerGram * (karatValues[karat] ?? 1.0);
   }
   
-  bool get isPositiveChange =>
-      changePercent24h != 0 ? changePercent24h >= 0 : change24h >= 0;
+  bool get isPositiveChange {
+    if (changePercent24h == null) return true;
+    return changePercent24h != 0 ? changePercent24h! >= 0 : (change24h ?? 0) >= 0;
+  }
   
-  String get formattedChange => isPositiveChange ? '+$change24h' : '$change24h';
+  String get formattedChange {
+    if (change24h == null) return '—';
+    return isPositiveChange ? '+$change24h' : '$change24h';
+  }
   
-  String get formattedChangePercent => 
-      isPositiveChange ? '+${changePercent24h.toStringAsFixed(2)}%' : '${changePercent24h.toStringAsFixed(2)}%';
+  String get formattedChangePercent {
+    if (changePercent24h == null) return '—';
+    return isPositiveChange
+        ? '+${changePercent24h!.toStringAsFixed(2)}%'
+        : '${changePercent24h!.toStringAsFixed(2)}%';
+  }
 }

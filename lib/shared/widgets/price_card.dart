@@ -18,7 +18,7 @@ class PriceCard extends StatelessWidget {
   final double pricePerGram;
   final String currency;
   final double change24h;
-  final double changePercent;
+  final double? changePercent;
   final VoidCallback? onSetAlert;
   final bool isWatchlisted;
   final VoidCallback? onToggleWatchlist;
@@ -40,8 +40,10 @@ class PriceCard extends StatelessWidget {
     this.onShare,
   });
 
-  bool get isPositive =>
-      changePercent != 0 ? changePercent >= 0 : change24h >= 0;
+  bool get isPositive {
+    if (changePercent == null) return true;
+    return changePercent != 0 ? changePercent! >= 0 : change24h >= 0;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,13 +56,20 @@ class PriceCard extends StatelessWidget {
     // Derive the absolute 24h change in both units from the (reliable) percent,
     // so it's consistent with the displayed prices regardless of the caller's
     // change24h unit.
-    double deltaOf(double price) =>
-        changePercent == 0 ? 0 : price - price / (1 + changePercent / 100);
+    double? deltaOf(double price) {
+      if (changePercent == null) return null;
+      if (changePercent == 0) return 0;
+      return price - price / (1 + changePercent! / 100);
+    }
+
     final perGramChange = deltaOf(pricePerGram);
     final perOunceChange = deltaOf(pricePerOunce);
-    final changeColor = isPositive ? VaultColors.up : VaultColors.down;
+    final changeColor = changePercent == null
+        ? c.textTertiary
+        : (isPositive ? VaultColors.up : VaultColors.down);
     final sign = isPositive ? '+' : '-';
-    String chg(double v) => '$sign${formatCurrency(v.abs(), currency)}';
+    String chg(double? v) =>
+        v == null ? '—' : '$sign${formatCurrency(v.abs(), currency)}';
 
     return VaultCard(
       glow: isGold,

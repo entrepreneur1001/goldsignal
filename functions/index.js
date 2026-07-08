@@ -7,33 +7,82 @@ const {
   fetchAndUpdateLocalInr,
   loadPriceContextFromFirestore,
 } = require('./price_fetchers');
+const {
+  globalPricePerGram,
+  changePercentFrom,
+} = require('./price_helpers');
 
 admin.initializeApp();
 
 const db = admin.firestore();
 const messaging = admin.messaging();
 
-const OUNCE_TO_GRAM = 31.1034768;
+function userTokens(userData) {
+  const tokens = new Set();
+  if (userData?.fcmTokens && typeof userData.fcmTokens === 'object') {
+    for (const token of Object.keys(userData.fcmTokens)) {
+      if (token) tokens.add(token);
+    }
+  }
+  if (userData?.fcmToken) tokens.add(userData.fcmToken);
+  return tokens;
+}
 
-function globalPricePerGram(rates, metal, karat, currency) {
-  if (!rates) return null;
-
-  const usdGold = rates.USDXAU;
-  const usdSilver = rates.USDXAG;
-
-  if (metal === 'gold') {
-    if (usdGold == null) return null;
-    let ounceInCurrency = currency === 'USD' ? usdGold : usdGold * rates[currency];
-    if (ounceInCurrency == null) return null;
-    const purity = (parseInt(karat, 10) || 24) / 24;
-    return (ounceInCurrency / OUNCE_TO_GRAM) * purity;
+async function sendPushToUser(uid, userData, { title, body, data }) {
+  const tokens = [...userTokens(userData)];
+  if (tokens.length === 0) {
+    return { sent: 0, transientErrors: 0, tokensTried: 0 };
   }
 
-  if (usdSilver == null) return null;
-  const ounceInCurrency =
-    currency === 'USD' ? usdSilver : usdSilver * rates[currency];
-  if (ounceInCurrency == null) return null;
-  return ounceInCurrency / OUNCE_TO_GRAM;
+  const response = await messaging.sendEachForMulticast({
+    tokens,
+    notification: { title, body },
+    data,
+    android: { priority: 'high' },
+    apns: { payload: { aps: { sound: 'default' } } },
+  });
+
+  const staleCodes = new Set([
+    'messaging/registration-token-not-registered',
+    'messaging/invalid-registration-token',
+  ]);
+
+  const stale = [];
+  let sent = 0;
+  let transientErrors = 0;
+
+  response.responses.forEach((res, i) => {
+    if (res.success) {
+      sent += 1;
+      return;
+    }
+    const code = res.error?.code;
+    if (staleCodes.has(code)) {
+      stale.push(tokens[i]);
+    } else {
+      logger.warn('FCM send failed', {
+        uid,
+        token: tokens[i],
+        code,
+        message: res.error?.message,
+      });
+      transientErrors += 1;
+    }
+  });
+
+  if (stale.length > 0) {
+    const updates = {};
+    for (const token of stale) {
+      updates[new admin.firestore.FieldPath('fcmTokens', token)] =
+        admin.firestore.FieldValue.delete();
+    }
+    if (userData?.fcmToken && stale.includes(userData.fcmToken)) {
+      updates.fcmToken = admin.firestore.FieldValue.delete();
+    }
+    await db.collection('users').doc(uid).update(updates);
+  }
+
+  return { sent, transientErrors, tokensTried: tokens.length };
 }
 
 function localPricePerGram(localDoc, metal, karat, side) {
@@ -43,11 +92,6 @@ function localPricePerGram(localDoc, metal, karat, side) {
   const row = map[karat];
   if (side === 'buy' && row.buyPerGram != null) return row.buyPerGram;
   return row.sellPerGram ?? row.buyPerGram ?? null;
-}
-
-function changePercentFrom(current, baseline) {
-  if (current == null || baseline == null || baseline === 0) return null;
-  return ((current - baseline) / baseline) * 100;
 }
 
 function isLocalCurrency(currency) {
@@ -92,7 +136,7 @@ function resolveRolling24hPercent(alert, ctx) {
 }
 
 function isTriggered(alert, current, ctx) {
-  if (alert.targetValue == null) return false;
+  if (!Number.isFinite(alert.targetValue)) return false;
 
   if (alert.type === 'percentChange24h') {
     const change = resolveRolling24hPercent(alert, ctx);
@@ -101,7 +145,7 @@ function isTriggered(alert, current, ctx) {
     return change >= alert.targetValue;
   }
 
-  if (current == null) return false;
+  if (!Number.isFinite(current)) return false;
 
   if (alert.type === 'percentChange') {
     const change = changePercentFrom(current, alert.baselinePrice);
@@ -163,30 +207,6 @@ function resolvePrice(alert, ctx) {
     alert.karat,
     alert.currency,
   );
-}
-
-async function sendAlertPush(fcmToken, title, body, alertId) {
-  try {
-    await messaging.send({
-      token: fcmToken,
-      notification: { title, body },
-      data: {
-        type: 'price_alert',
-        alertId: String(alertId),
-      },
-      android: { priority: 'high' },
-      apns: { payload: { aps: { sound: 'default' } } },
-    });
-    return true;
-  } catch (err) {
-    if (
-      err.code === 'messaging/registration-token-not-registered' ||
-      err.code === 'messaging/invalid-registration-token'
-    ) {
-      return false;
-    }
-    throw err;
-  }
 }
 
 async function refreshPrices() {
@@ -255,7 +275,8 @@ async function loadCachedDailyInsightAiLine() {
 }
 
 async function processDueReactivations(ctx) {
-  const now = new Date().toISOString();
+  const toleranceMs = 5 * 60 * 1000;
+  const now = new Date(Date.now() + toleranceMs).toISOString();
   const snap = await db
     .collectionGroup('alerts')
     .where('isActive', '==', false)
@@ -287,7 +308,7 @@ async function processDueReactivations(ctx) {
 
 exports.checkPriceAlerts = onSchedule(
   {
-    schedule: 'every 60 minutes',
+    schedule: 'every 30 minutes',
     timeZone: 'UTC',
     retryCount: 0,
     memory: '128MiB',
@@ -318,60 +339,71 @@ exports.checkPriceAlerts = onSchedule(
       return;
     }
 
-    const tokenCache = new Map();
+    const userCache = new Map();
     let triggered = 0;
 
     for (const alertDoc of alertsSnap.docs) {
-      const alert = alertDoc.data();
-      const uid = alertDoc.ref.parent.parent?.id;
-      if (!uid) continue;
+      try {
+        const alert = alertDoc.data();
+        const uid = alertDoc.ref.parent.parent?.id;
+        if (!uid) continue;
 
-      const current = resolvePrice(alert, ctx);
-      if (!isTriggered(alert, current, ctx)) {
-        continue;
-      }
-
-      const message = triggerMessage(alert, current, ctx);
-
-      const triggeredAt = new Date();
-      const updates = {
-        isActive: false,
-        triggeredAt: triggeredAt.toISOString(),
-        triggeredPrice: current,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
-      if (alert.repeatAfterHours != null && alert.repeatAfterHours > 0) {
-        updates.reactivateAt = new Date(
-          triggeredAt.getTime() + alert.repeatAfterHours * 60 * 60 * 1000,
-        ).toISOString();
-      }
-      await alertDoc.ref.update(updates);
-
-      let fcmToken = tokenCache.get(uid);
-      if (fcmToken === undefined) {
-        const userSnap = await db.collection('users').doc(uid).get();
-        fcmToken = userSnap.exists ? userSnap.data()?.fcmToken ?? null : null;
-        tokenCache.set(uid, fcmToken);
-      }
-
-      if (fcmToken) {
-        const sent = await sendAlertPush(
-          fcmToken,
-          'GoldSignal price alert',
-          message,
-          alert.id || alertDoc.id,
-        );
-        if (!sent) {
-          await db.collection('users').doc(uid).set(
-            { fcmToken: admin.firestore.FieldValue.delete() },
-            { merge: true },
-          );
-          tokenCache.set(uid, null);
+        const current = resolvePrice(alert, ctx);
+        if (!isTriggered(alert, current, ctx)) {
+          continue;
         }
-      }
 
-      triggered += 1;
-      logger.info(`Triggered alert ${alertDoc.id} for user ${uid}`);
+        let userData = userCache.get(uid);
+        if (userData === undefined) {
+          const userSnap = await db.collection('users').doc(uid).get();
+          userData = userSnap.exists ? userSnap.data() : null;
+          userCache.set(uid, userData);
+        }
+
+        const message = triggerMessage(alert, current, ctx);
+        const pushResult = userData
+          ? await sendPushToUser(uid, userData, {
+              title: 'GoldSignal price alert',
+              body: message,
+              data: {
+                type: 'price_alert',
+                alertId: String(alert.id || alertDoc.id),
+              },
+            })
+          : { sent: 0, transientErrors: 0, tokensTried: 0 };
+
+        if (pushResult.sent === 0) {
+          logger.warn('Alert triggered but push not delivered', {
+            uid,
+            alertId: alertDoc.id,
+            tokensTried: pushResult.tokensTried,
+            transientErrors: pushResult.transientErrors,
+          });
+          continue;
+        }
+
+        const triggeredAt = new Date();
+        const updates = {
+          isActive: false,
+          triggeredAt: triggeredAt.toISOString(),
+          triggeredPrice: current,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        if (alert.repeatAfterHours != null && alert.repeatAfterHours > 0) {
+          updates.reactivateAt = new Date(
+            triggeredAt.getTime() + alert.repeatAfterHours * 60 * 60 * 1000,
+          ).toISOString();
+        }
+        await alertDoc.ref.update(updates);
+
+        triggered += 1;
+        logger.info(`Triggered alert ${alertDoc.id} for user ${uid}`);
+      } catch (err) {
+        logger.error('Alert check failed for document', {
+          alertId: alertDoc.id,
+          err,
+        });
+      }
     }
 
     logger.info(`Alert check complete: ${triggered} triggered`);
@@ -492,25 +524,13 @@ async function aiDigestLine(nums, currency) {
   }
 }
 
-async function sendDigestPush(token, title, body) {
-  try {
-    await messaging.send({
-      token,
-      notification: { title, body },
-      data: { type: 'daily_digest' },
-      android: { priority: 'high' },
-      apns: { payload: { aps: { sound: 'default' } } },
-    });
-    return true;
-  } catch (err) {
-    if (
-      err.code === 'messaging/registration-token-not-registered' ||
-      err.code === 'messaging/invalid-registration-token'
-    ) {
-      return false;
-    }
-    throw err;
-  }
+async function sendDigestPush(userData, uid, title, body) {
+  const result = await sendPushToUser(uid, userData, {
+    title,
+    body,
+    data: { type: 'daily_digest' },
+  });
+  return result.sent > 0;
 }
 
 // Sends each subscribed user a daily digest at their chosen local time. Runs
@@ -552,8 +572,7 @@ exports.sendDailyDigest = onSchedule(
     for (const userDoc of usersSnap.docs) {
       const data = userDoc.data();
       const d = data.digest || {};
-      const token = data.fcmToken;
-      if (!token) continue;
+      if (!userTokens(data).size) continue;
 
       // Shift "now" into the user's local time using their stored offset.
       const offset = Number(d.utcOffsetMinutes) || 0;
@@ -575,14 +594,10 @@ exports.sendDailyDigest = onSchedule(
       let body = digestBody(nums, currency);
       if (cachedAiLine) body = `${cachedAiLine}\n${body}`;
 
-      const ok = await sendDigestPush(token, 'GoldSignal daily digest', body);
+      const ok = await sendDigestPush(data, userDoc.id, 'GoldSignal daily digest', body);
       if (ok) {
         await userDoc.ref.update({ 'digest.lastSentYmd': ymd });
         sent += 1;
-      } else {
-        await userDoc.ref.update({
-          fcmToken: admin.firestore.FieldValue.delete(),
-        });
       }
     }
 
@@ -756,8 +771,7 @@ async function processWatchlistMoveAlerts(ctx) {
   for (const userDoc of usersSnap.docs) {
     const data = userDoc.data();
     const wa = data.watchlistAlerts || {};
-    const token = data.fcmToken;
-    if (!token) continue;
+    if (!userTokens(data).size) continue;
     if (wa.lastNotifiedYmd === ymd) continue;
 
     const threshold = Number(wa.thresholdPercent) || 2;
@@ -789,13 +803,15 @@ async function processWatchlistMoveAlerts(ctx) {
         : '') +
       '.';
 
-    const ok = await sendAlertPush(
-      token,
-      'Watchlist price move',
+    const pushResult = await sendPushToUser(userDoc.id, data, {
+      title: 'Watchlist price move',
       body,
-      'watchlist_move',
-    );
-    if (ok) {
+      data: {
+        type: 'price_alert',
+        alertId: 'watchlist_move',
+      },
+    });
+    if (pushResult.sent > 0) {
       await userDoc.ref.set(
         { watchlistAlerts: { lastNotifiedYmd: ymd } },
         { merge: true },
@@ -826,25 +842,13 @@ async function updateDailyInsightCache(ctx) {
   });
 }
 
-async function sendReEngagePush(token, title, body) {
-  try {
-    await messaging.send({
-      token,
-      notification: { title, body },
-      data: { type: 're_engagement' },
-      android: { priority: 'high' },
-      apns: { payload: { aps: { sound: 'default' } } },
-    });
-    return true;
-  } catch (err) {
-    if (
-      err.code === 'messaging/registration-token-not-registered' ||
-      err.code === 'messaging/invalid-registration-token'
-    ) {
-      return false;
-    }
-    throw err;
-  }
+async function sendReEngagePush(userData, uid, title, body) {
+  const result = await sendPushToUser(uid, userData, {
+    title,
+    body,
+    data: { type: 're_engagement' },
+  });
+  return result.sent > 0;
 }
 
 // Nudges lapsed users back. Runs daily, targets users inactive >= the smallest
@@ -895,8 +899,7 @@ exports.sendReEngagement = onSchedule(
 
     for (const userDoc of usersSnap.docs) {
       const data = userDoc.data();
-      const token = data.fcmToken;
-      if (!token) continue;
+      if (!userTokens(data).size) continue;
 
       const reengage = data.reengage || {};
       if (reengage.enabled === false) continue; // opted out
@@ -926,13 +929,8 @@ exports.sendReEngagement = onSchedule(
         currency,
       );
 
-      const ok = await sendReEngagePush(token, title, body);
-      if (!ok) {
-        await userDoc.ref.update({
-          fcmToken: admin.firestore.FieldValue.delete(),
-        });
-        continue;
-      }
+      const ok = await sendReEngagePush(data, userDoc.id, title, body);
+      if (!ok) continue;
 
       const ymd = `${new Date(now).getUTCFullYear()}-${pad(
         new Date(now).getUTCMonth() + 1,

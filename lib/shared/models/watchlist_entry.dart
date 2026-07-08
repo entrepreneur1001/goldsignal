@@ -34,7 +34,7 @@ class WatchlistEntry {
 class WatchlistQuote {
   final WatchlistEntry entry;
   final double pricePerGram;
-  final double changePercent;
+  final double? changePercent;
   final String currency;
 
   const WatchlistQuote({

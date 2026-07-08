@@ -313,8 +313,8 @@ class MarketPricesController extends Notifier<MarketPricesState> {
         pricePerGram: goldOunce / _ounceToGram,
         currency: currency,
         timestamp: response.timestamp,
-        change24h: goldChange.change,
-        changePercent24h: goldChange.changePercent,
+        change24h: goldChange?.change,
+        changePercent24h: goldChange?.changePercent,
       ));
     }
 
@@ -333,8 +333,8 @@ class MarketPricesController extends Notifier<MarketPricesState> {
         pricePerGram: silverOunce / _ounceToGram,
         currency: currency,
         timestamp: response.timestamp,
-        change24h: silverChange.change,
-        changePercent24h: silverChange.changePercent,
+        change24h: silverChange?.change,
+        changePercent24h: silverChange?.changePercent,
       ));
     }
   }

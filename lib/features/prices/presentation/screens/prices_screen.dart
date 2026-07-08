@@ -49,7 +49,7 @@ class PricesScreen extends ConsumerWidget {
     required String label,
     required double pricePerGram,
     required String currency,
-    required double changePercent,
+    required double? changePercent,
     bool isGold = true,
   }) async {
     final config =
@@ -59,7 +59,7 @@ class PricesScreen extends ConsumerWidget {
       label: label,
       pricePerGram: pricePerGram,
       currency: currency,
-      changePercent: changePercent,
+      changePercent: changePercent ?? 0,
       config: config,
       isGold: isGold,
     );
@@ -651,8 +651,8 @@ class PricesScreen extends ConsumerWidget {
         pricePerOunce: goldPrice,
         pricePerGram: goldPrice / 31.1034768,
         currency: currency,
-        change24h: goldDelta.change,
-        changePercent: goldDelta.changePercent,
+        change24h: goldDelta?.change ?? 0,
+        changePercent: goldDelta?.changePercent,
         isWatchlisted: _isWatchlisted(ref, const WatchlistEntry(metal: 'gold', karat: '24')),
         onToggleWatchlist: () => _toggleWatchlist(
           context,
@@ -663,7 +663,7 @@ class PricesScreen extends ConsumerWidget {
           label: context.tr('prices.gold_24k_label'),
           pricePerGram: goldPrice / 31.1034768,
           currency: currency,
-          changePercent: goldDelta.changePercent,
+          changePercent: goldDelta?.changePercent,
           isGold: true,
         ),
         onSetAlert: () => _openAlertSheet(
@@ -682,8 +682,8 @@ class PricesScreen extends ConsumerWidget {
         pricePerOunce: silverPrice,
         pricePerGram: silverPrice / 31.1034768,
         currency: currency,
-        change24h: silverDelta.change,
-        changePercent: silverDelta.changePercent,
+        change24h: silverDelta?.change ?? 0,
+        changePercent: silverDelta?.changePercent,
         isWatchlisted: _isWatchlisted(ref, const WatchlistEntry(metal: 'silver', karat: '999')),
         onToggleWatchlist: () => _toggleWatchlist(
           context,
@@ -694,7 +694,7 @@ class PricesScreen extends ConsumerWidget {
           label: context.tr('prices.silver_999_label'),
           pricePerGram: silverPrice / 31.1034768,
           currency: currency,
-          changePercent: silverDelta.changePercent,
+          changePercent: silverDelta?.changePercent,
           isGold: false,
         ),
         onSetAlert: () => _openAlertSheet(
@@ -731,7 +731,7 @@ class PricesScreen extends ConsumerWidget {
                   entry.$3,
                   goldPrice / 31.1034768,
                   currency,
-                  goldDelta.changePercent,
+                  goldDelta?.changePercent,
                 ),
             ],
           ),
@@ -759,7 +759,7 @@ class PricesScreen extends ConsumerWidget {
         pricePerOunce: gold.pricePerOunce,
         pricePerGram: gold.pricePerGram,
         currency: gold.currency,
-        change24h: gold.change24h,
+        change24h: gold.change24h ?? 0,
         changePercent: gold.changePercent24h,
         isWatchlisted: _isWatchlisted(ref, goldEntry),
         onToggleWatchlist: () => _toggleWatchlist(context, ref, goldEntry),
@@ -788,7 +788,7 @@ class PricesScreen extends ConsumerWidget {
           pricePerOunce: silver.pricePerOunce,
           pricePerGram: silver.pricePerGram,
           currency: silver.currency,
-          change24h: silver.change24h,
+          change24h: silver.change24h ?? 0,
           changePercent: silver.changePercent24h,
           isWatchlisted: _isWatchlisted(ref, silverEntry),
           onToggleWatchlist: () =>
@@ -821,7 +821,7 @@ class PricesScreen extends ConsumerWidget {
     double purity,
     double goldPerGram,
     String currency,
-    double changePercent,
+    double? changePercent,
   ) {
     final karatPrice = goldPerGram * purity;
     final entry = WatchlistEntry(metal: 'gold', karat: karatCode);
@@ -847,7 +847,7 @@ class PricesScreen extends ConsumerWidget {
               label: entry.label,
               pricePerGram: karatPrice,
               currency: currency,
-              changePercent: changePercent,
+              changePercent: changePercent ?? 0,
               isGold: true,
             ),
           ),

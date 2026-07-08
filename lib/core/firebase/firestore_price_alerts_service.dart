@@ -50,6 +50,7 @@ class FirestorePriceAlertsService {
 
   Future<void> saveFcmToken(String uid, String token) async {
     await _firestore.collection('users').doc(uid).set({
+      'fcmTokens': {token: DateTime.now().toUtc().toIso8601String()},
       'fcmToken': token,
       'fcmUpdatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));

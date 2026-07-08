@@ -37,6 +37,8 @@
     "empty_hint": "Prices are recorded automatically on each refresh. Pull to refresh on the Prices tab, then reopen this chart.",
     "start": "Start",
     "change": "Change",
+    "change_over": "Change ({span})",
+    "partial_range": "Data covers only {span} of the selected range",
     "latest": "Latest",
     "flat": "Flat over selected range",
     "no_history": "Not enough history yet. Pull to refresh prices and try again."

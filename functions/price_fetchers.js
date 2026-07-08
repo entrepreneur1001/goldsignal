@@ -1,5 +1,11 @@
 const cheerio = require('cheerio');
 const admin = require('firebase-admin');
+const { logger } = require('firebase-functions');
+const {
+  absoluteChangeFromPercent,
+  changePercentFromDelta,
+  toFirestoreLocalMaps,
+} = require('./price_helpers');
 
 const OUNCE_TO_GRAM = 31.1034768;
 const ISAGHA_URL = 'https://market.isagha.com/prices';
@@ -154,35 +160,12 @@ function parseMetalRows($, metalClass) {
       sellPerGram: sell,
       buyPerGram: buy,
       changePercent: changePercent ?? 0,
+      change: absoluteChangeFromPercent(sell, changePercent ?? 0),
       isPerUnit: karat === 'gold_pound' || karat === 'silver_pound',
     });
   });
 
   return rows;
-}
-
-function toFirestoreLocalMaps(goldRows, silverRows) {
-  const gold = {};
-  for (const row of goldRows) {
-    if (row.isPerUnit || row.karat === 'gold_ounce') continue;
-    gold[row.karat] = {
-      sellPerGram: row.sellPerGram,
-      buyPerGram: row.buyPerGram,
-      changePercent: row.changePercent ?? 0,
-    };
-  }
-
-  const silver = {};
-  for (const row of silverRows) {
-    if (row.isPerUnit || row.karat === 'silver_ounce') continue;
-    silver[row.karat] = {
-      sellPerGram: row.sellPerGram,
-      buyPerGram: row.buyPerGram,
-      changePercent: row.changePercent ?? 0,
-    };
-  }
-
-  return { gold, silver };
 }
 
 async function scrapeLivePriceOfGold() {
@@ -213,6 +196,11 @@ async function scrapeLivePriceOfGold() {
     if (rate != null && rate > 0) rates[currency] = rate;
   }
 
+  const missingFx = Object.keys(CURRENCY_SELECTORS).filter((c) => rates[c] == null);
+  if (missingFx.length > 0) {
+    logger.warn('Missing FX rates after scrape', { currencies: missingFx });
+  }
+
   if (Object.keys(rates).length < 7) {
     throw new Error(`Too few exchange rates scraped: ${Object.keys(rates).length}`);
   }
@@ -231,22 +219,46 @@ async function writeGlobalPrices(db, apiResponse) {
   const existingData = existing.exists ? existing.data() : null;
 
   let prevRates = existingData?.prevRates ?? null;
-  if (existingData?.rates && existingData.updatedAt) {
-    const updatedAt = existingData.updatedAt.toDate();
-    const hours = (Date.now() - updatedAt.getTime()) / (1000 * 60 * 60);
-    if (hours >= 20 || !prevRates) {
-      prevRates = existingData.rates;
+  let prevRatesRotated = false;
+
+  const prevRatesAtMs = docUpdatedAtMs({ updatedAt: existingData?.prevRatesAt });
+  let hoursSincePrevRotation = prevRatesAtMs != null
+    ? (Date.now() - prevRatesAtMs) / (1000 * 60 * 60)
+    : null;
+
+  if (hoursSincePrevRotation == null && existingData?.updatedAt) {
+    const updatedMs = docUpdatedAtMs(existingData);
+    if (updatedMs != null) {
+      hoursSincePrevRotation = (Date.now() - updatedMs) / (1000 * 60 * 60);
     }
-  } else if (existingData?.rates && !prevRates) {
+  }
+
+  const shouldRotatePrev =
+    existingData?.rates &&
+    (hoursSincePrevRotation == null || hoursSincePrevRotation >= 20 || !prevRates);
+
+  if (shouldRotatePrev) {
     prevRates = existingData.rates;
+    prevRatesRotated = true;
   }
 
   const nextHash = stableHash(apiResponse.rates);
-  if (existingData?.rates && stableHash(existingData.rates) === nextHash) {
+  const hashEqual =
+    existingData?.rates && stableHash(existingData.rates) === nextHash;
+
+  if (hashEqual) {
+    const patch = {
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+    if (prevRatesRotated) {
+      patch.prevRates = prevRates;
+      patch.prevRatesAt = admin.firestore.FieldValue.serverTimestamp();
+    }
+    await docRef.set(patch, { merge: true });
     return { rates: existingData.rates, prevRates, skippedWrite: true };
   }
 
-  await docRef.set({
+  const writeData = {
     rates: apiResponse.rates,
     prevRates,
     base: apiResponse.base ?? 'USD',
@@ -254,7 +266,12 @@ async function writeGlobalPrices(db, apiResponse) {
     apiTimestamp: apiResponse.timestamp,
     source: apiResponse.source ?? 'cloud_function',
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
+  };
+  if (prevRatesRotated) {
+    writeData.prevRatesAt = admin.firestore.FieldValue.serverTimestamp();
+  }
+
+  await docRef.set(writeData);
   return { rates: apiResponse.rates, prevRates, skippedWrite: false };
 }
 
@@ -336,11 +353,10 @@ function parseParentheticalChange(raw) {
   return Number.isFinite(value) ? value : 0;
 }
 
-function changePercentFromDelta(price, delta) {
-  if (price == null || delta == null) return 0;
-  const previous = price - delta;
-  if (previous === 0) return 0;
-  return (delta / previous) * 100;
+function enrichLocalKaratRow(row) {
+  const pct = row.changePercent ?? 0;
+  row.change = absoluteChangeFromPercent(row.sellPerGram, pct);
+  return row;
 }
 
 function parseGoodreturnsGold(goldHtml) {
@@ -387,6 +403,15 @@ function parseGoodreturnsGold(goldHtml) {
     }
   }
 
+  if (gold['18']) {
+    gold['18'].changePercent =
+      gold['24']?.changePercent ?? gold['22']?.changePercent ?? 0;
+  }
+
+  for (const karat of ['24', '22', '18']) {
+    if (gold[karat]) enrichLocalKaratRow(gold[karat]);
+  }
+
   return gold;
 }
 
@@ -400,11 +425,11 @@ function parseGoodreturnsSilver(silverHtml) {
   const gramDelta = kgDelta / 1000;
 
   return {
-    999: {
+    999: enrichLocalKaratRow({
       sellPerGram: price,
       buyPerGram: price,
       changePercent: changePercentFromDelta(price, gramDelta),
-    },
+    }),
   };
 }
 
@@ -493,4 +518,5 @@ module.exports = {
   fetchAndUpdateLocalEgp,
   fetchAndUpdateLocalInr,
   loadPriceContextFromFirestore,
+  toFirestoreLocalMaps,
 };

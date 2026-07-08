@@ -105,18 +105,23 @@ class DailyInsightNotifier extends Notifier<DailyInsight> {
       silverPct = silverRow?.changePercent;
     } else if (global != null) {
       final api = ref.read(metalPriceApiProvider);
+      final history = ref.read(priceHistoryServiceProvider);
       final g = api.change24hFor(
         response: global,
         metal: 'gold',
         currency: currency,
+        historyPercent:
+            history.globalChange24hPercent(currency: currency, metal: 'gold'),
       );
       final s = api.change24hFor(
         response: global,
         metal: 'silver',
         currency: currency,
+        historyPercent:
+            history.globalChange24hPercent(currency: currency, metal: 'silver'),
       );
-      goldPct = g.changePercent;
-      silverPct = s.changePercent;
+      goldPct = g?.changePercent;
+      silverPct = s?.changePercent;
       final ounce = global.goldPriceIn(currency);
       if (ounce != null) goldPerGram = ounce / 31.1034768;
     }
