@@ -34,7 +34,7 @@ service cloud.firestore {
         && data.currency.size() > 0
         && data.currency.size() <= 8
         && validHourBucket(data.hourBucket)
-        && data.source in ['isagha', 'livepriceofgold']
+        && data.source in ['isagha', 'livepriceofgold', 'goodreturns']
         && data.keys().hasAll([
           'marketType', 'currency', 'hourBucket', 'source',
           'gold', 'silver', 'recordedAt',

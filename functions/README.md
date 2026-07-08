@@ -4,20 +4,23 @@
 
 Runs every **60 minutes** (Cloud Scheduler). It:
 
-1. **Fetches fresh global prices** (livepriceofgold scraper)
-2. **Fetches fresh EGP local prices** (iSagha HTML scrape)
-3. **Writes** `prices/latest` and `prices/local_EGP` to Firestore
-4. Queries all active alerts via collection group `alerts` where `isActive == true`
-5. Evaluates price, percent-change, and 24h percent-change conditions (same logic as the Flutter app)
-6. Deactivates triggered alerts in Firestore
-7. Sends FCM push to `users/{uid}.fcmToken`
+1. **Reads** cached prices from Firestore (`prices/latest`, `prices/local_EGP`, `prices/local_INR`) — no scraping
+2. Queries all active alerts via collection group `alerts` where `isActive == true`
+3. Evaluates price, percent-change, and 24h percent-change conditions (same logic as the Flutter app)
+4. Deactivates triggered alerts in Firestore
+5. Sends FCM push to `users/{uid}.fcmToken`
+
+Price data is kept fresh by `refreshPricesScheduled`; this job only evaluates alerts against the shared cache.
 
 ## `refreshPricesScheduled`
 
-Runs every **15 minutes** (Cloud Scheduler). It:
+Runs every **30 minutes** (Cloud Scheduler). It:
 
-1. Refreshes global and EGP local prices (same fetchers as above)
-2. Updates `prices/latest` (including `prevRates` for global 24h % alerts) and `prices/local_EGP` (including per-karat `changePercent`)
+1. Refreshes **global** spot prices (livepriceofgold scraper) every run
+2. Refreshes **EGP** (iSagha) and **INR** (Goodreturns) local prices at most **once per hour** (skipped if cache is fresh)
+3. Skips Firestore writes when scraped prices are unchanged (hash comparison)
+4. Updates `prices/latest` (including `prevRates` for global 24h % alerts), `prices/local_EGP`, and `prices/local_INR`
+5. Updates `metadata/dailyInsight` once per UTC day (single Groq call; digest pushes reuse `aiLine`)
 
 This is the **only writer** of `prices/*` documents. Flutter clients read the shared cache but no longer write to Firestore (rules deny client writes).
 
@@ -47,8 +50,9 @@ For a personal / early-stage app this setup is usually **pennies per month** or 
 
 | Service | Usage | Free tier (approx.) |
 |---------|--------|---------------------|
-| Cloud Functions | ~96 price refreshes/day (15 min) + 24 alert runs/day | 2M invocations/month |
-| Firestore reads | ~2 price docs + alert query per run | 50K reads/day |
+| Cloud Functions | ~48 price refreshes/day (30 min) + 24 alert runs/day | 2M invocations/month |
+| Firestore reads/writes | Alert check reads cache only; price writes skipped when unchanged | 50K reads/day |
+| Groq (digest AI) | **1 call/day** (cached in `metadata/dailyInsight.aiLine`) | External API |
 | Cloud Scheduler | 2 jobs | 3 free jobs/account |
 | FCM push | Per triggered alert | Free |
 
@@ -75,5 +79,6 @@ firebase functions:log --only refreshPricesScheduled --project goldsignal1001
 |----------|------------|----------|
 | `prices/latest` | Cloud Functions only | Global prices + 24h % baseline (`prevRates`) |
 | `prices/local_EGP` | Cloud Functions only | EGP buy/sell alerts + iSagha `changePercent` |
+| `prices/local_INR` | Cloud Functions only | INR indicative gold (24/22/18) + silver 999 alerts |
 
 Clients may **read** these documents when authenticated; Firestore rules block client **writes**.
