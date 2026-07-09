@@ -30,6 +30,14 @@ target 'Runner' do
   target 'RunnerTests' do
     inherit! :search_paths
   end
+
+  # Interactive widget refresh (iOS 17+) needs home_widget in the extension.
+  target 'GoldPriceWidget' do
+    use_frameworks!
+    use_modular_headers!
+    inherit! :search_paths
+    pod 'home_widget', :path => '.symlinks/plugins/home_widget/ios'
+  end
 end
 
 post_install do |installer|

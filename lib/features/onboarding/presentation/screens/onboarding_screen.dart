@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
+import '../../../../core/utils/app_localization.dart';
+import '../../../../core/utils/app_locale.dart';
 import '../../../../core/utils/app_session.dart';
 import '../../../dashboard/presentation/screens/dashboard_screen.dart';
 import '../../../../shared/design/app_dimens.dart';
@@ -12,7 +14,7 @@ import '../../../../shared/providers/digest_provider.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
 import '../../../../shared/providers/watchlist_provider.dart';
 
-/// First-launch setup: currency, watchlist seed, notification opt-in.
+/// First-launch setup: language, currency, watchlist seed, notification opt-in.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -32,6 +34,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     ('gold:24', 'Gold 24K'),
     ('silver:999', 'Silver 999'),
   ];
+
+  static const _lastPage = 3;
 
   @override
   void dispose() {
@@ -76,7 +80,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 
   void _next() {
-    if (_page < 2) {
+    if (_page < _lastPage) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
@@ -84,14 +88,21 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     }
   }
 
+  Future<void> _selectLanguage(Locale locale) async {
+    await setAppLocale(context, locale, ref: ref);
+    if (!mounted) return;
+    // Reset currency default when language changes so ar → EGP applies.
+    setState(() {
+      _currency = locale.languageCode == 'ar' ? 'EGP' : 'USD';
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final currencies = ref.watch(availableCurrenciesProvider);
     final locale = context.locale.languageCode;
-    if (_currency == null) {
-      _currency = locale == 'ar' ? 'EGP' : 'USD';
-    }
+    _currency ??= locale == 'ar' ? 'EGP' : 'USD';
 
     return Scaffold(
       body: SafeArea(
@@ -108,7 +119,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     ),
                   ),
                   const Spacer(),
-                  Text('${_page + 1}/3'),
+                  Text('${_page + 1}/${_lastPage + 1}'),
                 ],
               ),
             ),
@@ -117,6 +128,28 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 controller: _pageController,
                 onPageChanged: (i) => setState(() => _page = i),
                 children: [
+                  _step(
+                    context,
+                    title: context.tr('onboarding.language_title'),
+                    body: context.tr('onboarding.language_body'),
+                    child: Column(
+                      children: kSupportedLocales.map((loc) {
+                        final code = loc.languageCode;
+                        final selected = context.locale.languageCode == code;
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(kLanguageNames[code] ?? code),
+                          trailing: selected
+                              ? Icon(
+                                  Icons.check,
+                                  color: theme.colorScheme.primary,
+                                )
+                              : null,
+                          onTap: () => _selectLanguage(loc),
+                        );
+                      }).toList(),
+                    ),
+                  ),
                   _step(
                     context,
                     title: context.tr('onboarding.currency_title'),
@@ -164,12 +197,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         ListTile(
                           leading: const Icon(Icons.notifications_active_outlined),
                           title: Text(context.tr('onboarding.notify_digest')),
-                          subtitle: Text(context.tr('onboarding.notify_digest_sub')),
+                          subtitle:
+                              Text(context.tr('onboarding.notify_digest_sub')),
                         ),
                         ListTile(
                           leading: const Icon(Icons.trending_up),
                           title: Text(context.tr('onboarding.notify_alerts')),
-                          subtitle: Text(context.tr('onboarding.notify_alerts_sub')),
+                          subtitle:
+                              Text(context.tr('onboarding.notify_alerts_sub')),
                         ),
                       ],
                     ),
@@ -190,7 +225,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       child: Text(context.tr('onboarding.back')),
                     ),
                   const Spacer(),
-                  if (_page < 2)
+                  if (_page < _lastPage)
                     FilledButton(
                       onPressed: _next,
                       child: Text(context.tr('onboarding.next')),

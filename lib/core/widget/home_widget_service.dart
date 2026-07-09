@@ -1,72 +1,10 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
 import 'package:home_widget/home_widget.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../api/goodreturns_price_scraper.dart';
-import '../api/isagha_price_scraper.dart';
 import '../crash/crash_reporter.dart';
-import '../../shared/local_market/local_market_config.dart';
-import '../../shared/models/local_market_prices.dart';
 import '../../shared/providers/widget_preferences_provider.dart';
-
-/// Background entry point invoked when the widget's refresh button is tapped.
-///
-/// Runs in a separate isolate, so it cannot touch the app's Riverpod state.
-/// For local markets (EGP/INR) it performs a real scrape and re-pushes the
-/// board; the global market relies on the Firebase/Hive stack and is left to
-/// the next in-app refresh (OS still updates the widget every ~30 min).
-@pragma('vm:entry-point')
-Future<void> widgetRefreshCallback(Uri? uri) async {
-  if (uri == null || uri.queryParameters['action'] != 'refresh') return;
-  try {
-    WidgetsFlutterBinding.ensureInitialized();
-    final prefs = await SharedPreferences.getInstance();
-    final currency = prefs.getString('selected_currency') ?? 'USD';
-    if (!LocalMarketConfig.isLocalCurrency(currency)) return;
-
-    final side =
-        prefs.getString('price_side') == 'buy' ? PriceSide.buy : PriceSide.sell;
-    final goldKarat = prefs.getString('widget_gold_karat') ??
-        defaultKaratFor(metal: 'gold', currency: currency);
-    final silverKarat = prefs.getString('widget_silver_karat') ??
-        defaultKaratFor(metal: 'silver', currency: currency);
-
-    final LocalMarketPrices local;
-    if (currency == 'INR') {
-      local = await GoodreturnsPriceScraper().fetchLatestPrices();
-    } else {
-      local = await IsaghaPriceScraper().fetchLatestPrices();
-    }
-
-    WidgetMetalRow? rowFor(String metal, String karat) {
-      final row =
-          metal == 'gold' ? local.goldKarat(karat) : local.silverKarat(karat);
-      if (row == null) return null;
-      return WidgetMetalRow(
-        metal: metal,
-        label: widgetLabelFor(metal: metal, karat: karat),
-        pricePerGram: row.priceFor(side),
-        changeValue: row.change,
-        changePercent: row.changePercent,
-      );
-    }
-
-    await HomeWidgetService.instance.initialize();
-    await HomeWidgetService.instance.updateBoard(
-      WidgetBoardData(
-        currency: currency,
-        updatedAt: local.updatedAt,
-        gold: rowFor('gold', goldKarat),
-        silver: rowFor('silver', silverKarat),
-      ),
-    );
-  } catch (e, st) {
-    reportNonFatal(e, st, reason: 'widget refresh callback failed');
-  }
-}
 
 class HomeWidgetService {
   static final HomeWidgetService instance = HomeWidgetService._();
@@ -88,10 +26,12 @@ class HomeWidgetService {
 
   /// Registers the background handler for the widget's refresh button.
   /// Call once from the foreground isolate during app startup.
-  Future<void> registerInteractivity() async {
+  Future<void> registerInteractivity(
+    Future<void> Function(Uri?) callback,
+  ) async {
     if (kIsWeb) return;
     try {
-      await HomeWidget.registerInteractivityCallback(widgetRefreshCallback);
+      await HomeWidget.registerInteractivityCallback(callback);
     } catch (e, st) {
       reportNonFatal(e, st,
           reason: 'HomeWidget.registerInteractivityCallback failed');
@@ -104,6 +44,8 @@ class HomeWidgetService {
 
     try {
       await HomeWidget.saveWidgetData<String>('currency', board.currency);
+      await HomeWidget.saveWidgetData<String>('unit_label', board.unitLabel);
+      await HomeWidget.saveWidgetData<String>('locale', board.locale);
       await HomeWidget.saveWidgetData<String>(
         'last_updated',
         _formatTime(board.updatedAt),

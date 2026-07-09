@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/utils/app_config.dart';
+import '../../core/widget/widget_strings.dart';
 import '../local_market/local_market_config.dart';
 import 'currency_provider.dart';
 import 'market_prices_provider.dart';
@@ -75,12 +77,16 @@ class WidgetMetalRow {
 /// The full data set pushed to the native widget: header + both metal rows.
 class WidgetBoardData {
   final String currency;
+  final String unitLabel;
+  final String locale;
   final DateTime updatedAt;
   final WidgetMetalRow? gold;
   final WidgetMetalRow? silver;
 
   const WidgetBoardData({
     required this.currency,
+    required this.unitLabel,
+    required this.locale,
     required this.updatedAt,
     required this.gold,
     required this.silver,
@@ -124,14 +130,26 @@ String defaultKaratFor({
   return LocalMarketConfig.defaultGoldKaratStr(currency);
 }
 
+/// Localized metal row label. Uses [languageCode] or [AppConfig.defaultLanguage].
 String widgetLabelFor({
   required String metal,
   required String karat,
+  String? languageCode,
 }) {
-  final metalLabel = metal == 'gold' ? 'Gold' : 'Silver';
-  final karatLabel = metal == 'gold' ? '${karat}K' : karat;
-  return '$karatLabel $metalLabel';
+  final code = languageCode ?? _savedLanguageCode();
+  return WidgetStrings.forLanguage(code).rowLabel(metal: metal, karat: karat);
 }
+
+String _savedLanguageCode() {
+  try {
+    return AppConfig.defaultLanguage;
+  } catch (_) {
+    return 'en';
+  }
+}
+
+WidgetStrings _widgetStrings() =>
+    WidgetStrings.forLanguage(_savedLanguageCode());
 
 final widgetPreferencesProvider =
     NotifierProvider<WidgetPreferencesNotifier, WidgetPreferences>(() {
@@ -229,6 +247,8 @@ WidgetBoardData? _resolveWidgetBoard(Ref ref) {
   final currency = ref.read(selectedCurrencyProvider);
   final isLocal = LocalMarketConfig.isLocalCurrency(currency);
   final side = ref.read(priceSideProvider);
+  final strings = _widgetStrings();
+  final locale = _savedLanguageCode();
 
   if (isLocal) {
     final local = ref.read(localMarketPricesProvider);
@@ -241,7 +261,7 @@ WidgetBoardData? _resolveWidgetBoard(Ref ref) {
       if (row == null) return null;
       return WidgetMetalRow(
         metal: metal,
-        label: widgetLabelFor(metal: metal, karat: karat),
+        label: strings.rowLabel(metal: metal, karat: karat),
         pricePerGram: row.priceFor(side),
         changeValue: row.change,
         changePercent: row.changePercent,
@@ -250,6 +270,8 @@ WidgetBoardData? _resolveWidgetBoard(Ref ref) {
 
     return WidgetBoardData(
       currency: currency,
+      unitLabel: strings.unitLabel(currency),
+      locale: locale,
       updatedAt: local.updatedAt,
       gold: rowFor('gold', prefs.goldKarat),
       silver: rowFor('silver', prefs.silverKarat),
@@ -283,7 +305,7 @@ WidgetBoardData? _resolveWidgetBoard(Ref ref) {
 
     return WidgetMetalRow(
       metal: metal,
-      label: widgetLabelFor(metal: metal, karat: karat),
+      label: strings.rowLabel(metal: metal, karat: karat),
       pricePerGram: perGram,
       changeValue: delta == null
           ? null
@@ -294,6 +316,8 @@ WidgetBoardData? _resolveWidgetBoard(Ref ref) {
 
   return WidgetBoardData(
     currency: currency,
+    unitLabel: strings.unitLabel(currency),
+    locale: locale,
     updatedAt: global.timestamp,
     gold: rowFor('gold', prefs.goldKarat),
     silver: rowFor('silver', prefs.silverKarat),

@@ -19,8 +19,11 @@
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		A1B2C3D4E5F60718293A4B5C /* BackgroundIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5B /* BackgroundIntent.swift */; };
+		C3D4E5F60718293A4B5C6D7E /* BackgroundIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5B /* BackgroundIntent.swift */; };
 		D064D8C84BC8266760D9017C /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 960C2493756AFAD0BB9A202E /* GoogleService-Info.plist */; };
 		E2B0A6005F5812FDA271BE88 /* GoldPriceWidget.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 84DC972C0CA19B28D196487B /* GoldPriceWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		F7961711AC1A15282AC6F981 /* Pods_GoldPriceWidget.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 46740479AFAD822AE20AA658 /* Pods_GoldPriceWidget.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -65,12 +68,16 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		07977BAEB43AEC4B5C78BC00 /* Pods-GoldPriceWidget.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-GoldPriceWidget.debug.xcconfig"; path = "Target Support Files/Pods-GoldPriceWidget/Pods-GoldPriceWidget.debug.xcconfig"; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
+		1CA20C11A95CCDAE5A2A78E1 /* Pods-GoldPriceWidget.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-GoldPriceWidget.release.xcconfig"; path = "Target Support Files/Pods-GoldPriceWidget/Pods-GoldPriceWidget.release.xcconfig"; sourceTree = "<group>"; };
 		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
 		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		41C7989B7F3144CC14CAA54B /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		4629992F71F9D0A16D7F5154 /* Pods-GoldPriceWidget.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-GoldPriceWidget.profile.xcconfig"; path = "Target Support Files/Pods-GoldPriceWidget/Pods-GoldPriceWidget.profile.xcconfig"; sourceTree = "<group>"; };
+		46740479AFAD822AE20AA658 /* Pods_GoldPriceWidget.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_GoldPriceWidget.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		4BC2D8FB21672EE9F9D8B572 /* Pods-RunnerTests.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.profile.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.profile.xcconfig"; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -89,6 +96,7 @@
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		987A7A78776E9A679CE54BDF /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		9C293A97FB3C8CF1C573B768 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5B /* BackgroundIntent.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = BackgroundIntent.swift; sourceTree = "<group>"; };
 		AEE91248162C841A45AFD8E1 /* Pods-RunnerTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.release.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.release.xcconfig"; sourceTree = "<group>"; };
 		B1C80235C0B528A697F40DD2 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 		C25CA7E578AD044865620E6E /* GoldPriceWidget.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = GoldPriceWidget.entitlements; sourceTree = "<group>"; };
@@ -119,6 +127,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F7961711AC1A15282AC6F981 /* Pods_GoldPriceWidget.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -134,6 +143,9 @@
 				8DDE0B34447FC582C94658FF /* Pods-RunnerTests.debug.xcconfig */,
 				AEE91248162C841A45AFD8E1 /* Pods-RunnerTests.release.xcconfig */,
 				4BC2D8FB21672EE9F9D8B572 /* Pods-RunnerTests.profile.xcconfig */,
+				07977BAEB43AEC4B5C78BC00 /* Pods-GoldPriceWidget.debug.xcconfig */,
+				1CA20C11A95CCDAE5A2A78E1 /* Pods-GoldPriceWidget.release.xcconfig */,
+				4629992F71F9D0A16D7F5154 /* Pods-GoldPriceWidget.profile.xcconfig */,
 			);
 			name = Pods;
 			path = Pods;
@@ -152,6 +164,7 @@
 			children = (
 				41C7989B7F3144CC14CAA54B /* Pods_Runner.framework */,
 				EF4329026F014E6C7E4CD6D7 /* Pods_RunnerTests.framework */,
+				46740479AFAD822AE20AA658 /* Pods_GoldPriceWidget.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -214,6 +227,7 @@
 				1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */,
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
+				A1B2C3D4E5F60718293A4B5B /* BackgroundIntent.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 			);
 			path = Runner;
@@ -273,6 +287,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3825F2923D3D380C4B74BDA2 /* Build configuration list for PBXNativeTarget "GoldPriceWidget" */;
 			buildPhases = (
+				1EE2458B0C687AAD5F6BABF8 /* [CP] Check Pods Manifest.lock */,
 				751A2069B977E66663690754 /* Sources */,
 				E607D7B10A1E428EA5666B6E /* Frameworks */,
 				9D0FCEE492EBC6900C1B0727 /* Resources */,
@@ -363,6 +378,28 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		1EE2458B0C687AAD5F6BABF8 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-GoldPriceWidget-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
 		3B06AD1E1E4923F5004D2608 /* Thin Binary */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -490,6 +527,7 @@
 			files = (
 				151BC2EA1AFACDC7F854FF8C /* GoldPriceWidget.swift in Sources */,
 				933B0A888DEEF240BC6E88FC /* GoldPriceWidgetBundle.swift in Sources */,
+				C3D4E5F60718293A4B5C6D7E /* BackgroundIntent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -498,6 +536,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5C /* BackgroundIntent.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -601,6 +640,7 @@
 				DEVELOPMENT_TEAM = S4ZZ4XV73M;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -665,6 +705,7 @@
 		};
 		3BF0527F47D2CFD5D1AAD0E5 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 07977BAEB43AEC4B5C78BC00 /* Pods-GoldPriceWidget.debug.xcconfig */;
 			buildSettings = {
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
@@ -673,7 +714,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = S4ZZ4XV73M;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = GoldPriceWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = GoldSignal;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -683,7 +724,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.goldsignal.goldsignal.GoldPriceWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -816,6 +857,7 @@
 				DEVELOPMENT_TEAM = S4ZZ4XV73M;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -840,6 +882,7 @@
 				DEVELOPMENT_TEAM = S4ZZ4XV73M;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -854,6 +897,7 @@
 		};
 		DCBF3F53CE16659D4EA0DAC7 /* Profile */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 4629992F71F9D0A16D7F5154 /* Pods-GoldPriceWidget.profile.xcconfig */;
 			buildSettings = {
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
@@ -862,7 +906,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = S4ZZ4XV73M;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = GoldPriceWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = GoldSignal;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -872,7 +916,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.goldsignal.goldsignal.GoldPriceWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -884,6 +928,7 @@
 		};
 		FDF9B7410EAC0AF9F580BD38 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 1CA20C11A95CCDAE5A2A78E1 /* Pods-GoldPriceWidget.release.xcconfig */;
 			buildSettings = {
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
@@ -892,7 +937,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				DEVELOPMENT_TEAM = S4ZZ4XV73M;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = GoldPriceWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = GoldSignal;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
@@ -902,7 +947,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.goldsignal.goldsignal.GoldPriceWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;

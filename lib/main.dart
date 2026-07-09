@@ -20,6 +20,7 @@ import 'core/analytics/analytics_service.dart';
 import 'core/firebase/firestore_user_service.dart';
 import 'core/notifications/alert_notification_service.dart';
 import 'core/widget/home_widget_service.dart';
+import 'core/widget/widget_background_refresh.dart';
 import 'core/utils/app_config.dart';
 import 'core/utils/app_localization.dart';
 import 'shared/themes/app_theme.dart';
@@ -63,7 +64,9 @@ void main() async {
   await AppConfig.initialize();
   await AlertNotificationService.instance.initialize();
   await HomeWidgetService.instance.initialize();
-  await HomeWidgetService.instance.registerInteractivity();
+  await HomeWidgetService.instance
+      .registerInteractivity(widgetRefreshCallback);
+  await scheduleWidgetBackgroundRefresh();
   await AdService.instance.initialize();
   await AnalyticsService.instance.initialize();
   await FontBootstrap.preload();
@@ -107,7 +110,8 @@ class _GoldSignalAppState extends ConsumerState<GoldSignalApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     // App launch counts as a foreground — record activity once the first frame
-    // is up so providers/auth are ready.
+    // is up so providers/auth are ready. Also syncs language → AppConfig and
+    // refreshes prices into the home widget.
     WidgetsBinding.instance.addPostFrameCallback((_) => _onForeground());
     _initWidgetDeepLinks();
   }
@@ -154,14 +158,22 @@ class _GoldSignalAppState extends ConsumerState<GoldSignalApp>
     }
   }
 
-  /// Logs the open, refreshes cohort user properties, and writes the throttled
-  /// activity signal the re-engagement function reads.
+  /// Logs the open, refreshes prices/widget, cohort user properties, and the
+  /// throttled activity signal the re-engagement function reads.
   Future<void> _onForeground() async {
     ref.invalidate(notificationPermissionProvider);
     // Read context/provider state up front, before any await crosses a frame.
     final currency = ref.read(selectedCurrencyProvider);
     final localeCode = context.locale.languageCode;
     final appVersion = ref.read(packageInfoProvider).version;
+
+    // Keep AppConfig language in sync with EasyLocalization (widget isolate).
+    if (AppConfig.defaultLanguage != localeCode) {
+      await AppConfig.setLanguage(localeCode);
+    }
+
+    // Refresh market prices + home widget whenever the app returns to foreground.
+    unawaited(ref.read(marketPricesControllerProvider.notifier).refresh());
 
     await AnalyticsService.instance.logAppOpen();
     await incrementSessionCount();

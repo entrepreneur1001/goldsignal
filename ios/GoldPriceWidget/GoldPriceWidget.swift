@@ -1,5 +1,6 @@
 import WidgetKit
 import SwiftUI
+import AppIntents
 
 private let appGroupId = "group.com.goldsignal.goldsignal"
 
@@ -17,6 +18,7 @@ struct MetalRow {
 struct BoardEntry: TimelineEntry {
     let date: Date
     let currency: String
+    let unitLabel: String
     let lastUpdated: String
     let gold: MetalRow?
     let silver: MetalRow?
@@ -41,9 +43,13 @@ enum WidgetStore {
             )
         }
 
+        let currency = defaults?.string(forKey: "currency") ?? "USD"
+        let unitLabel = defaults?.string(forKey: "unit_label") ?? "\(currency) / gram"
+
         return BoardEntry(
             date: date,
-            currency: defaults?.string(forKey: "currency") ?? "USD",
+            currency: currency,
+            unitLabel: unitLabel,
             lastUpdated: defaults?.string(forKey: "last_updated") ?? "",
             gold: row("gold", isGold: true),
             silver: row("silver", isGold: false)
@@ -54,6 +60,7 @@ enum WidgetStore {
         BoardEntry(
             date: Date(),
             currency: "USD",
+            unitLabel: "USD / gram",
             lastUpdated: "19:53",
             gold: MetalRow(label: "24K Gold", price: "4,065.02", change: "-15.51",
                            changePercent: "-0.38%", positive: false, isGold: true),
@@ -96,7 +103,7 @@ private enum Palette {
 
 struct RowView: View {
     let row: MetalRow
-    let currency: String
+    let unitLabel: String
 
     var body: some View {
         HStack(spacing: 10) {
@@ -112,7 +119,7 @@ struct RowView: View {
                 Text(row.label)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundColor(.white)
-                Text("\(currency) / gram")
+                Text(unitLabel)
                     .font(.system(size: 11))
                     .foregroundColor(Palette.muted)
             }
@@ -150,9 +157,22 @@ struct GoldPriceWidgetEntryView: View {
                         .font(.system(size: 11))
                         .foregroundColor(Palette.muted)
                 }
-                Link(destination: URL(string: "goldsignal://widget?homeWidget=true&action=refresh")!) {
-                    Image(systemName: "arrow.clockwise").font(.system(size: 13))
-                        .foregroundColor(Palette.muted)
+                if #available(iOS 17, *) {
+                    Button(
+                        intent: BackgroundIntent(
+                            url: URL(string: "goldsignal://widget?action=refresh"),
+                            appGroup: appGroupId
+                        )
+                    ) {
+                        Image(systemName: "arrow.clockwise").font(.system(size: 13))
+                            .foregroundColor(Palette.muted)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Link(destination: URL(string: "goldsignal://widget?homeWidget=true&action=refresh")!) {
+                        Image(systemName: "arrow.clockwise").font(.system(size: 13))
+                            .foregroundColor(Palette.muted)
+                    }
                 }
                 Link(destination: URL(string: "goldsignal://widget?homeWidget=true&action=settings")!) {
                     Image(systemName: "gearshape").font(.system(size: 13))
@@ -163,11 +183,11 @@ struct GoldPriceWidgetEntryView: View {
             Divider().background(Palette.divider).padding(.vertical, 10)
 
             if let gold = entry.gold {
-                RowView(row: gold, currency: entry.currency)
+                RowView(row: gold, unitLabel: entry.unitLabel)
             }
             if family != .systemSmall, let silver = entry.silver {
                 Spacer().frame(height: 12)
-                RowView(row: silver, currency: entry.currency)
+                RowView(row: silver, unitLabel: entry.unitLabel)
             }
             Spacer(minLength: 0)
         }

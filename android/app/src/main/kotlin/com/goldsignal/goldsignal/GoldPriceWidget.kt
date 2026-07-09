@@ -11,6 +11,7 @@ import android.widget.RemoteViews
 import androidx.annotation.DrawableRes
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.DrawableCompat
+import es.antonborri.home_widget.HomeWidgetBackgroundIntent
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import es.antonborri.home_widget.HomeWidgetProvider
 
@@ -73,12 +74,11 @@ class GoldPriceWidget : HomeWidgetProvider() {
                 ),
             )
 
-            // Refresh icon → open the app and trigger a full price refresh (iOS parity).
+            // Refresh icon → headless background fetch (does not open the app).
             views.setOnClickPendingIntent(
                 R.id.widget_refresh,
-                HomeWidgetLaunchIntent.getActivity(
+                HomeWidgetBackgroundIntent.getBroadcast(
                     context,
-                    MainActivity::class.java,
                     Uri.parse("goldsignal://widget?action=refresh"),
                 ),
             )
@@ -110,8 +110,11 @@ class GoldPriceWidget : HomeWidgetProvider() {
         val changePct = data.getString("${prefix}_change_pct", "") ?: ""
         val positive = data.getBoolean("${prefix}_positive", true)
 
+        val unitLabel = data.getString("unit_label", "$currency / gram")
+            ?: "$currency / gram"
+
         views.setTextViewText(labelId, label)
-        views.setTextViewText(subId, "$currency / gram")
+        views.setTextViewText(subId, unitLabel)
         views.setTextViewText(priceId, price)
         views.setTextViewText(
             changeId,

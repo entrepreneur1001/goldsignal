@@ -202,9 +202,9 @@ class _WidgetPreviewCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Text(
-                'GoldSignal',
-                style: TextStyle(
+              Text(
+                context.tr('app_name'),
+                style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
@@ -223,16 +223,17 @@ class _WidgetPreviewCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           const Divider(color: Color(0xFF2A2A2E), height: 16),
-          if (board.gold != null) _row(board.gold!, board.currency),
+          if (board.gold != null) _row(context, board.gold!, board.currency),
           if (board.gold != null && board.silver != null)
             const SizedBox(height: 12),
-          if (board.silver != null) _row(board.silver!, board.currency),
+          if (board.silver != null)
+            _row(context, board.silver!, board.currency),
         ],
       ),
     );
   }
 
-  Widget _row(WidgetMetalRow row, String currency) {
+  Widget _row(BuildContext context, WidgetMetalRow row, String currency) {
     final isGold = row.metal == 'gold';
     final changeColor = row.isPositive ? _green : _red;
     return Row(
@@ -263,7 +264,10 @@ class _WidgetPreviewCard extends StatelessWidget {
               ),
             ),
             Text(
-              '$currency / gram',
+              context.tr(
+                'profile.widget_unit',
+                namedArgs: {'currency': currency},
+              ),
               style: const TextStyle(color: _muted, fontSize: 11),
             ),
           ],

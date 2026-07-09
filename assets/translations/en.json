@@ -364,6 +364,7 @@
     "widget_currency_sub": "Change in Currency settings above",
     "widget_gold_karat": "Gold karat",
     "widget_silver_karat": "Silver purity",
+    "widget_unit": "{currency} / gram",
     "widget_preview": "Preview: {label} — {price} {currency}/g · 24h {change}",
     "widget_egp_note": "EGP uses local market prices and your buy/sell side setting.",
     "widget_inr_note": "INR uses local gold and silver market rates (indicative).",
@@ -548,6 +549,8 @@
 
   "onboarding": {
     "title": "Get started",
+    "language_title": "Choose your language",
+    "language_body": "We'll use this language across the app and home screen widgets. You can change it anytime in Profile.",
     "currency_title": "Choose your currency",
     "currency_body": "We'll show gold and silver prices in this currency. You can change it anytime in Profile.",
     "watchlist_title": "Pin metals to watch",

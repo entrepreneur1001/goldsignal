@@ -12,6 +12,7 @@ import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../core/utils/app_localization.dart';
+import '../../../../core/utils/app_locale.dart';
 import 'package:easy_localization/easy_localization.dart';
 import '../../../../features/auth/presentation/screens/welcome_screen.dart';
 import '../../../../features/auth/presentation/screens/sign_in_screen.dart';
@@ -600,11 +601,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               trailing: currentCode == code
                   ? const Icon(Icons.check, color: VaultColors.gold)
                   : null,
-              onTap: () {
-                // setLocale persists the choice (easy_localization saveLocale)
-                // and rebuilds the app, flipping to RTL for Arabic.
-                context.setLocale(locale);
-                Navigator.pop(sheetContext);
+              onTap: () async {
+                await setAppLocale(context, locale, ref: ref);
+                if (sheetContext.mounted) Navigator.pop(sheetContext);
               },
             );
           }).toList(),
