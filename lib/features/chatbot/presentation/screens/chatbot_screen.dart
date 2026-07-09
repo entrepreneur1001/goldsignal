@@ -135,6 +135,9 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   }
 
   Future<void> _sendMessage() async {
+    // Block sends while a response is generating; without this, quick-action
+    // chips (or rapid taps) could launch concurrent Groq calls.
+    if (_isTyping) return;
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
 
@@ -368,6 +371,8 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.all(16),
                 itemCount: listItemCount,
                 itemBuilder: (context, index) {
@@ -476,10 +481,12 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
       padding: const EdgeInsets.only(right: 8),
       child: ActionChip(
         label: Text(label),
-        onPressed: () {
-          _messageController.text = prompt;
-          _sendMessage();
-        },
+        onPressed: _isTyping
+            ? null
+            : () {
+                _messageController.text = prompt;
+                _sendMessage();
+              },
       ),
     );
   }

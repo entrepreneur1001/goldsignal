@@ -17,6 +17,10 @@
     "offline_mode": "آف لائن موڈ",
     "per_ounce": "فی اونس",
     "per_gram": "فی گرام",
+    "update_available": "اپ ڈیٹ دستیاب ہے",
+    "update_later": "بعد میں",
+    "update_now": "اپ ڈیٹ کریں",
+    "view": "دیکھیں",
     "nav": {
       "markets": "مارکیٹس",
       "calc": "کیلکولیٹر",
@@ -483,6 +487,7 @@
     "add_other": "دیگر اثاثے شامل کریں",
     "other_gold": "دیگر سونا (گرام)",
     "other_silver": "دیگر چاندی (گرام)",
+    "invalid_number": "درست نمبر درج کریں",
     "cash": "نقد / بچت ({currency})",
     "nisab_threshold": "نصاب کی حد",
     "nisab_silver": "چاندی (595 گرام)",

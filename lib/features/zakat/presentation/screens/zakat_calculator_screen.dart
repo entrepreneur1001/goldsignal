@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../../shared/design/app_colors.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/ads/ad_service.dart';
 import '../../../../shared/providers/currency_provider.dart';
@@ -9,6 +8,7 @@ import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/providers/portfolio_provider.dart';
 import '../../zakat.dart';
 import '../../../../core/utils/currency_format.dart';
+import '../../../../core/utils/number_input.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 class ZakatCalculatorScreen extends ConsumerStatefulWidget {
@@ -38,7 +38,7 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
   }
 
   double _parse(TextEditingController c) =>
-      double.tryParse(c.text.trim()) ?? 0.0;
+      parseFlexibleDouble(c.text) ?? 0.0;
 
   /// Current 24K gold price per gram in the selected currency (local-aware).
   double? _gold24PerGram() {
@@ -109,7 +109,7 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
     final gold24 = _gold24PerGram();
     final silver = _silverPerGram();
     // Gold price is required; silver is optional (some markets only quote gold).
-    final pricesReady = gold24 != null;
+    final pricesReady = gold24 != null && gold24 > 0;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -163,8 +163,11 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
     double gold24,
     double? silver,
   ) {
-    final silverPrice = silver ?? 0.0;
-    final portfolio = _portfolioValues(gold24, silver);
+    // A missing or zero silver quote means silver can't be valued: hide the
+    // silver input and fall back to the gold nisab basis.
+    final silverAvailable = silver != null && silver > 0;
+    final silverPrice = silverAvailable ? silver : 0.0;
+    final portfolio = _portfolioValues(gold24, silverAvailable ? silver : null);
 
     final extraGoldValue = gold24 * (_extraGoldKarat / 24) * _parse(_extraGoldController);
     final extraSilverValue = silverPrice * _parse(_extraSilverController);
@@ -176,7 +179,7 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
 
     // Without a silver price, fall back to the gold nisab basis.
     final effectiveBasis =
-        silver == null ? NisabBasis.gold : _nisabBasis;
+        silverAvailable ? _nisabBasis : NisabBasis.gold;
     final nisabValue = Zakat.nisabValue(
       basis: effectiveBasis,
       gold24PerGram: gold24,
@@ -188,6 +191,7 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
     final zakat = result.amount;
 
     return ListView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
         _buildInfoCard(theme),
@@ -231,12 +235,14 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
         Text(context.tr('zakat.add_other'), style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
         _buildGoldRow(theme),
-        const SizedBox(height: 12),
-        _buildNumberField(
-          controller: _extraSilverController,
-          label: context.tr('zakat.other_silver'),
-          icon: Icons.circle_outlined,
-        ),
+        if (silverAvailable) ...[
+          const SizedBox(height: 12),
+          _buildNumberField(
+            controller: _extraSilverController,
+            label: context.tr('zakat.other_silver'),
+            icon: Icons.circle_outlined,
+          ),
+        ],
         const SizedBox(height: 12),
         _buildNumberField(
           controller: _cashController,
@@ -245,25 +251,27 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
         ),
         const SizedBox(height: 24),
 
-        // Nisab basis
+        // Nisab basis (choice only exists when silver has a price).
         Text(context.tr('zakat.nisab_threshold'),
             style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
-        SegmentedButton<NisabBasis>(
-          segments: [
-            ButtonSegment(
-              value: NisabBasis.silver,
-              label: Text(context.tr('zakat.nisab_silver')),
-            ),
-            ButtonSegment(
-              value: NisabBasis.gold,
-              label: Text(context.tr('zakat.nisab_gold')),
-            ),
-          ],
-          selected: {_nisabBasis},
-          onSelectionChanged: (s) => setState(() => _nisabBasis = s.first),
-        ),
-        const SizedBox(height: 8),
+        if (silverAvailable) ...[
+          SegmentedButton<NisabBasis>(
+            segments: [
+              ButtonSegment(
+                value: NisabBasis.silver,
+                label: Text(context.tr('zakat.nisab_silver')),
+              ),
+              ButtonSegment(
+                value: NisabBasis.gold,
+                label: Text(context.tr('zakat.nisab_gold')),
+              ),
+            ],
+            selected: {_nisabBasis},
+            onSelectionChanged: (s) => setState(() => _nisabBasis = s.first),
+          ),
+          const SizedBox(height: 8),
+        ],
         // Religious wording localized in assets/translations (en, ar, ur).
         Text(
           context.tr('zakat.nisab_note', namedArgs: {
@@ -388,17 +396,18 @@ class _ZakatCalculatorScreenState extends ConsumerState<ZakatCalculatorScreen> {
     required String label,
     required IconData icon,
   }) {
+    final text = controller.text.trim();
+    final invalid = text.isNotEmpty && parseFlexibleDouble(text) == null;
     return TextField(
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [
-        FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-      ],
+      inputFormatters: [LocalizedNumberInputFormatter()],
       onChanged: (_) => setState(() {}),
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
         border: const OutlineInputBorder(),
+        errorText: invalid ? context.tr('zakat.invalid_number') : null,
       ),
     );
   }

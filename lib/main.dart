@@ -202,6 +202,13 @@ class _GoldSignalAppState extends ConsumerState<GoldSignalApp>
       darkTheme: AppTheme.darkThemeFor(locale),
       themeMode: ThemeMode.system,
       debugShowCheckedModeBanner: false,
+      // Tap anywhere outside a text field to dismiss the keyboard. Essential
+      // on iOS where the numeric keypad has no Done key.
+      builder: (context, child) => GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: child,
+      ),
       navigatorObservers: [AnalyticsService.instance.navigatorObserver],
       // Use a named initial route so the analytics observer logs the first
       // screen as 'Splash' instead of the default '/'. No other route uses

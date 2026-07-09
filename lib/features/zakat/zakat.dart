@@ -54,11 +54,15 @@ class Zakat {
       basis == NisabBasis.silver ? silverNisabGrams : goldNisabGrams;
 
   /// Compute zakat owed on [totalWealth] against a [nisabValue] threshold.
+  ///
+  /// A non-positive [nisabValue] means the underlying price feed is broken
+  /// (a zero/garbage per-gram price); in that case zakat is never flagged as
+  /// due rather than treating every positive wealth as above the threshold.
   static ZakatResult compute({
     required double totalWealth,
     required double nisabValue,
   }) {
-    final isDue = totalWealth >= nisabValue && totalWealth > 0;
+    final isDue = nisabValue > 0 && totalWealth >= nisabValue && totalWealth > 0;
     return ZakatResult(
       total: totalWealth,
       nisabValue: nisabValue,

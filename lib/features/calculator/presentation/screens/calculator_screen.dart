@@ -2,9 +2,10 @@ import '../../../../core/utils/app_session.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/analytics/analytics_service.dart';
 import '../../../../shared/design/app_colors.dart';
 import '../../../../core/utils/currency_format.dart';
-import 'package:flutter/services.dart';
+import '../../../../core/utils/number_input.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
@@ -28,6 +29,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
   
   int _selectedKarat = 24;
   double _totalValue = 0.0;
+  bool _useTracked = false;
 
   List<int> _karatOptionsFor(String currency) {
     return LocalMarketConfig.goldKarats(currency)
@@ -63,8 +65,10 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
       return;
     }
 
-    final weight = double.tryParse(_weightController.text) ?? 0.0;
-    final quantity = (int.tryParse(_quantityController.text) ?? 1).clamp(1, 1 << 30);
+    final weight = parseFlexibleDouble(_weightController.text) ?? 0.0;
+    final quantity =
+        (int.tryParse(normalizeDigits(_quantityController.text.trim())) ?? 1)
+            .clamp(1, 1 << 30);
 
     final karatPrice = activeGoldKaratPrice(
       isLocal: isLocal,
@@ -82,13 +86,26 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
     setState(() {
       _totalValue = karatPrice * weight * quantity;
     });
+    _trackCalculatorUse();
+  }
+
+  /// Records calculator usage at most once per screen visit: an analytics
+  /// event plus the local counter. Previously this synced to Firestore on
+  /// every keystroke.
+  void _trackCalculatorUse() {
+    if (_useTracked) return;
+    _useTracked = true;
+    AnalyticsService.instance.logEvent('calculator_used');
     _syncCalculatorUse();
   }
 
   Future<void> _syncCalculatorUse() async {
+    final count = await incrementCalculatorUseCount();
+    // The re-engagement Cloud Function only checks calculatorUseCount >= 3,
+    // so stop syncing to Firestore once the threshold has been reported.
+    if (count > 3) return;
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-    final count = await incrementCalculatorUseCount();
     try {
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'calculatorUseCount': count,
@@ -137,6 +154,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -266,9 +284,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                 TextField(
                   controller: _weightController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-                  ],
+                  inputFormatters: [LocalizedNumberInputFormatter()],
                   onChanged: (_) => _calculateValue(),
                   decoration: InputDecoration(
                     hintText: context.tr('calculator.weight_hint'),
@@ -295,7 +311,7 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                   controller: _quantityController,
                   keyboardType: TextInputType.number,
                   inputFormatters: [
-                    FilteringTextInputFormatter.digitsOnly,
+                    LocalizedNumberInputFormatter(allowDecimal: false),
                   ],
                   onChanged: (_) => _calculateValue(),
                   decoration: InputDecoration(
@@ -416,8 +432,10 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
       return const SizedBox.shrink();
     }
     
-    final weight = double.tryParse(_weightController.text) ?? 0.0;
-    final quantity = (int.tryParse(_quantityController.text) ?? 1).clamp(1, 1 << 30);
+    final weight = parseFlexibleDouble(_weightController.text) ?? 0.0;
+    final quantity =
+        (int.tryParse(normalizeDigits(_quantityController.text.trim())) ?? 1)
+            .clamp(1, 1 << 30);
     final isLocal = ref.read(isLocalMarketProvider);
     final local = ref.read(localMarketPricesProvider);
     final side = ref.read(priceSideProvider);

@@ -17,6 +17,10 @@
     "offline_mode": "Offline Mode",
     "per_ounce": "Per Ounce",
     "per_gram": "Per Gram",
+    "update_available": "Update available",
+    "update_later": "Later",
+    "update_now": "Update",
+    "view": "View",
     "nav": {
       "markets": "Markets",
       "calc": "Calc",
@@ -485,6 +489,7 @@
     "add_other": "Add other assets",
     "other_gold": "Other gold (grams)",
     "other_silver": "Other silver (grams)",
+    "invalid_number": "Enter a valid number",
     "cash": "Cash / savings ({currency})",
     "nisab_threshold": "Nisab threshold",
     "nisab_silver": "Silver (595g)",

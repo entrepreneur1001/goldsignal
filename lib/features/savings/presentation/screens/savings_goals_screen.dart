@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../shared/design/app_colors.dart';
-import 'package:flutter/services.dart';
+import '../../../../core/utils/number_input.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/models/portfolio_item.dart';
 import '../../../../shared/models/savings_goal.dart';
@@ -222,7 +222,7 @@ class _AddGoalSheetState extends ConsumerState<_AddGoalSheet> {
   final _noteController = TextEditingController();
   bool _saving = false;
 
-  bool get _canSave => (double.tryParse(_targetController.text.trim()) ?? 0) > 0;
+  bool get _canSave => (parseFlexibleDouble(_targetController.text) ?? 0) > 0;
 
   @override
   void initState() {
@@ -241,7 +241,7 @@ class _AddGoalSheetState extends ConsumerState<_AddGoalSheet> {
 
   Future<void> _save() async {
     if (_saving || !_canSave) return;
-    final target = double.tryParse(_targetController.text.trim()) ?? 0;
+    final target = parseFlexibleDouble(_targetController.text) ?? 0;
     setState(() => _saving = true);
     try {
       await ref.read(savingsGoalsProvider.notifier).addGoal(
@@ -288,9 +288,7 @@ class _AddGoalSheetState extends ConsumerState<_AddGoalSheet> {
               controller: _targetController,
               autofocus: true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-              ],
+              inputFormatters: [LocalizedNumberInputFormatter()],
               decoration: InputDecoration(
                 labelText: context.tr('savings.target_label'),
                 prefixIcon: const Icon(Icons.flag_outlined),

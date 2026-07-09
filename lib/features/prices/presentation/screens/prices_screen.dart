@@ -852,7 +852,9 @@ class PricesScreen extends ConsumerWidget {
             ),
           ),
           IconButton(
-            tooltip: pinned ? 'Remove from watchlist' : 'Add to watchlist',
+            tooltip: pinned
+                ? context.tr('prices.remove_from_watchlist')
+                : context.tr('prices.add_to_watchlist'),
             visualDensity: VisualDensity.compact,
             icon: Icon(
               pinned ? Icons.star_rounded : Icons.star_border_rounded,

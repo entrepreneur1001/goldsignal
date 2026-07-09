@@ -55,12 +55,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
     await markOnboardingComplete();
     if (!mounted) return;
-    Navigator.pushReplacement(
+    Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(
         settings: const RouteSettings(name: 'Dashboard'),
         builder: (_) => const DashboardScreen(),
       ),
+      (route) => false,
     );
   }
 

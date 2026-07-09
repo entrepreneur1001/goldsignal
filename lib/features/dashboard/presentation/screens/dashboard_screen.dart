@@ -68,19 +68,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Update available'),
+        title: Text(ctx.tr('dashboard.update_available')),
         content: Text(config.updateMessage),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Later'),
+            child: Text(ctx.tr('dashboard.update_later')),
           ),
           FilledButton(
             onPressed: () {
               Navigator.pop(ctx);
               openAppStore(config);
             },
-            child: const Text('Update'),
+            child: Text(ctx.tr('dashboard.update_now')),
           ),
         ],
       ),
@@ -137,7 +137,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         SnackBar(
           content: Text(msg),
           action: SnackBarAction(
-            label: 'View',
+            label: context.tr('dashboard.view'),
             onPressed: () => AlertsNavButton.open(context),
           ),
         ),

@@ -17,6 +17,10 @@
     "offline_mode": "وضع عدم الاتصال",
     "per_ounce": "للأوقية",
     "per_gram": "للجرام",
+    "update_available": "تحديث متاح",
+    "update_later": "لاحقًا",
+    "update_now": "تحديث",
+    "view": "عرض",
     "nav": {
       "markets": "الأسواق",
       "calc": "الحاسبة",
@@ -485,6 +489,7 @@
     "add_other": "إضافة أصول أخرى",
     "other_gold": "ذهب آخر (جرام)",
     "other_silver": "فضة أخرى (جرام)",
+    "invalid_number": "أدخل رقمًا صالحًا",
     "cash": "نقد / مدخرات ({currency})",
     "nisab_threshold": "حد النصاب",
     "nisab_silver": "فضة (595 جم)",

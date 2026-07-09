@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -18,6 +17,7 @@ import '../../../../shared/widgets/empty_state_with_ad.dart';
 import '../../../../shared/widgets/native_ad_widget.dart';
 import '../../../../core/utils/currency_format.dart';
 import '../../../../core/utils/currency_conversion.dart';
+import '../../../../core/utils/number_input.dart';
 import '../../../../shared/providers/metal_price_provider.dart';
 import '../../../../shared/providers/currency_provider.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
@@ -40,8 +40,46 @@ class PortfolioScreen extends ConsumerWidget {
     final portfolioAsync = ref.watch(portfolioProvider);
     return portfolioAsync.when(
       loading: () => const _PortfolioLoading(),
-      error: (_, _) => const _PortfolioView(items: []),
+      // Show a real error state: rendering an empty portfolio here made a
+      // network failure look like the user's holdings were gone.
+      error: (_, _) => const _PortfolioLoadError(),
       data: (items) => _PortfolioView(items: items),
+    );
+  }
+}
+
+class _PortfolioLoadError extends ConsumerWidget {
+  const _PortfolioLoadError();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.cloud_off, size: 56, color: Colors.grey.shade400),
+                const SizedBox(height: 16),
+                Text(
+                  context.tr('errors.something_wrong'),
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleMedium,
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: () => ref.invalidate(portfolioProvider),
+                  icon: const Icon(Icons.refresh),
+                  label: Text(context.tr('common.retry')),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -923,8 +961,8 @@ class _AddPortfolioItemDialogState
     final item = PortfolioItem(
       metal: _selectedMetal,
       karat: _selectedKarat,
-      weight: double.parse(_weightController.text),
-      purchasePrice: double.parse(_priceController.text),
+      weight: parseFlexibleDouble(_weightController.text) ?? 0,
+      purchasePrice: parseFlexibleDouble(_priceController.text) ?? 0,
       purchaseCurrency: purchaseCurrency,
       purchaseDate: _selectedDate,
       notes: _notesController.text.isEmpty ? null : _notesController.text,
@@ -1060,9 +1098,7 @@ class _AddPortfolioItemDialogState
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-                ],
+                inputFormatters: [LocalizedNumberInputFormatter()],
                 decoration: InputDecoration(
                   labelText: context.tr('portfolio.weight_grams'),
                   prefixIcon: const Icon(Icons.scale),
@@ -1071,7 +1107,8 @@ class _AddPortfolioItemDialogState
                   if (value == null || value.isEmpty) {
                     return context.tr('portfolio.val_weight');
                   }
-                  if (double.tryParse(value) == null) {
+                  final parsed = parseFlexibleDouble(value);
+                  if (parsed == null || parsed <= 0) {
                     return context.tr('portfolio.val_number');
                   }
                   return null;
@@ -1086,9 +1123,7 @@ class _AddPortfolioItemDialogState
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
-                ],
+                inputFormatters: [LocalizedNumberInputFormatter()],
                 decoration: InputDecoration(
                   labelText: context.tr('portfolio.purchase_price_label',
                       namedArgs: {'currency': priceCurrencyLabel}),
@@ -1098,7 +1133,8 @@ class _AddPortfolioItemDialogState
                   if (value == null || value.isEmpty) {
                     return context.tr('portfolio.val_price');
                   }
-                  if (double.tryParse(value) == null) {
+                  final parsed = parseFlexibleDouble(value);
+                  if (parsed == null || parsed <= 0) {
                     return context.tr('portfolio.val_number');
                   }
                   return null;

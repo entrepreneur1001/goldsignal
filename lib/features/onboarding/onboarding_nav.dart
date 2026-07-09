@@ -8,12 +8,13 @@ import 'presentation/screens/onboarding_screen.dart';
 Future<void> navigateToHome(BuildContext context) async {
   final complete = await isOnboardingComplete();
   if (!context.mounted) return;
-  Navigator.pushReplacement(
+  Navigator.pushAndRemoveUntil(
     context,
     MaterialPageRoute(
       settings: RouteSettings(name: complete ? 'Dashboard' : 'Onboarding'),
       builder: (_) =>
           complete ? const DashboardScreen() : const OnboardingScreen(),
     ),
+    (route) => false,
   );
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/number_input.dart';
 import '../../../../shared/local_market/local_market_config.dart';
 import '../../../../shared/models/local_market_prices.dart';
 import '../../../../shared/models/price_alert.dart';
@@ -107,7 +108,7 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
     if (!await requireAccount(context, 'price_alerts')) return;
     if (!mounted) return;
 
-    final target = double.tryParse(_targetController.text.trim());
+    final target = parseFlexibleDouble(_targetController.text);
     if (target == null || target <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -268,6 +269,7 @@ class _CreateAlertSheetState extends ConsumerState<CreateAlertSheet> {
           TextField(
             controller: _targetController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [LocalizedNumberInputFormatter()],
             decoration: InputDecoration(
               labelText: _type == AlertType.price
                   ? context.tr('alerts.target_price_label',
