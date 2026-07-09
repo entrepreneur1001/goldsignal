@@ -84,6 +84,9 @@
 		76ACB46BF8C045DD45073381 /* GoldPriceWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GoldPriceWidget.swift; sourceTree = "<group>"; };
 		78E0A7A72DC9AD7400C4905E /* FlutterGeneratedPluginSwiftPackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = FlutterGeneratedPluginSwiftPackage; path = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
+		F1A2B3C4D5E60718293A4B5C /* GoldPriceWidget.debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = GoldPriceWidget.debug.xcconfig; path = Flutter/GoldPriceWidget.debug.xcconfig; sourceTree = "<group>"; };
+		F1A2B3C4D5E60718293A4B5D /* GoldPriceWidget.release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = GoldPriceWidget.release.xcconfig; path = Flutter/GoldPriceWidget.release.xcconfig; sourceTree = "<group>"; };
+		F1A2B3C4D5E60718293A4B5E /* GoldPriceWidget.profile.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = GoldPriceWidget.profile.xcconfig; path = Flutter/GoldPriceWidget.profile.xcconfig; sourceTree = "<group>"; };
 		84DC972C0CA19B28D196487B /* GoldPriceWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = GoldPriceWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		8DDE0B34447FC582C94658FF /* Pods-RunnerTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-RunnerTests.debug.xcconfig"; path = "Target Support Files/Pods-RunnerTests/Pods-RunnerTests.debug.xcconfig"; sourceTree = "<group>"; };
 		960C2493756AFAD0BB9A202E /* GoogleService-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "Runner/GoogleService-Info.plist"; sourceTree = "<group>"; };
@@ -188,6 +191,9 @@
 				3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */,
 				9740EEB21CF90195004384FC /* Debug.xcconfig */,
 				7AFA3C8E1D35360C0083082E /* Release.xcconfig */,
+				F1A2B3C4D5E60718293A4B5C /* GoldPriceWidget.debug.xcconfig */,
+				F1A2B3C4D5E60718293A4B5D /* GoldPriceWidget.release.xcconfig */,
+				F1A2B3C4D5E60718293A4B5E /* GoldPriceWidget.profile.xcconfig */,
 				9740EEB31CF90195004384FC /* Generated.xcconfig */,
 			);
 			name = Flutter;
@@ -705,7 +711,7 @@
 		};
 		3BF0527F47D2CFD5D1AAD0E5 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 07977BAEB43AEC4B5C78BC00 /* Pods-GoldPriceWidget.debug.xcconfig */;
+			baseConfigurationReference = F1A2B3C4D5E60718293A4B5C /* GoldPriceWidget.debug.xcconfig */;
 			buildSettings = {
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
@@ -897,7 +903,7 @@
 		};
 		DCBF3F53CE16659D4EA0DAC7 /* Profile */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 4629992F71F9D0A16D7F5154 /* Pods-GoldPriceWidget.profile.xcconfig */;
+			baseConfigurationReference = F1A2B3C4D5E60718293A4B5E /* GoldPriceWidget.profile.xcconfig */;
 			buildSettings = {
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
@@ -928,7 +934,7 @@
 		};
 		FDF9B7410EAC0AF9F580BD38 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 1CA20C11A95CCDAE5A2A78E1 /* Pods-GoldPriceWidget.release.xcconfig */;
+			baseConfigurationReference = F1A2B3C4D5E60718293A4B5D /* GoldPriceWidget.release.xcconfig */;
 			buildSettings = {
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";

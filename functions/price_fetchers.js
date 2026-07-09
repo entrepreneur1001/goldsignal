@@ -13,6 +13,7 @@ const GOODRETURNS_GOLD_URL = 'https://www.goodreturns.in/gold-rates/';
 const GOODRETURNS_SILVER_URL = 'https://www.goodreturns.in/silver-rates/';
 const LIVE_GOLD_URL = 'https://www.livepriceofgold.com/usa-gold-price.html';
 const LIVE_FX_URL = 'https://www.livepriceofgold.com/exchange-rate';
+const GOLDPRICE_DBXRATES_URL = 'https://data-asg.goldprice.org/dbXRates';
 const CURRENCY_SELECTORS = {
   SAR: 'USDSAR',
   AED: 'USDAED',
@@ -36,6 +37,23 @@ const CURRENCY_SELECTORS = {
 const FETCH_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (compatible; GoldSignal/1.0)',
   'Accept-Language': 'ar-EG,ar;q=0.9,en;q=0.8',
+};
+
+/** Browser-like headers for goldprice.org; Cookie / if-none-match intentionally omitted. */
+const GOLDPRICE_HEADERS = {
+  accept: 'application/json, text/javascript, */*; q=0.01',
+  'accept-language': 'en-US,en;q=0.9',
+  origin: 'https://goldprice.org',
+  priority: 'u=1, i',
+  referer: 'https://goldprice.org/',
+  'sec-ch-ua': '"Google Chrome";v="149", "Chromium";v="149", "Not)A;Brand";v="24"',
+  'sec-ch-ua-mobile': '?0',
+  'sec-ch-ua-platform': '"macOS"',
+  'sec-fetch-dest': 'empty',
+  'sec-fetch-mode': 'cors',
+  'sec-fetch-site': 'same-site',
+  'user-agent':
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
 };
 
 /** Local EGP/INR markets update less frequently than global spot. */
@@ -168,6 +186,78 @@ function parseMetalRows($, metalClass) {
   return rows;
 }
 
+function assertSpotMetalPrices(goldPrice, silverPrice) {
+  if (goldPrice == null || goldPrice <= 500 || goldPrice >= 50000) {
+    throw new Error('Failed to obtain gold price');
+  }
+  if (silverPrice == null || silverPrice <= 5 || silverPrice >= 500) {
+    throw new Error('Failed to obtain silver price');
+  }
+}
+
+/**
+ * Primary global source: goldprice.org dbXRates (spot metals + FX derived from
+ * local-currency ounce prices vs USD ounce).
+ */
+async function fetchGoldpriceDbXRates() {
+  const currencies = ['USD', ...Object.keys(CURRENCY_SELECTORS)].join(',');
+  const url = `${GOLDPRICE_DBXRATES_URL}/${currencies}`;
+  const response = await fetch(url, { headers: GOLDPRICE_HEADERS });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} for ${url}`);
+  }
+
+  const data = await response.json();
+  const items = Array.isArray(data?.items) ? data.items : [];
+  const byCurr = new Map(items.map((item) => [item.curr, item]));
+  const usd = byCurr.get('USD');
+  if (!usd) {
+    throw new Error('dbXRates response missing USD item');
+  }
+
+  const goldPrice = Number(usd.xauPrice);
+  const silverPrice = Number(usd.xagPrice);
+  assertSpotMetalPrices(
+    Number.isFinite(goldPrice) ? goldPrice : null,
+    Number.isFinite(silverPrice) ? silverPrice : null,
+  );
+
+  const rates = {
+    USDXAU: goldPrice,
+    USDXAG: silverPrice,
+  };
+
+  for (const currency of Object.keys(CURRENCY_SELECTORS)) {
+    const item = byCurr.get(currency);
+    const localXau = Number(item?.xauPrice);
+    if (!Number.isFinite(localXau) || localXau <= 0) continue;
+    const fx = localXau / goldPrice;
+    if (Number.isFinite(fx) && fx > 0) rates[currency] = fx;
+  }
+
+  const missingFx = Object.keys(CURRENCY_SELECTORS).filter((c) => rates[c] == null);
+  if (missingFx.length > 0) {
+    logger.warn('Missing FX rates after goldprice.org dbXRates', { currencies: missingFx });
+  }
+
+  if (Object.keys(rates).length < 7) {
+    throw new Error(`Too few exchange rates from goldprice.org: ${Object.keys(rates).length}`);
+  }
+
+  const apiTsMs = Number(data.tsj ?? data.ts);
+  const timestamp = Number.isFinite(apiTsMs)
+    ? Math.floor(apiTsMs / 1000)
+    : Math.floor(Date.now() / 1000);
+
+  return {
+    success: true,
+    base: 'USD',
+    timestamp,
+    rates,
+    source: 'goldprice',
+  };
+}
+
 async function scrapeLivePriceOfGold() {
   const [goldHtml, fxHtml] = await Promise.all([
     fetchHtml(LIVE_GOLD_URL),
@@ -180,13 +270,7 @@ async function scrapeLivePriceOfGold() {
 
   const goldPrice = cleanPrice($gold('[data-price="XAUUSD"]').first().text());
   const silverPrice = cleanPrice($gold('[data-price="XAGUSD"]').first().text());
-
-  if (goldPrice == null || goldPrice <= 500 || goldPrice >= 50000) {
-    throw new Error('Failed to scrape gold price');
-  }
-  if (silverPrice == null || silverPrice <= 5 || silverPrice >= 500) {
-    throw new Error('Failed to scrape silver price');
-  }
+  assertSpotMetalPrices(goldPrice, silverPrice);
 
   rates.USDXAU = goldPrice;
   rates.USDXAG = silverPrice;
@@ -210,6 +294,7 @@ async function scrapeLivePriceOfGold() {
     base: 'USD',
     timestamp: Math.floor(Date.now() / 1000),
     rates,
+    source: 'scraper',
   };
 }
 
@@ -471,8 +556,15 @@ async function scrapeIsaghaLocal() {
 }
 
 async function fetchAndUpdateGlobalPrices(db) {
-  const apiResponse = await scrapeLivePriceOfGold();
-  apiResponse.source = 'scraper';
+  let apiResponse;
+  try {
+    apiResponse = await fetchGoldpriceDbXRates();
+  } catch (err) {
+    logger.warn('goldprice.org dbXRates failed; falling back to livepriceofgold scrape', {
+      error: err?.message ?? String(err),
+    });
+    apiResponse = await scrapeLivePriceOfGold();
+  }
   const result = await writeGlobalPrices(db, apiResponse);
   return result.rates;
 }

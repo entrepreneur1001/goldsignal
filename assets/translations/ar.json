@@ -80,7 +80,15 @@
     "share_price": "مشاركة السعر",
     "set_alert": "ضبط تنبيه",
     "history": "السجل",
-    "goodreturns_source": "أسعار السوق المحلي بالهند"
+    "goodreturns_source": "أسعار السوق المحلي بالهند",
+    "gold_performance": "أداء الذهب",
+    "silver_performance": "أداء الفضة",
+    "perf_today": "اليوم",
+    "perf_30_days": "30 يومًا",
+    "perf_6_months": "6 أشهر",
+    "perf_1_year": "سنة واحدة",
+    "perf_5_years": "5 سنوات",
+    "perf_20_years": "20 سنة"
   },
 
   "calculator": {

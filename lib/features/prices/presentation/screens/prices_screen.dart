@@ -26,6 +26,7 @@ import '../../../../shared/widgets/alerts_nav_button.dart';
 import '../../../../shared/widgets/sync_account_banner.dart';
 import '../../../../shared/widgets/daily_insight_card.dart';
 import '../../../../shared/widgets/egp_spread_card.dart';
+import '../../../../shared/widgets/metal_performance_card.dart';
 import '../../../../shared/widgets/native_ad_widget.dart';
 
 class PricesScreen extends ConsumerWidget {
@@ -216,6 +217,8 @@ class PricesScreen extends ConsumerWidget {
               silverPrice,
               side: isLocal ? priceSide : null,
             ),
+          const SizedBox(height: 16),
+          const MetalPerformanceCard(),
           const SizedBox(height: 16),
           const NativeAdWidget(),
           const SizedBox(height: 88),

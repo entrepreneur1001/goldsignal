@@ -14,6 +14,7 @@ import '../local_market/local_market_config.dart';
 import '../models/local_market_prices.dart';
 import '../models/metal_price.dart';
 import 'currency_provider.dart';
+import 'metal_performance_provider.dart';
 import 'metal_price_provider.dart';
 import 'price_alerts_provider.dart';
 import 'widget_preferences_provider.dart';
@@ -170,6 +171,9 @@ class MarketPricesController extends Notifier<MarketPricesState> {
       } catch (e, st) {
         reportNonFatal(e, st, reason: 'price alert check failed');
       }
+      // Kick off performance refresh without blocking price UI.
+      // ignore: unawaited_futures
+      ref.read(metalPerformanceProvider.notifier).refresh();
     } catch (e) {
       state = state.copyWith(
         isRefreshing: false,

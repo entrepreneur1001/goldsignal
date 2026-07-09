@@ -1,0 +1,2 @@
+#include? "Pods/Target Support Files/Pods-GoldPriceWidget/Pods-GoldPriceWidget.release.xcconfig"
+#include "Generated.xcconfig"

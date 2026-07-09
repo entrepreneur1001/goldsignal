@@ -80,7 +80,15 @@
     "share_price": "قیمت شیئر کریں",
     "set_alert": "الرٹ سیٹ کریں",
     "history": "تاریخ",
-    "goodreturns_source": "بھارت کی مقامی مارکیٹ ریٹ"
+    "goodreturns_source": "بھارت کی مقامی مارکیٹ ریٹ",
+    "gold_performance": "سونے کی کارکردگی",
+    "silver_performance": "چاندی کی کارکردگی",
+    "perf_today": "آج",
+    "perf_30_days": "30 دن",
+    "perf_6_months": "6 ماہ",
+    "perf_1_year": "1 سال",
+    "perf_5_years": "5 سال",
+    "perf_20_years": "20 سال"
   },
 
   "calculator": {

@@ -80,7 +80,15 @@
     "share_price": "Share price",
     "set_alert": "Set alert",
     "history": "History",
-    "goodreturns_source": "India local market rates"
+    "goodreturns_source": "India local market rates",
+    "gold_performance": "Gold Performance",
+    "silver_performance": "Silver Performance",
+    "perf_today": "Today",
+    "perf_30_days": "30 Days",
+    "perf_6_months": "6 Months",
+    "perf_1_year": "1 Year",
+    "perf_5_years": "5 Years",
+    "perf_20_years": "20 Years"
   },
 
   "calculator": {

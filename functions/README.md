@@ -16,7 +16,7 @@ Price data is kept fresh by `refreshPricesScheduled`; this job only evaluates al
 
 Runs every **30 minutes** (Cloud Scheduler). It:
 
-1. Refreshes **global** spot prices (livepriceofgold scraper) every run
+1. Refreshes **global** spot prices every run via **goldprice.org `dbXRates`** (primary), falling back to the livepriceofgold scraper on failure
 2. Refreshes **EGP** (iSagha) and **INR** (Goodreturns) local prices at most **once per hour** (skipped if cache is fresh)
 3. Skips Firestore writes when scraped prices are unchanged (hash comparison)
 4. Updates `prices/latest` (including `prevRates` for global 24h % alerts), `prices/local_EGP`, and `prices/local_INR`
