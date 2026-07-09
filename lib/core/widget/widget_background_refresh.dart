@@ -160,16 +160,13 @@ Future<void> refreshWidgetPricesInBackground() async {
 Future<void> scheduleWidgetBackgroundRefresh() async {
   if (kIsWeb) return;
   try {
-    await Workmanager().initialize(
-      widgetWorkmanagerDispatcher,
-      isInDebugMode: kDebugMode,
-    );
+    await Workmanager().initialize(widgetWorkmanagerDispatcher);
     // Android minimum periodic interval is 15 minutes; iOS is best-effort.
     await Workmanager().registerPeriodicTask(
       widgetBackgroundTaskUniqueName,
       widgetBackgroundTaskName,
       frequency: const Duration(minutes: 30),
-      existingWorkPolicy: ExistingWorkPolicy.keep,
+      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
       constraints: Constraints(networkType: NetworkType.connected),
     );
   } catch (e, st) {
