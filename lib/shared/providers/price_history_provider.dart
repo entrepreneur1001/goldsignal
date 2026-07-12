@@ -154,6 +154,22 @@ class ChartDataNotifier extends Notifier<ChartState> {
 
     try {
       final history = ref.read(priceHistoryServiceProvider);
+      final isLocal = LocalMarketConfig.isLocalCurrency(query.currency);
+
+      // Global 24H: prefer CF-seeded goldprice.org GetData (~24h intraday)
+      // over stale Hive / community / metalpriceapi daily history.
+      if (!isLocal && query.range == ChartRange.days7) {
+        final goldpricePoints = await _loadGoldpriceIntraday(query);
+        if (_hasMeaningfulChart(goldpricePoints)) {
+          state = ChartState(
+            points: goldpricePoints,
+            source: ChartDataSource.goldprice,
+            isLoading: false,
+          );
+          return;
+        }
+      }
+
       final hivePoints = history.getChartPoints(
         currency: query.currency,
         metal: query.metal,
@@ -176,7 +192,7 @@ class ChartDataNotifier extends Notifier<ChartState> {
           (hivePoints.length < 2 || firestorePoints.length >= hivePoints.length);
 
       if (points.length < 2) {
-        if (LocalMarketConfig.isLocalCurrency(query.currency)) {
+        if (isLocal) {
           final local = ref.read(localMarketPricesProvider);
           if (local != null) {
             points = history.seedFromLocalPrices(
@@ -274,6 +290,28 @@ class ChartDataNotifier extends Notifier<ChartState> {
         error: !_hasMeaningfulChart(partial) ? e.toString() : null,
       );
     }
+  }
+
+  Future<List<ChartDataPoint>> _loadGoldpriceIntraday(ChartQuery query) async {
+    final api = ref.read(metalPriceApiProvider);
+    var fxRates = api.getCachedPrices()?.rates;
+    if (query.currency != 'USD' && (fxRates == null || fxRates[query.currency] == null)) {
+      final latest = await ref
+          .read(firestorePriceServiceProvider)
+          .getCachedPrices('latest', maxAge: const Duration(hours: 6));
+      final rates = latest?['rates'];
+      if (rates is Map) {
+        fxRates = rates.map(
+          (key, value) => MapEntry(key.toString(), (value as num).toDouble()),
+        );
+      }
+    }
+    return ref.read(firestorePriceServiceProvider).getIntradayChartPoints(
+          currency: query.currency,
+          metal: query.metal,
+          karat: query.karat,
+          fxRates: fxRates,
+        );
   }
 
   bool _hasMeaningfulChart(List<ChartDataPoint> points) {

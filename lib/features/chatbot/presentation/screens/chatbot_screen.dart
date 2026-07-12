@@ -13,8 +13,6 @@ import '../../../../shared/local_market/local_market_config.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/providers/portfolio_provider.dart';
 import '../../../../shared/widgets/alerts_nav_button.dart';
-import '../../../../shared/widgets/ad_list_builder.dart';
-import '../../../../shared/widgets/native_ad_widget.dart';
 import '../../../../shared/models/metal_price.dart';
 import '../../../../shared/models/chat_conversation.dart';
 import '../../../../shared/providers/chat_history_provider.dart';
@@ -298,10 +296,8 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
 
     final storedMessages = ref.watch(chatHistoryProvider).activeMessages;
     final showWelcome = storedMessages.isEmpty;
-    final adContentCount = showWelcome ? 0 : storedMessages.length;
     final listItemCount =
-        (showWelcome ? 1 : adListItemCount(adContentCount)) +
-        (_isTyping ? 1 : 0);
+        (showWelcome ? 1 : storedMessages.length) + (_isTyping ? 1 : 0);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -382,15 +378,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                   if (showWelcome) {
                     return _buildMessage(_welcomeMessage(context));
                   }
-                  if (adListIndexIsAd(index, adContentCount)) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: NativeAdWidget.list(),
-                    );
-                  }
-                  return _buildMessage(
-                    storedMessages[adListContentIndex(index, adContentCount)],
-                  );
+                  return _buildMessage(storedMessages[index]);
                 },
               ),
             ),

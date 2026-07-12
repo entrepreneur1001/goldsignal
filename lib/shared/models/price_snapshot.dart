@@ -66,7 +66,7 @@ class ChartDataPoint {
   const ChartDataPoint({required this.date, required this.value});
 }
 
-enum ChartDataSource { snapshots, community, apiFallback }
+enum ChartDataSource { snapshots, community, apiFallback, goldprice }
 
 enum ChartRange { days7, days30, days90 }
 
@@ -78,7 +78,7 @@ extension ChartRangeExt on ChartRange {
       };
 
   String get label => switch (this) {
-        ChartRange.days7 => '7D',
+        ChartRange.days7 => '24H',
         ChartRange.days30 => '30D',
         ChartRange.days90 => '90D',
       };

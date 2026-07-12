@@ -86,6 +86,16 @@ class MetalPriceApiService {
         return MetalPricesResponse.fromJson(apiData);
       }
 
+      // Prefer a slightly stale shared cache over a divergent client scrape so
+      // users stay aligned with CF goldprice.org primary.
+      final staleShared = await _firestoreService.getStalePrices('latest');
+      if (staleShared != null) {
+        debugPrint('[Cache] Using stale Firestore price cache before scrape');
+        final apiData = _firestoreToApiFormat(staleShared);
+        await _savePreviousAndCache(apiData);
+        return MetalPricesResponse.fromJson(apiData);
+      }
+
       // --- Fallback: direct scrape for an immediate fresh reading ---
       try {
         debugPrint('[Scraper] Scraping livepriceofgold.com');
@@ -326,6 +336,13 @@ class MetalPriceApiService {
         if (now.difference(cacheTime).inHours < 24) {
           return cachedData['data'];
         }
+      }
+
+      if (ApiConfig.metalPriceApiKey.isEmpty) {
+        debugPrint(
+          '[Historical] METAL_PRICE_API_KEY empty — skipping metalpriceapi',
+        );
+        throw Exception('Historical price API is not configured');
       }
       
       final response = await _dio.get(

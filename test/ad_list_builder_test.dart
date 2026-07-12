@@ -7,45 +7,43 @@ void main() {
       expect(adListItemCount(0), 0);
     });
 
-    test('single-item list appends one trailing ad', () {
-      expect(adListItemCount(1), 2);
+    test('fewer than min content has no ad', () {
+      expect(adListItemCount(1), 1);
+      expect(adListItemCount(3), 3);
     });
 
-    test('two-item list has no ad slot', () {
-      expect(adListItemCount(2), 2);
-    });
-
-    test('full lists insert ads every 2 items but not after the last', () {
-      expect(adListItemCount(3), 4);
+    test('at least min content inserts one ad', () {
       expect(adListItemCount(4), 5);
-      expect(adListItemCount(6), 8);
-      expect(adListItemCount(9), 13);
+      expect(adListItemCount(6), 7);
+      expect(adListItemCount(9), 10);
     });
   });
 
   group('adListIndexIsAd', () {
-    test('short list ad is only at the end', () {
+    test('short lists never show an ad', () {
       expect(adListIndexIsAd(0, 1), isFalse);
-      expect(adListIndexIsAd(1, 1), isTrue);
+      expect(adListIndexIsAd(1, 1), isFalse);
+      expect(adListIndexIsAd(3, 3), isFalse);
     });
 
-    test('two items have no ad slot', () {
-      expect(adListIndexIsAd(0, 2), isFalse);
-      expect(adListIndexIsAd(1, 2), isFalse);
-    });
-
-    test('periodic ads skip the final group of exactly 2', () {
-      expect(adListIndexIsAd(2, 2), isFalse);
-      expect(adListIndexIsAd(2, 3), isTrue);
-      expect(adListIndexIsAd(5, 6), isTrue);
-      expect(adListIndexIsAd(2, 4), isTrue);
+    test('ad sits after the first four content items', () {
+      expect(adListIndexIsAd(3, 4), isFalse);
+      expect(adListIndexIsAd(4, 4), isTrue);
+      expect(adListIndexIsAd(4, 6), isTrue);
+      expect(adListIndexIsAd(5, 6), isFalse);
     });
   });
 
   group('adListContentIndex', () {
     test('maps list indices back to content indices', () {
-      expect(adListContentIndex(3, 4), 2);
-      expect(adListContentIndex(4, 6), 3);
+      expect(adListContentIndex(0, 4), 0);
+      expect(adListContentIndex(3, 4), 3);
+      expect(adListContentIndex(5, 6), 4);
+      expect(adListContentIndex(6, 6), 5);
+    });
+
+    test('short lists map 1:1', () {
+      expect(adListContentIndex(2, 3), 2);
     });
   });
 }

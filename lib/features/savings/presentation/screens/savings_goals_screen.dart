@@ -6,9 +6,7 @@ import '../../../../shared/models/portfolio_item.dart';
 import '../../../../shared/models/savings_goal.dart';
 import '../../../../shared/providers/portfolio_provider.dart';
 import '../../../../shared/providers/savings_goals_provider.dart';
-import '../../../../shared/widgets/ad_list_builder.dart';
-import '../../../../shared/widgets/empty_state_with_ad.dart';
-import '../../../../shared/widgets/native_ad_widget.dart';
+import '../../../../shared/widgets/empty_state.dart';
 import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
 import 'package:easy_localization/easy_localization.dart';
 
@@ -45,23 +43,18 @@ class SavingsGoalsScreen extends ConsumerWidget {
   }
 
   Widget _buildGoalsList(List<SavingsGoal> goals) {
-    final itemCount = adListItemCount(goals.length);
-
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
-      itemCount: itemCount,
+      itemCount: goals.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        if (adListIndexIsAd(index, goals.length)) {
-          return const NativeAdWidget.list();
-        }
-        return _GoalCard(goal: goals[adListContentIndex(index, goals.length)]);
+        return _GoalCard(goal: goals[index]);
       },
     );
   }
 
   Widget _buildEmpty(BuildContext context) {
-    return EmptyStateWithAd(
+    return EmptyState(
       icon: Icons.savings_outlined,
       title: context.tr('savings.empty_title'),
       message: context.tr('savings.empty_msg'),

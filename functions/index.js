@@ -3,6 +3,7 @@ const { logger } = require('firebase-functions');
 const admin = require('firebase-admin');
 const {
   fetchAndUpdateGlobalPrices,
+  fetchAndUpdateIntradayChart,
   fetchAndUpdateLocalEgp,
   fetchAndUpdateLocalInr,
   loadPriceContextFromFirestore,
@@ -210,16 +211,24 @@ function resolvePrice(alert, ctx) {
 }
 
 async function refreshPrices() {
-  const [globalResult, localEgpResult, localInrResult] = await Promise.allSettled([
-    fetchAndUpdateGlobalPrices(db),
-    fetchAndUpdateLocalEgp(db),
-    fetchAndUpdateLocalInr(db),
-  ]);
+  const [globalResult, chartResult, localEgpResult, localInrResult] =
+    await Promise.allSettled([
+      fetchAndUpdateGlobalPrices(db),
+      fetchAndUpdateIntradayChart(db),
+      fetchAndUpdateLocalEgp(db),
+      fetchAndUpdateLocalInr(db),
+    ]);
 
   if (globalResult.status === 'fulfilled') {
     logger.info('Global prices updated from server fetch');
   } else {
     logger.warn('Global price fetch failed', globalResult.reason);
+  }
+
+  if (chartResult.status === 'fulfilled') {
+    logger.info('Intraday chart seed updated from goldprice.org GetData', chartResult.value);
+  } else {
+    logger.warn('Intraday chart seed failed', chartResult.reason);
   }
 
   if (localEgpResult.status === 'fulfilled' && localEgpResult.value) {
@@ -372,14 +381,15 @@ exports.checkPriceAlerts = onSchedule(
             })
           : { sent: 0, transientErrors: 0, tokensTried: 0 };
 
+        // Always deactivate on trigger so a failed push cannot leave the alert
+        // stuck active forever. Retry delivery is best-effort only.
         if (pushResult.sent === 0) {
-          logger.warn('Alert triggered but push not delivered', {
+          logger.warn('Alert triggered but push not delivered; deactivating anyway', {
             uid,
             alertId: alertDoc.id,
             tokensTried: pushResult.tokensTried,
             transientErrors: pushResult.transientErrors,
           });
-          continue;
         }
 
         const triggeredAt = new Date();
@@ -397,7 +407,9 @@ exports.checkPriceAlerts = onSchedule(
         await alertDoc.ref.update(updates);
 
         triggered += 1;
-        logger.info(`Triggered alert ${alertDoc.id} for user ${uid}`);
+        logger.info(`Triggered alert ${alertDoc.id} for user ${uid}`, {
+          pushSent: pushResult.sent,
+        });
       } catch (err) {
         logger.error('Alert check failed for document', {
           alertId: alertDoc.id,

@@ -13,7 +13,7 @@ import '../../../../shared/widgets/delta_pill.dart';
 import '../../../../shared/widgets/shimmer.dart';
 import '../../../../shared/widgets/vault_card.dart';
 import '../../../../shared/widgets/ad_list_builder.dart';
-import '../../../../shared/widgets/empty_state_with_ad.dart';
+import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/native_ad_widget.dart';
 import '../../../../core/utils/currency_format.dart';
 import '../../../../core/utils/currency_conversion.dart';
@@ -488,7 +488,7 @@ class _PortfolioViewState extends ConsumerState<_PortfolioView> {
             if (_items.isEmpty)
               SliverFillRemaining(
                 hasScrollBody: false,
-                child: EmptyStateWithAd(
+                child: EmptyState(
                   icon: Icons.inventory_2_outlined,
                   title: context.tr('portfolio.no_holdings'),
                   message: context.tr('portfolio.add_first'),

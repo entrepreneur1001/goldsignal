@@ -6,7 +6,7 @@ import '../../../../shared/models/price_alert.dart';
 import '../../../../core/notifications/notification_permission_ui.dart';
 import '../../../../shared/providers/price_alerts_provider.dart';
 import '../../../../shared/widgets/ad_list_builder.dart';
-import '../../../../shared/widgets/empty_state_with_ad.dart';
+import '../../../../shared/widgets/empty_state.dart';
 import '../../../../shared/widgets/native_ad_widget.dart';
 import '../../../auth/presentation/widgets/auth_wall_sheet.dart';
 import '../widgets/create_alert_sheet.dart';
@@ -91,7 +91,7 @@ class _ActiveAlertsTab extends ConsumerWidget {
     final paused = state.pausedAlerts;
 
     if (active.isEmpty && snoozed.isEmpty && paused.isEmpty) {
-      return EmptyStateWithAd(
+      return EmptyState(
         icon: Icons.notifications_off_outlined,
         title: context.tr('profile.no_active_alerts'),
         message: context.tr('alerts.empty_active_msg'),
@@ -151,7 +151,7 @@ class _HistoryTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (alerts.isEmpty) {
-      return EmptyStateWithAd(
+      return EmptyState(
         icon: Icons.history,
         title: context.tr('alerts.empty_history_title'),
         message: context.tr('alerts.empty_history_msg'),
@@ -202,7 +202,7 @@ class _HistoryTab extends ConsumerWidget {
     );
   }
 
-  /// History list with a native ad blended in after every 3 alerts.
+  /// History list with at most one native ad after the first few alerts.
   Widget _buildHistoryList(List<PriceAlert> alerts) {
     final itemCount = adListItemCount(alerts.length);
 

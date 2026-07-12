@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../shared/models/local_market_prices.dart';
+import '../../shared/models/price_snapshot.dart';
 
 /// Read-only access to the shared price cache in Firestore.
 ///
@@ -14,6 +15,11 @@ class FirestorePriceService {
 
   /// Local EGP/INR markets refresh at most once per hour server-side.
   static const Duration localStaleDuration = Duration(minutes: 65);
+
+  /// Intraday chart seed from goldprice.org GetData (CF-written).
+  static const Duration intradayChartMaxAge = Duration(hours: 2);
+
+  static const _ounceToGram = 31.1034768;
 
   static const _localDocIds = {'EGP': 'local_EGP', 'INR': 'local_INR'};
 
@@ -76,6 +82,57 @@ class FirestorePriceService {
       return localMarketPricesFromFirestore(doc.data()!);
     } catch (e) {
       return null;
+    }
+  }
+
+  /// Global intraday series from `prices/chart_intraday` (USD/oz points),
+  /// converted to per-gram in [currency] for [metal]/[karat].
+  Future<List<ChartDataPoint>> getIntradayChartPoints({
+    required String currency,
+    required String metal,
+    required String karat,
+    Map<String, double>? fxRates,
+    Duration? maxAge,
+  }) async {
+    try {
+      final data = await _readDocIfFresh(
+        'chart_intraday',
+        maxAge ?? intradayChartMaxAge,
+      );
+      if (data == null) return [];
+
+      final seriesKey = metal == 'gold' ? 'gold' : 'silver';
+      final raw = data[seriesKey];
+      if (raw is! List || raw.length < 2) return [];
+
+      final fx = currency == 'USD'
+          ? 1.0
+          : fxRates?[currency];
+      if (fx == null || fx <= 0) return [];
+
+      final purity = metal == 'gold'
+          ? (int.tryParse(karat) ?? 24) / 24.0
+          : 1.0;
+
+      final points = <ChartDataPoint>[];
+      for (final entry in raw) {
+        if (entry is! Map) continue;
+        final map = Map<String, dynamic>.from(entry);
+        final tRaw = map['t'];
+        final vRaw = map['v'];
+        if (tRaw == null || vRaw == null) continue;
+        final date = DateTime.tryParse(tRaw.toString());
+        final ounceUsd = (vRaw as num?)?.toDouble();
+        if (date == null || ounceUsd == null) continue;
+        final perGram = (ounceUsd * fx / _ounceToGram) * purity;
+        points.add(ChartDataPoint(date: date.toLocal(), value: perGram));
+      }
+
+      points.sort((a, b) => a.date.compareTo(b.date));
+      return points;
+    } catch (e) {
+      debugPrint('FirestorePriceService.getIntradayChartPoints error: $e');
+      return [];
     }
   }
 

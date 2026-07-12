@@ -3,9 +3,7 @@ import '../../../../shared/design/app_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/models/chat_conversation.dart';
 import '../../../../shared/providers/chat_history_provider.dart';
-import '../../../../shared/widgets/ad_list_builder.dart';
-import '../../../../shared/widgets/empty_state_with_ad.dart';
-import '../../../../shared/widgets/native_ad_widget.dart';
+import '../../../../shared/widgets/empty_state.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 class ChatHistoryScreen extends ConsumerWidget {
@@ -44,18 +42,13 @@ class ChatHistoryScreen extends ConsumerWidget {
   }
 
   Widget _buildList(List<ChatConversation> conversations) {
-    final itemCount = adListItemCount(conversations.length);
-
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
-      itemCount: itemCount,
+      itemCount: conversations.length,
       separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
-        if (adListIndexIsAd(index, conversations.length)) {
-          return const NativeAdWidget.list();
-        }
         return _ConversationTile(
-          conversation: conversations[adListContentIndex(index, conversations.length)],
+          conversation: conversations[index],
         );
       },
     );
@@ -85,7 +78,7 @@ class ChatHistoryScreen extends ConsumerWidget {
   }
 
   Widget _buildEmpty(BuildContext context) {
-    return EmptyStateWithAd(
+    return EmptyState(
       icon: Icons.forum_outlined,
       title: context.tr('chat_history.empty_title'),
       message: context.tr('chat_history.empty_message'),

@@ -14,6 +14,11 @@ const GOODRETURNS_SILVER_URL = 'https://www.goodreturns.in/silver-rates/';
 const LIVE_GOLD_URL = 'https://www.livepriceofgold.com/usa-gold-price.html';
 const LIVE_FX_URL = 'https://www.livepriceofgold.com/exchange-rate';
 const GOLDPRICE_DBXRATES_URL = 'https://data-asg.goldprice.org/dbXRates';
+const GOLDPRICE_GETDATA_URL = 'https://data-asg.goldprice.org/GetData';
+/** Target points written to Firestore for the intraday chart seed. */
+const INTRADAY_CHART_TARGET_POINTS = 120;
+/** Assumed session window when GetData/0 has no timestamps. */
+const INTRADAY_CHART_WINDOW_MS = 24 * 60 * 60 * 1000;
 const CURRENCY_SELECTORS = {
   SAR: 'USDSAR',
   AED: 'USDAED',
@@ -58,6 +63,8 @@ const GOLDPRICE_HEADERS = {
 
 /** Local EGP/INR markets update less frequently than global spot. */
 const LOCAL_REFRESH_MAX_AGE_MS = 60 * 60 * 1000;
+const FETCH_TIMEOUT_MS = 20_000;
+const FETCH_MAX_ATTEMPTS = 2;
 
 function stableHash(value) {
   return JSON.stringify(value);
@@ -79,11 +86,35 @@ async function isPriceDocStale(db, docId, maxAgeMs) {
   return Date.now() - updatedMs > maxAgeMs;
 }
 
-async function fetchHtml(url, headers = FETCH_HEADERS) {
-  const response = await fetch(url, { headers });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status} for ${url}`);
+async function fetchWithTimeout(url, { headers = {}, timeoutMs = FETCH_TIMEOUT_MS } = {}) {
+  let lastError;
+  for (let attempt = 1; attempt <= FETCH_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { headers, signal: controller.signal });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} for ${url}`);
+      }
+      return response;
+    } catch (err) {
+      lastError = err;
+      if (attempt < FETCH_MAX_ATTEMPTS) {
+        logger.warn('Fetch attempt failed; retrying', {
+          url,
+          attempt,
+          error: err?.message ?? String(err),
+        });
+      }
+    } finally {
+      clearTimeout(timer);
+    }
   }
+  throw lastError ?? new Error(`Fetch failed for ${url}`);
+}
+
+async function fetchHtml(url, headers = FETCH_HEADERS) {
+  const response = await fetchWithTimeout(url, { headers });
   return response.text();
 }
 
@@ -202,11 +233,7 @@ function assertSpotMetalPrices(goldPrice, silverPrice) {
 async function fetchGoldpriceDbXRates() {
   const currencies = ['USD', ...Object.keys(CURRENCY_SELECTORS)].join(',');
   const url = `${GOLDPRICE_DBXRATES_URL}/${currencies}`;
-  const response = await fetch(url, { headers: GOLDPRICE_HEADERS });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status} for ${url}`);
-  }
-
+  const response = await fetchWithTimeout(url, { headers: GOLDPRICE_HEADERS });
   const data = await response.json();
   const items = Array.isArray(data?.items) ? data.items : [];
   const byCurr = new Map(items.map((item) => [item.curr, item]));
@@ -258,6 +285,87 @@ async function fetchGoldpriceDbXRates() {
   };
 }
 
+/**
+ * Parse GetData/{PAIR}/0 CSV-in-JSON into a downsampled USD/oz series.
+ * Consecutive duplicate prices are collapsed; remaining points are evenly
+ * spaced over the last [INTRADAY_CHART_WINDOW_MS] ending at now.
+ */
+function parseGetDataSeries(payload, pairPrefix) {
+  if (!Array.isArray(payload) || payload.length === 0) {
+    throw new Error('GetData response is not a non-empty array');
+  }
+  const raw = String(payload[0] ?? '');
+  const parts = raw.split(',');
+  if (parts.length < 3) {
+    throw new Error('GetData series too short');
+  }
+  const prefix = parts[0].trim();
+  if (pairPrefix && prefix !== pairPrefix) {
+    throw new Error(`GetData pair mismatch: expected ${pairPrefix}, got ${prefix}`);
+  }
+
+  const prices = [];
+  for (let i = 1; i < parts.length; i += 1) {
+    const value = Number.parseFloat(parts[i]);
+    if (!Number.isFinite(value)) continue;
+    if (prices.length === 0 || Math.abs(prices[prices.length - 1] - value) > 1e-9) {
+      prices.push(value);
+    }
+  }
+  if (prices.length < 2) {
+    throw new Error('GetData series has fewer than 2 distinct prices');
+  }
+
+  const step = Math.max(1, Math.floor(prices.length / INTRADAY_CHART_TARGET_POINTS));
+  const sampled = [];
+  for (let i = 0; i < prices.length; i += step) {
+    sampled.push(prices[i]);
+  }
+  if (sampled[sampled.length - 1] !== prices[prices.length - 1]) {
+    sampled.push(prices[prices.length - 1]);
+  }
+
+  const endMs = Date.now();
+  const startMs = endMs - INTRADAY_CHART_WINDOW_MS;
+  const denom = Math.max(1, sampled.length - 1);
+  return sampled.map((v, i) => ({
+    t: new Date(startMs + ((endMs - startMs) * i) / denom).toISOString(),
+    v,
+  }));
+}
+
+async function fetchGoldpriceGetDataSeries(pair) {
+  const url = `${GOLDPRICE_GETDATA_URL}/${pair}/0`;
+  const response = await fetchWithTimeout(url, {
+    headers: GOLDPRICE_HEADERS,
+    timeoutMs: 45_000,
+  });
+  const payload = await response.json();
+  return parseGetDataSeries(payload, pair);
+}
+
+async function writeIntradayChart(db, { gold, silver }) {
+  const docRef = db.collection('prices').doc('chart_intraday');
+  await docRef.set({
+    source: 'goldprice',
+    base: 'USD',
+    unit: 'per_ounce',
+    windowHours: INTRADAY_CHART_WINDOW_MS / (60 * 60 * 1000),
+    gold,
+    silver,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return { goldPoints: gold.length, silverPoints: silver.length };
+}
+
+async function fetchAndUpdateIntradayChart(db) {
+  const [gold, silver] = await Promise.all([
+    fetchGoldpriceGetDataSeries('USD-XAU'),
+    fetchGoldpriceGetDataSeries('USD-XAG'),
+  ]);
+  return writeIntradayChart(db, { gold, silver });
+}
+
 async function scrapeLivePriceOfGold() {
   const [goldHtml, fxHtml] = await Promise.all([
     fetchHtml(LIVE_GOLD_URL),
@@ -305,26 +413,26 @@ async function writeGlobalPrices(db, apiResponse) {
 
   let prevRates = existingData?.prevRates ?? null;
   let prevRatesRotated = false;
+  // Legacy docs may have prevRates without prevRatesAt. Never use updatedAt as
+  // the rotation clock (it bumps every refresh even when rates are unchanged).
+  let backfillPrevRatesAt = false;
 
   const prevRatesAtMs = docUpdatedAtMs({ updatedAt: existingData?.prevRatesAt });
-  let hoursSincePrevRotation = prevRatesAtMs != null
-    ? (Date.now() - prevRatesAtMs) / (1000 * 60 * 60)
-    : null;
 
-  if (hoursSincePrevRotation == null && existingData?.updatedAt) {
-    const updatedMs = docUpdatedAtMs(existingData);
-    if (updatedMs != null) {
-      hoursSincePrevRotation = (Date.now() - updatedMs) / (1000 * 60 * 60);
+  if (existingData?.rates) {
+    if (!prevRates) {
+      prevRates = existingData.rates;
+      prevRatesRotated = true;
+    } else if (prevRatesAtMs == null) {
+      backfillPrevRatesAt = true;
+    } else {
+      const hoursSincePrevRotation =
+        (Date.now() - prevRatesAtMs) / (1000 * 60 * 60);
+      if (hoursSincePrevRotation >= 20) {
+        prevRates = existingData.rates;
+        prevRatesRotated = true;
+      }
     }
-  }
-
-  const shouldRotatePrev =
-    existingData?.rates &&
-    (hoursSincePrevRotation == null || hoursSincePrevRotation >= 20 || !prevRates);
-
-  if (shouldRotatePrev) {
-    prevRates = existingData.rates;
-    prevRatesRotated = true;
   }
 
   const nextHash = stableHash(apiResponse.rates);
@@ -337,6 +445,8 @@ async function writeGlobalPrices(db, apiResponse) {
     };
     if (prevRatesRotated) {
       patch.prevRates = prevRates;
+      patch.prevRatesAt = admin.firestore.FieldValue.serverTimestamp();
+    } else if (backfillPrevRatesAt) {
       patch.prevRatesAt = admin.firestore.FieldValue.serverTimestamp();
     }
     await docRef.set(patch, { merge: true });
@@ -352,7 +462,7 @@ async function writeGlobalPrices(db, apiResponse) {
     source: apiResponse.source ?? 'cloud_function',
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
-  if (prevRatesRotated) {
+  if (prevRatesRotated || backfillPrevRatesAt) {
     writeData.prevRatesAt = admin.firestore.FieldValue.serverTimestamp();
   }
 
@@ -607,6 +717,7 @@ module.exports = {
   OUNCE_TO_GRAM,
   LOCAL_REFRESH_MAX_AGE_MS,
   fetchAndUpdateGlobalPrices,
+  fetchAndUpdateIntradayChart,
   fetchAndUpdateLocalEgp,
   fetchAndUpdateLocalInr,
   loadPriceContextFromFirestore,

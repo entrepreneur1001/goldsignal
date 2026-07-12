@@ -1,42 +1,45 @@
-/// Shared list index math for blending [NativeAdWidget] slots into scroll lists.
+/// Shared list index math for blending at most one [NativeAdWidget] into scroll lists.
 library;
 
-const int kNativeAdInterval = 2;
+/// Minimum content items required before inserting a single native ad.
+const int kNativeAdMinContentBefore = 4;
 
-/// Number of native ad slots for [contentCount] content items.
-int adListAdCount(int contentCount, {int interval = kNativeAdInterval}) {
-  if (contentCount <= 0) return 0;
-  if (contentCount < interval) return 1;
-  return (contentCount - 1) ~/ interval;
+/// Number of native ad slots for [contentCount] content items (0 or 1).
+int adListAdCount(
+  int contentCount, {
+  int minContentBefore = kNativeAdMinContentBefore,
+}) {
+  if (contentCount < minContentBefore) return 0;
+  return 1;
 }
 
-/// Total list item count (content + ads).
-int adListItemCount(int contentCount, {int interval = kNativeAdInterval}) {
+/// Total list item count (content + optional ad).
+int adListItemCount(
+  int contentCount, {
+  int minContentBefore = kNativeAdMinContentBefore,
+}) {
   if (contentCount <= 0) return 0;
-  return contentCount + adListAdCount(contentCount, interval: interval);
+  return contentCount +
+      adListAdCount(contentCount, minContentBefore: minContentBefore);
 }
 
-/// Whether [listIndex] in an ad-augmented list should render a native ad.
+/// Whether [listIndex] should render the single native ad (after [minContentBefore] items).
 bool adListIndexIsAd(
   int listIndex,
   int contentCount, {
-  int interval = kNativeAdInterval,
+  int minContentBefore = kNativeAdMinContentBefore,
 }) {
-  if (contentCount <= 0) return false;
-  if (contentCount < interval) return listIndex == contentCount;
-  final block = interval + 1;
-  if (listIndex % block != interval) return false;
-  final adsBefore = listIndex ~/ block;
-  final contentAtAd = adsBefore * interval + interval;
-  return contentAtAd < contentCount;
+  if (contentCount < minContentBefore) return false;
+  return listIndex == minContentBefore;
 }
 
 /// Maps a list index to the underlying content index.
 int adListContentIndex(
   int listIndex,
   int contentCount, {
-  int interval = kNativeAdInterval,
+  int minContentBefore = kNativeAdMinContentBefore,
 }) {
-  if (contentCount < interval) return listIndex;
-  return listIndex - (listIndex ~/ (interval + 1));
+  if (contentCount < minContentBefore) return listIndex;
+  if (listIndex < minContentBefore) return listIndex;
+  return listIndex - 1;
 }

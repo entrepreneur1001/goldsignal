@@ -13,7 +13,6 @@ import '../../../../shared/local_market/local_market_config.dart';
 import '../../../../shared/providers/market_prices_provider.dart';
 import '../../../../shared/widgets/currency_selector.dart';
 import '../../../../shared/widgets/alerts_nav_button.dart';
-import '../../../../shared/widgets/native_ad_widget.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 class CalculatorScreen extends ConsumerStatefulWidget {
@@ -413,8 +412,6 @@ class _CalculatorScreenState extends ConsumerState<CalculatorScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
-                const NativeAdWidget(),
                 const SizedBox(height: 88),
               ],
             ),
